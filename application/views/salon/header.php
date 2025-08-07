@@ -378,8 +378,6 @@ if ($next_status_index !== false) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tippy.js/6.3.1/tippy.css">
     <link rel="stylesheet" href="<?= base_url("salon_assets/css/responsive.css") ?>">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
-
-
     <style>
         .error {
             color: red;
