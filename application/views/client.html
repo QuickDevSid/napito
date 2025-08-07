@@ -1,0 +1,18 @@
+// client.html
+
+<script>
+    var conn = new WebSocket('ws://localhost:8080/websocket');
+
+    conn.onopen = function(e) {
+        console.log("Connection established!");
+        conn.send('Hello Server!');
+    };
+
+    conn.onmessage = function(e) {
+        console.log('Received from server: ' + e.data);
+    };
+
+    conn.onclose = function(e) {
+        console.log("Connection closed.");
+    };
+</script>

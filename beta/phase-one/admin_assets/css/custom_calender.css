@@ -1,0 +1,258 @@
+.currentDate_selected_day_content{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 10px;
+    margin-top: -11px;
+
+}
+.currentDate_php{
+    font-size: 25px;
+}
+.currentDate_week_name{
+    /* display: flex; */
+    align-items: center;
+    justify-content: center;
+    background-color: #97c8f9;
+    color: #2e1f1f;
+    font-weight: 700;
+    padding: 5px;
+}
+
+
+.time_slot_and_detail{
+    border-bottom: 1px solid #ccc;
+    padding: 0px;
+}
+
+
+.cc_date_btn button{
+    background-color: #2c3e50;
+    border: 1px solid #ccc;
+    color: white;
+    border-radius: 3px;
+    padding: 5px 10px 5px 11px;
+}
+
+
+
+.cc_bb_time_title{
+    width: 5%;
+    float: left; 
+    /* padding: 6px; */
+}
+.cc_timeslot{
+    width: 5%;
+    float: left;
+   padding-top: 8px;
+    /* border-bottom: 1px solid #ccc;  */
+}
+.cancel_confirmation_content{
+    width: 300px;
+    height: 80px;
+    /* display: none; */
+    padding: 10px;
+    border: 1px solid #ccc;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+.booking_list_ui{
+    list-style: none;
+    padding-left: 0px;
+    color: rgb(25, 25, 25);
+}
+.booking_list_ui li{
+    /* line-height: 25px; */
+}
+.bb_ll_client{
+    font-weight: 700;
+    color: black;
+    background-color: rgb(43, 157, 43);
+    padding: 5px;
+    width: 185px;
+    margin-left: -10px;
+}
+.bb_ll_ss_name{
+    font-weight: 700;
+}
+.booking_list_amount_ui{
+    list-style: none;
+    font-weight: 600;
+    width: 185px;
+    margin: 0px 0px 0px -10px;
+    padding-left: 9px;
+    color: rgb(25, 25, 25);
+    background-color: rgb(43, 157, 43);
+}
+.booking_list_amount_ui li{
+    line-height: 25px;
+}
+.booking_list_amount_ui .bb_ll_status{
+    margin-top: 6px;
+}
+.booking_list_amount_ui .bb_ll_status i{
+    margin-left: 12px;
+    font-size: 17px;
+}
+.no_booking_found{
+    height: 50px;
+    text-align: center;
+    font-size: 24px;
+    color: #695e5e;
+}
+.customer_info_search{
+    width: 420px;
+    height: 205px;
+    background: #97c8f9;
+    padding: 10px;
+    z-index: 999999999999;
+    position: absolute;
+    margin-top: 46px;
+    margin-left: 10px;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+.c_info_ui{
+    list-style: none;
+    padding-left: 8px;
+    color: rgb(66, 66, 66);
+}
+.customer_info_search .c_info_ui li{
+   padding-left: 0px;
+}
+.customer_info_search .c_info_ui_content{
+    list-style: none;
+    display: flex;
+    padding-left: 0px;
+
+}
+.customer_info_search .c_info_ui_content li{
+   /* margin-left: 5px; */
+   width: 160px;
+}
+.c_info_ui_content li span{
+    font-weight: 700;
+}
+.c_info_ui .ui_btn{
+  font-weight: 600;
+  background-color: rgb(175, 187, 183);
+  border-radius: 10px;
+  width: 200px;
+  padding: 5px;
+  padding-left: 8px !important;
+  margin-top: 25px;
+}
+.c_info_ui .staff_name{
+    font-weight: 600; 
+    padding-left: 8px !important;
+    padding-top: 10px !important;
+}
+.c_info_ui .staff_name span{
+    font-weight: 700; 
+    padding-left: 8px !important;
+    padding-top: 10px !important;
+}
+.rr_bb_aa_box{
+    background: #97c8f9;
+    padding: 5px;
+    border-radius: 4px;
+    color: #2b2b2b;
+}
+.rr_bb_aa_box .boking_list_count{
+    float: left;
+    margin-left: 30px;
+}
+.rr_bb_aa_box .revenue_count_number{
+    float: left;
+    margin-left: 30px;
+}
+.rr_bb_aa_box .avialable_time_left{
+    float: left;
+    margin-left: 30px;
+}
+.rr_bb_aa_box span{
+    font-weight: 500;
+    font-size: 16px;
+    color: rgb(0 86 208);
+}
+.cc-details-input input{
+    margin-left: 0px !important;
+}
+.cc-details-input label{
+    color: #828282;
+    width: auto !important;
+}
+.ss_tt_row{
+    color: black;
+}
+.pp_title_cc p{
+    color: #0052cc;
+    font-size: 18px;
+    font-weight: 600;
+}
+.tt_ss_content_box{
+    background: #fff;
+    display: none;
+    width: 300px;
+    height: auto;
+    position: absolute;
+    left: 120px;
+    top: 241px;
+    z-index: 99999;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+    padding: 5px;
+}
+.tt_ss_content_box .time_slot_bb{
+    width: 56px;
+    padding: 5px;
+    height: 28px;
+    float: left;
+    border: 1px solid #ccc;
+    margin: 1px 1px 1px 1px;
+    padding-left: 13px;
+    cursor: pointer;
+}
+.tt_ss_content_box .time_slot_bb:hover{
+   color: #fff;
+   background: #0f8f2b;
+}
+.currentDate_week_name .stylist_revenue_box{
+    background: rgb(154, 149, 149);
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+    padding: 5px;
+    display: none;
+    width: 455px;
+    height: 80px;
+    position: absolute;
+    z-index: 999999;
+    top: 31px;
+    margin: 5px;
+}
+.emp_name_content:hover .stylist_revenue_box{
+    display: block;
+   }
+
+   .tt_ss_content_content{
+    background: #fff;
+    display: none;
+    width: 300px;
+    height: auto;
+    position: absolute;
+    left: -25px;
+    top: 71px;
+    z-index: 99999;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+    padding: 5px;
+}
+.tt_ss_content_content .time_slot_bb{
+    width: 56px;
+    padding: 5px;
+    height: 28px;
+    float: left;
+    border: 1px solid #ccc;
+    margin: 1px 1px 1px 1px;
+    padding-left: 13px;
+    cursor: pointer;
+}
+.tt_ss_content_content .time_slot_bb:hover{
+   color: #fff;
+   background: #0f8f2b;
+}

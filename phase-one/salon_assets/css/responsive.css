@@ -1,0 +1,6 @@
+@media (max-width: 767px) {
+	.logout_box{
+		display:none;
+	}
+	
+}
