@@ -2,11 +2,18 @@
 
 
 $route['default_controller'] = 'Welcome/salon_login'; 
+$route['set-offer-expiry'] = 'Welcome/set_offer_expiry'; 
 $route['login']="Welcome/admin_login";
 $route['test-notification']			= "welcome/test_notification";
 $route['form'] = 'Welcome/form';
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
+
+/*-----------Swagger API Documentation Routes------*/
+$route['swagger'] = "Swagger_controller/index";
+$route['swagger/spec'] = "Swagger_controller/spec";
+$route['swagger/controller/(:any)'] = "Swagger_controller/controller/$1";
+$route['swagger/export'] = "Swagger_controller/export";
 
 
 /*-----------Admin Routing Starts------*/
@@ -22,6 +29,9 @@ $route['salon-list/(:any)'] = "admin/Admin_controller/salon_list/$1";
 $route['add-salon']="admin/Admin_controller/add_salon";
 $route['branch_payment']="admin/Admin_controller/branch_payment";
 $route['branch_payment_history']="admin/Admin_controller/branch_payment_history";
+$route['cron-reports']="admin/Admin_controller/cron_reports";
+$route['whatsapp-message-report']="admin/Admin_controller/whatsapp_message_report";
+$route['notifications-message-report']="admin/Admin_controller/notifications_message_report";
 $route['branch_timeline']="admin/Admin_controller/branch_timeline";
 $route['branch_coin_history']="admin/Admin_controller/branch_coin_history";
 $route['branch_wp_coin_history']="admin/Admin_controller/branch_wp_coin_history";
@@ -195,6 +205,7 @@ $route['complete_booking_service/(:any)'] = "salon/Salon_controller/complete_boo
 $route['bill-setup/(:any)'] = "salon/Salon_controller/bill_setup/$1";
 $route['set-punch-out'] = "salon/Salon_controller/set_punch_out";
 $route['generate-bill/(:any)'] = "salon/Salon_controller/generate_bill/$1";
+$route['reschedule/(:any)'] = "front/Home_controller/reschedule_booking/$1";
 $route['product-generate-bill/(:any)'] = "salon/Salon_controller/product_generate_bill/$1";
 $route['bill-generation'] = "salon/Salon_controller/bill_generation";
 $route['bill-list'] = "salon/Salon_controller/bill_list";
@@ -425,6 +436,8 @@ $route['customer/store-coupons']="api/Api_controller/get_store_coupons";
 $route['customer/store-giftcards']="api/Api_controller/get_store_giftcards";
 $route['customer/store-stylist-selection']="api/Api_controller/get_stylist_selection_page_flag";
 $route['customer/giftcard-details']="api/Api_controller/get_giftcard_details";
+$route['customer/discounts']="api/Api_controller/calculate_discounts";
+$route['customer/apply-offer']="api/Api_controller/apply_offer";
 $route['customer/apply-rewards']="api/Api_controller/apply_rewards";
 $route['customer/booking-rules']="api/Api_controller/get_booking_rules";
 $route['customer/packages']="api/Api_controller/get_customer_packages";

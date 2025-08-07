@@ -225,16 +225,35 @@ class Marketing_model extends CI_Model {
 	}
     
     public function send_birthday_wish(){
-        $this->db->select('tbl_salon_customer.*,tbl_branch.subscription_id');
-        $this->db->join('tbl_branch','tbl_salon_customer.branch_id = tbl_branch.id');
-        $this->db->where('tbl_salon_customer.is_deleted','0');
-        $this->db->where('tbl_salon_customer.status','1');
-        $this->db->where('tbl_salon_customer.is_guest', '0');
-        $this->db->where('MONTH(tbl_salon_customer.dob)', date('m'));
-        $this->db->where('DAY(tbl_salon_customer.dob)', date('d'));
-        $result = $this->db->get('tbl_salon_customer')->result();
+        $this->db->where('include_wp', '1');
+        $this->db->where('CAST(current_wp_coins_balance AS UNSIGNED) >', 0);
+        $this->db->where('is_deleted', '0');
+        $branches = $this->db->get('tbl_branch')->result();
 
-        if(!empty($result)){
+        $valid_branch_ids = [];
+        foreach ($branches as $branch) {
+            $slugs = $this->Salon_model->get_subscription_slugs($branch->subscription_id);
+            if (in_array('birthday_marketing', $slugs)) {
+                $valid_branch_ids[] = $branch->id;
+            }
+        }
+
+        if(!empty($valid_branch_ids)){
+            $this->db->select('tbl_salon_customer.*,tbl_branch.branch_name,tbl_branch.subscription_id');
+            $this->db->join('tbl_branch','tbl_salon_customer.branch_id = tbl_branch.id');
+            $this->db->where('tbl_salon_customer.is_deleted','0');
+            $this->db->where('tbl_salon_customer.status','1');
+            $this->db->where('tbl_salon_customer.is_guest', '0');
+            $this->db->where_in('tbl_salon_customer.branch_id', $valid_branch_ids);
+            $this->db->where('MONTH(tbl_salon_customer.dob)', date('m'));
+            $this->db->where('DAY(tbl_salon_customer.dob)', date('d'));
+            $result = $this->db->get('tbl_salon_customer')->result();
+        } 
+
+        $count = 0;
+        $cron_data['type'] = '1';
+        $cron_id = $this->Common_model->set_cron_report($cron_data);
+        if(!empty($valid_branch_ids) && !empty($result)){
             foreach($result as $data){
                 $feature_slugs = $this->Salon_model->get_subscription_slugs($data->subscription_id);
                 if(!empty(array_intersect(['birthday_marketing'], $feature_slugs)) && $data->customer_phone != "" && $data->customer_phone != null && $data->customer_phone != '0000000000'){
@@ -253,8 +272,8 @@ class Marketing_model extends CI_Model {
                         }
                     }
 
-				    $birthday_offer = $this->Salon_model->get_single_for_birthday();
-                    $discount_text = '';
+				    $birthday_offer = $this->Salon_model->get_single_for_birthday($data->salon_id,$data->branch_id);
+                    $discount_text = 'NA';
                     if(!empty($birthday_offer)){
                         if($birthday_offer->discount_status == '1'){                                    
                             $max_flexible = $birthday_offer->flexible_max;
@@ -330,6 +349,8 @@ class Marketing_model extends CI_Model {
                             $message_send_on = '1'; //WP
                         }
                     }
+
+                    $message_send_on = '1';
                     $membership_history_id = '';
                     $package_allocation_id = '';
                     $giftcard_purchase_id = '';
@@ -347,27 +368,58 @@ class Marketing_model extends CI_Model {
                             ]
                         ]
                     ];
+
+                    // if($customer == '248'){
+                    //     echo '<pre>'; print_r($wp_template_data); exit();
+                    // }
         
-                    $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                    $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
+                    $count = $count + 1;
                 }
             }
-            echo json_encode(array('status'=>'true','message'=>'Messages sent successfully'));
+            $response = json_encode(array('status'=>'true','message'=>'Messages sent successfully'));
         }else{
-            echo json_encode(array('status'=>'false','message'=>'No Birthday Today'));
-        }
+            $response = json_encode(array('status'=>'false','message'=>'No Birthday Today'));
+        }        
+        
+        $cron_update_data['description'] = 'Total ' . $count . ' Birthday messges sent.';
+        $cron_update_data['response'] = $response;
+        $cron_update_data['sent_on'] = '2';
+        $cron_id = $this->Common_model->update_cron_report($cron_update_data,$cron_id);
+
+        echo $response;
     }
     
     public function send_anniversary_wish(){
-        $this->db->select('tbl_salon_customer.*,tbl_branch.subscription_id');
-        $this->db->join('tbl_branch','tbl_salon_customer.branch_id = tbl_branch.id');
-        $this->db->where('tbl_salon_customer.is_deleted','0');
-        $this->db->where('tbl_salon_customer.status','1');
-        $this->db->where('tbl_salon_customer.is_guest', '0');
-        $this->db->where('MONTH(tbl_salon_customer.dob)', date('m'));
-        $this->db->where('DAY(tbl_salon_customer.dob)', date('d'));
-        $result = $this->db->get('tbl_salon_customer')->result();
+        $this->db->where('include_wp', '1');
+        $this->db->where('CAST(current_wp_coins_balance AS UNSIGNED) >', 0);
+        $this->db->where('is_deleted', '0');
+        $branches = $this->db->get('tbl_branch')->result();
 
-        if(!empty($result)){
+        $valid_branch_ids = [];
+        foreach ($branches as $branch) {
+            $slugs = $this->Salon_model->get_subscription_slugs($branch->subscription_id);
+            if (in_array('anniversary_marketing', $slugs)) {
+                $valid_branch_ids[] = $branch->id;
+            }
+        }
+
+        if(!empty($valid_branch_ids)){
+            $this->db->select('tbl_salon_customer.*, tbl_branch.branch_name, tbl_branch.subscription_id');
+            $this->db->join('tbl_branch','tbl_salon_customer.branch_id = tbl_branch.id');
+            $this->db->where('tbl_salon_customer.is_deleted','0');
+            $this->db->where('tbl_salon_customer.status','1');
+            $this->db->where('tbl_salon_customer.is_guest', '0');
+            $this->db->where_in('tbl_salon_customer.branch_id', $valid_branch_ids);
+            $this->db->where('MONTH(tbl_salon_customer.dob)', date('m'));
+            $this->db->where('DAY(tbl_salon_customer.dob)', date('d'));
+            $result = $this->db->get('tbl_salon_customer')->result();
+        }
+
+        $count = 0;
+        $cron_data['type'] = '2';
+        $cron_id = $this->Common_model->set_cron_report($cron_data);
+        if(!empty($valid_branch_ids) && !empty($result)){
             foreach($result as $data){
                 $feature_slugs = $this->Salon_model->get_subscription_slugs($data->subscription_id);
                 if(!empty(array_intersect(['anniversary_marketing'], $feature_slugs)) && $data->customer_phone != "" && $data->customer_phone != null && $data->customer_phone != '0000000000'){
@@ -382,12 +434,12 @@ class Marketing_model extends CI_Model {
                     $visit_text = '';
                     if(!empty($branch)){
                         if($branch->branch_name != ""){
-                            $visit_text .= $branch->branch_name.'%0a';
+                            $visit_text .= $branch->branch_name;
                         }
                     }
 
-				    $anniversary_offer = $this->Salon_model->get_single_for_anniversary();
-                    $discount_text = '';
+				    $anniversary_offer = $this->Salon_model->get_single_for_anniversary($data->salon_id,$data->branch_id);
+                    $discount_text = 'NA';
                     if(!empty($anniversary_offer)){
                         if($anniversary_offer->discount_status == '1'){                                    
                             $max_flexible = $anniversary_offer->flexible_max;
@@ -461,6 +513,7 @@ class Marketing_model extends CI_Model {
                             $message_send_on = '1'; //WP
                         }
                     }
+                    $message_send_on = '1';
         
                     $membership_history_id = '';
                     $package_allocation_id = '';
@@ -480,23 +533,37 @@ class Marketing_model extends CI_Model {
                         ]
                     ];
 
-                    $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                    $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
+                    $count = $count + 1;
                 }
             }
-            echo json_encode(array('status'=>'true','message'=>'Messages sent successfully'));
+            $response = json_encode(array('status'=>'true','message'=>'Messages sent successfully'));
         }else{
-            echo json_encode(array('status'=>'false','message'=>'No Anniversary Today'));
-        }
+            $response = json_encode(array('status'=>'false','message'=>'No Anniversary Today'));
+        }        
+        
+        $cron_update_data['description'] = 'Total ' . $count . ' Anniversary messges sent.';
+        $cron_update_data['response'] = $response;
+        $cron_update_data['sent_on'] = '2';
+        $cron_id = $this->Common_model->update_cron_report($cron_update_data,$cron_id);
+
+        echo $response;
     }
     
     public function send_service_reminder(){
         $today_service_reminders = $this->Salon_model->get_service_reminders_fixed_all(date('Y-m-d'));
+        // echo '<pre>'; print_r($today_service_reminders); exit;
+        $count = 0;
+        $cron_data['type'] = '3';
+        $cron_id = $this->Common_model->set_cron_report($cron_data);
         if(!empty($today_service_reminders)){
             foreach($today_service_reminders as $data){
                 if($data->customer_phone != "" && $data->customer_phone != null && $data->customer_phone != '0000000000'){
+                    $count = $count + 1;
                     $cleanedNumber = preg_replace('/[^0-9]/', '', $data->customer_phone);
                     $finalNumber = substr($cleanedNumber, -10);
                     $finalNumber = '91' . $finalNumber;
+                    // $finalNumber = '918087279032';
 
                     $type = '3';
                     
@@ -507,7 +574,7 @@ class Marketing_model extends CI_Model {
                     $visit_text = '';
                     if(!empty($branch)){
                         if($branch->branch_name != ""){
-                            // $visit_text .= $branch->branch_name.'%0a';
+                            // $visit_text .= $branch->branch_name;
                             $visit_text .= $branch->salon_number;
                         }
                     }
@@ -546,6 +613,8 @@ class Marketing_model extends CI_Model {
                             $message_send_on = '1'; //WP
                         }
                     }
+                    $message_send_on = '1';
+
                     $membership_history_id = '';
                     $package_allocation_id = '';
                     $giftcard_purchase_id = '';
@@ -563,20 +632,35 @@ class Marketing_model extends CI_Model {
                         ]
                     ];
         
-                    $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                    $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                 }
             }
-            echo json_encode(array('status'=>'true','message'=>'Messages sent successfully'));
+
+            if($count > 0){
+                $this->Salon_model->send_cron_confirmation($wp_template_data);
+            }
+
+            $response = json_encode(array('status'=>'true','message'=>'Messages sent successfully'));
         }else{
-            echo json_encode(array('status'=>'false','message'=>'Reminders not available'));
-        }
+            $response = json_encode(array('status'=>'false','message'=>'Reminders not available'));
+        }        
+        
+        $cron_update_data['description'] = 'Total ' . $count . ' Service Reminder messges sent.';
+        $cron_update_data['response'] = $response;
+        $cron_update_data['sent_on'] = '2';
+        $cron_id = $this->Common_model->update_cron_report($cron_update_data,$cron_id);
+
+        echo $response;
     }
     public function send_lost_customer_message(){
         $today_lost_customer = $this->Salon_model->get_lost_customers_all(date('Y-m-d'));
+        // echo '<pre>'; print_r($today_lost_customer); exit;
+        $count = 0;
+        $cron_data['type'] = '0';
+        $cron_id = $this->Common_model->set_cron_report($cron_data);
         if(!empty($today_lost_customer)){
             foreach($today_lost_customer as $data){
-                $feature_slugs = $this->Salon_model->get_subscription_slugs($data->subscription_id);
-                if(!empty(array_intersect(['lost_customer_marketing'], $feature_slugs)) && $data->customer_phone != "" && $data->customer_phone != null && $data->customer_phone != '0000000000'){
+                if($data->customer_phone != "" && $data->customer_phone != null && $data->customer_phone != '0000000000'){
                     $cleanedNumber = preg_replace('/[^0-9]/', '', $data->customer_phone);
                     $finalNumber = substr($cleanedNumber, -10);
                     $finalNumber = '91' . $finalNumber;
@@ -588,12 +672,12 @@ class Marketing_model extends CI_Model {
                     $visit_text = '';
                     if(!empty($branch)){
                         if($branch->branch_name != ""){
-                            $visit_text .= $branch->branch_name.'%0a';
+                            $visit_text .= $branch->branch_name;
                         }
                     }
 
-                    $lost_offer = $this->Salon_model->get_single_for_lost();
-                    $discount_text = '';
+                    $lost_offer = $this->Salon_model->get_single_for_lost($data->salon_id,$data->branch_id);
+                    $discount_text = 'NA';
                     if(!empty($lost_offer)){
                         if($lost_offer->discount_status == '1'){                                    
                             $max_flexible = $lost_offer->flexible_max;
@@ -637,10 +721,10 @@ class Marketing_model extends CI_Model {
                     $message = "Dear " . $data->full_name . ",%0a%0aWe noticed you haven’t visited us in a while, and we truly miss you! Your satisfaction is our priority, and we’d love to welcome you back with a special offer. 🎁%0a%0aEnjoy " . $discount_text . " on your next visit! Don’t miss out—this offer is valid for a limited time!%0a%0aIf there’s anything we can improve or assist you with, please let us know.%0a%0aWe look forward to seeing you soon!%0a" . $visit_text;
                     $app_message = "Dear " . $data->full_name . ",\n\nWe noticed you haven’t visited us in a while, and we truly miss you! Your satisfaction is our priority, and we’d love to welcome you back with a special offer. 🎁\n\nEnjoy " . $discount_text . " on your next visit! Don’t miss out—this offer is valid for a limited time!\n\nIf there’s anything we can improve or assist you with, please let us know.\n\nWe look forward to seeing you soon!\n" . $visit_text;
                     $number = $finalNumber;
-                    $customer = $data->customer_name;
+                    $customer = $data->id;
                     $salon_id = $data->salon_id;
                     $branch_id = $data->branch_id;
-                    $for_order_id = $data->id;
+                    $for_order_id = '';
                     $for_offer_id = '';
                     $for_query_id = '';
                     $consent_form_id = '';
@@ -667,6 +751,8 @@ class Marketing_model extends CI_Model {
                             $message_send_on = '1'; //WP
                         }
                     }
+                    $message_send_on = '1';
+
                     $membership_history_id = '';
                     $package_allocation_id = '';
                     $giftcard_purchase_id = '';
@@ -685,16 +771,27 @@ class Marketing_model extends CI_Model {
                         ]
                     ];
         
-                    $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                    $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
+                    $count = $count + 1;
                 }
             }
-            echo json_encode(array('status'=>'true','message'=>'Messages sent successfully'));
+            $response = json_encode(array('status'=>'true','message'=>'Messages sent successfully'));
         }else{
-            echo json_encode(array('status'=>'false','message'=>'Customers not found'));
-        }
+            $response = json_encode(array('status'=>'false','message'=>'Lost Customer not available'));
+        }        
+        
+        $cron_update_data['description'] = 'Total ' . $count . ' Lost Customer messges sent.';
+        $cron_update_data['response'] = $response;
+        $cron_update_data['sent_on'] = '2';
+        $cron_id = $this->Common_model->update_cron_report($cron_update_data,$cron_id);
+
+        echo $response;
     }
     public function send_tomorrow_booking_reminder(){
-        $tomorrow_bookings = $this->Salon_model->get_customer_bookings_reminders(date('Y-m-d', strtotime('+1 day')),date('Y-m-d', strtotime('+1 day')),'1','3');
+        $tomorrow_bookings = $this->Salon_model->get_customer_bookings_reminders(date('Y-m-d', strtotime('+1 day')),date('Y-m-d', strtotime('+1 day')),'','');
+        $count = 0;
+        $cron_data['type'] = '5';
+        $cron_id = $this->Common_model->set_cron_report($cron_data);
         if(!empty($tomorrow_bookings)){
             foreach($tomorrow_bookings as $data){
                 if($data->customer_phone != "" && $data->customer_phone != null && $data->customer_phone != '0000000000'){
@@ -706,8 +803,8 @@ class Marketing_model extends CI_Model {
                         if(count($services) > 0){
                             for($i=0;$i<count($services);$i++){
                                 $this->db->where('id',$services[$i]);
-                                $this->db->where('branch_id',$this->session->userdata('branch_id'));
-                                $this->db->where('salon_id',$this->session->userdata('salon_id'));
+                                $this->db->where('branch_id',$booking_details->branch_id);
+                                $this->db->where('salon_id',$booking_details->salon_id);
                                 $this->db->where('is_deleted','0');
                                 $service_details = $this->db->get('tbl_salon_emp_service')->row();
                                 if (!empty($service_details)) {
@@ -732,7 +829,7 @@ class Marketing_model extends CI_Model {
                             $visit_text = '';
                             if(!empty($branch)){
                                 if($branch->branch_name != ""){
-                                    $visit_text .= $branch->branch_name.'%0a';
+                                    $visit_text .= $branch->branch_name;
                                 }
                             }
 
@@ -776,25 +873,37 @@ class Marketing_model extends CI_Model {
                             $trying_booking_id = '';
                             $wp_template_data = [];
 
-                            $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                            $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
+                            $count = $count + 1;
                         }
                     }
                 }
             }
-            echo json_encode(array('status'=>'true','message'=>'Messages sent successfully'));
+            $response = json_encode(array('status'=>'true','message'=>'Messages sent successfully'));
         }else{
-            echo json_encode(array('status'=>'false','message'=>'Bookings not available'));
-        }
+            $response = json_encode(array('status'=>'false','message'=>'Booking Reminders not available'));
+        }        
+        
+        $cron_update_data['description'] = 'Total ' . $count . ' Tomorrow Appointment Reminder notifications sent.';
+        $cron_update_data['response'] = $response;
+        $cron_update_data['sent_on'] = '1';
+        $cron_id = $this->Common_model->update_cron_report($cron_update_data,$cron_id);
+
+        echo $response;
     }
     public function send_yesterday_cancel_booking_message(){
         $bookings = $this->Salon_model->get_yesterday_cancelled_bookings();
-        // echo '<pre>'; print_r($bookings);
+        // echo '<pre>'; print_r($bookings);exit;
+        $count = 0;
+        $cron_data['type'] = '4';
+        $cron_id = $this->Common_model->set_cron_report($cron_data);
         if(!empty($bookings)){
             foreach($bookings as $data){
                 $this->db->where('id',$data->branch_id);
                 $branch = $this->db->get('tbl_branch')->row();
                 $feature_slugs = $this->Salon_model->get_subscription_slugs($branch->subscription_id);
                 if(!empty(array_intersect(['yesterday-cancel-bookings'], $feature_slugs)) && $data->customer_phone != "" && $data->customer_phone != null && $data->customer_phone != '0000000000'){
+                    $count = $count + 1;;
                     $cleanedNumber = preg_replace('/[^0-9]/', '', $data->customer_phone);
                     $finalNumber = substr($cleanedNumber, -10);
                     $finalNumber = '91' . $finalNumber;
@@ -810,7 +919,7 @@ class Marketing_model extends CI_Model {
                     $visit_text = '';
                     if(!empty($branch)){
                         if($branch->branch_name != ""){
-                            // $visit_text .= $branch->branch_name.'%0a';
+                            // $visit_text .= $branch->branch_name;
                             $visit_text .= $branch->salon_number;
                         }
                     }
@@ -849,6 +958,7 @@ class Marketing_model extends CI_Model {
                             $message_send_on = '1'; //WP
                         }
                     }
+                    $message_send_on = '1';
                     $membership_history_id = '';
                     $package_allocation_id = '';
                     $giftcard_purchase_id = '';
@@ -874,16 +984,31 @@ class Marketing_model extends CI_Model {
                         ]
                     ];
 
-                    $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                    $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                 }
             }
-            echo json_encode(array('status'=>'true','message'=>'Messages sent successfully'));
+
+            if($count > 0){
+                $this->Salon_model->send_cron_confirmation($wp_template_data);
+            }
+
+            $response = json_encode(array('status'=>'true','message'=>'Messages sent successfully'));
         }else{
-            echo json_encode(array('status'=>'false','message'=>'Bookings not available'));
-        }
+            $response = json_encode(array('status'=>'false','message'=>'Yesterday Cancel Appointments not available'));
+        }        
+        
+        $cron_update_data['description'] = 'Total ' . $count . ' Yesterday Cancel Appointment messges sent.';
+        $cron_update_data['response'] = $response;
+        $cron_update_data['sent_on'] = '2';
+        $cron_id = $this->Common_model->update_cron_report($cron_update_data,$cron_id);
+
+        echo $response;
     }
     public function send_today_booking_reminder(){
-        $tomorrow_bookings = $this->Salon_model->get_customer_bookings_reminders(date('Y-m-d'),date('Y-m-d'),'1','3');
+        $tomorrow_bookings = $this->Salon_model->get_customer_bookings_reminders(date('Y-m-d'),date('Y-m-d'),'','');
+        $count = 0;
+        $cron_data['type'] = '6';
+        $cron_id = $this->Common_model->set_cron_report($cron_data);
         if(!empty($tomorrow_bookings)){
             foreach($tomorrow_bookings as $data){
                 if($data->customer_phone != "" && $data->customer_phone != null && $data->customer_phone != '0000000000'){
@@ -895,8 +1020,8 @@ class Marketing_model extends CI_Model {
                         if(count($services) > 0){
                             for($i=0;$i<count($services);$i++){
                                 $this->db->where('id',$services[$i]);
-                                $this->db->where('branch_id',$this->session->userdata('branch_id'));
-                                $this->db->where('salon_id',$this->session->userdata('salon_id'));
+                                $this->db->where('branch_id',$booking_details->branch_id);
+                                $this->db->where('salon_id',$booking_details->salon_id);
                                 $this->db->where('is_deleted','0');
                                 $service_details = $this->db->get('tbl_salon_emp_service')->row();
                                 if (!empty($service_details)) {
@@ -921,7 +1046,7 @@ class Marketing_model extends CI_Model {
                             $visit_text = '';
                             if(!empty($branch)){
                                 if($branch->branch_name != ""){
-                                    $visit_text .= $branch->branch_name.'%0a';
+                                    $visit_text .= $branch->branch_name;
                                 }
                             }
 
@@ -965,15 +1090,23 @@ class Marketing_model extends CI_Model {
                             $trying_booking_id = '';
                             $wp_template_data = [];
 
-                            $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                            $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
+                            $count = $count + 1;
                         }
                     }
                 }
             }
-            echo json_encode(array('status'=>'true','message'=>'Messages sent successfully'));
+            $response = json_encode(array('status'=>'true','message'=>'Messages sent successfully'));
         }else{
-            echo json_encode(array('status'=>'false','message'=>'Bookings not available'));
-        }
+            $response = json_encode(array('status'=>'false','message'=>'Booking Reminders not available'));
+        }        
+        
+        $cron_update_data['description'] = 'Total ' . $count . ' Today Booking Reminder notifications sent.';
+        $cron_update_data['response'] = $response;
+        $cron_update_data['sent_on'] = '1';
+        $cron_id = $this->Common_model->update_cron_report($cron_update_data,$cron_id);
+
+        echo $response;
     }
     
     public function add_message(){
@@ -1070,8 +1203,9 @@ class Marketing_model extends CI_Model {
                     $giftcard_purchase_id = '';
                     $trying_booking_id = '';
                     $wp_template_data = [];
+                    $cron_id = '';
 
-                    $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                    $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                 }
             }
             return 0;
@@ -1292,7 +1426,7 @@ class Marketing_model extends CI_Model {
                 $visit_text = '';
                 if(!empty($branch)){
                     if($branch->branch_name != ""){
-                        $visit_text .= 'Visit '.$branch->branch_name.'%0a';
+                        $visit_text .= 'Visit '.$branch->branch_name;
                     }
                 }
 
@@ -1750,6 +1884,51 @@ class Marketing_model extends CI_Model {
             <?php }else{ ?>
                 <label class="label label-success">Success</label>
             <?php } ?>
+            </div>
+        </div>
+        <?php
+        }
+    }
+    public function get_notification_content_ajx(){
+        $id = $this->input->post('id');
+        $this->db->where('is_deleted','0');
+        $this->db->where('id',$id);
+        $row = $this->db->get('tbl_customer_notifications')->row();
+        if(!empty($row)){
+            $message = htmlspecialchars($row->content, ENT_QUOTES, 'UTF-8');
+            $message = preg_replace('/\*([^\*]+)\*/', '<strong>$1</strong>', $message);
+            $message = preg_replace('/_([^_]+)_/', '<em>$1</em>', $message);
+            $message = preg_replace('/~([^~]+)~/', '<del>$1</del>', $message);
+            $message = preg_replace('/`([^`]+)`/', '<code>$1</code>', $message);
+            
+            $message = str_replace('%0a', '<br>', $message);
+        ?>
+            <p><?= $message; ?></p>
+            <label style="color:#73879C; font-size: 11px;margin-top: 10px;font-weight: unset;"><?=date('d M, Y h:i A',strtotime($row->created_on));?></label>
+            <!-- <?php if(strtolower($row->api_response_status) == 'failed'){ ?>
+                <label class="label label-danger">Failed</label>
+            <?php }else{ ?>
+                <label class="label label-success">Success</label>
+            <?php } ?> -->
+        <?php
+        }
+    }
+    public function get_notification_gateway_response_ajx(){
+        $id = $this->input->post('id');
+        $this->db->where('is_deleted','0');
+        $this->db->where('id',$id);
+        $row = $this->db->get('tbl_customer_notifications')->row();
+        if(!empty($row)){
+            $api_response = $row->api_response;
+        ?>
+        <div class="message-response">
+            <div class="response-text"><strong>Response:</strong> <p><?=nl2br(htmlspecialchars($api_response)); ?></p></div>
+            <div class="response-status">
+            <!-- <?php if(strtolower($row->api_response_status) == 'failed'){ ?>
+                <label class="label label-danger">Failed</label>
+            <?php }else{ ?>
+                <label class="label label-success">Success</label>
+            <?php } ?> -->
             </div>
         </div>
         <?php

@@ -4,6 +4,7 @@ $single_size = 100/$total_stylists;
 ?>
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.10.5/main.min.css" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
 <style>
     .fc .fc-button {
         height: 42px;
@@ -122,7 +123,7 @@ $single_size = 100/$total_stylists;
         height: 14px;
         width: 13px;
         position: absolute;
-        bottom: -16px;
+        top: 3px;
         left: calc(15% - 8px);
         transform: translatey(-9px) rotate(45deg);
         background-color: #feefdc;
@@ -642,6 +643,14 @@ $single_size = 100/$total_stylists;
         transform: rotate(90deg);
     }
 </style>
+<style>
+    #dashboardModal_response .dataTables_wrapper{
+    min-height: auto;
+}
+  #dashboardModal_response .dataTables_length{
+    width: auto;
+  }
+</style>
 <div class="right_col" role="main">
     <?php
     if (!empty($close_setup)) {
@@ -915,6 +924,7 @@ if (!empty($offers_list)) {
     var CONNECTION_TYPE = '<?php echo base64_encode('receiver'); ?>';
     var WS_PROJECT = '<?php echo base64_encode('salon'); ?>';
     var SOCKET_BASE_URL = '<?php echo SOCKET_URL; ?>';
+    var FULL_CALENDAR_KEY = '<?php echo FULL_CALENDAR_KEY; ?>';
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

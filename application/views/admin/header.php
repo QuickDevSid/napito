@@ -362,6 +362,41 @@ $previlege = $profile->allowed_links != "" ? explode(',',$profile->allowed_links
                                     </ul>
                                 </li>  
                                 <?php }?>
+
+
+                                <?php if($this->session->userdata('user_type') == '0' || in_array('cron-reports',$previlege)){ ?>
+                                <li><a><i class="fas fa-cogs nav-icon"></i><b class="nav-title">CRON Reports</b><span class="fa fa-chevron-down down-icon"></span></a>
+                                    <ul class="nav child_menu" style="display: none">
+											<?php if($this->session->userdata('user_type') == '0' || in_array('cron-reports',$previlege)){?>
+                                        <li><a href="<?= base_url(); ?>cron-reports?type=0">Lost Customers</a></li>
+											<?php }?>
+											
+											<?php if($this->session->userdata('user_type') == '0' || in_array('cron-reports',$previlege)){?>
+                                        <li><a href="<?= base_url(); ?>cron-reports?type=1">Birthday Wishes</a></li>
+											<?php }?>
+
+											<?php if($this->session->userdata('user_type') == '0' || in_array('cron-reports',$previlege)){?>
+                                        <li><a href="<?= base_url(); ?>cron-reports?type=2">Anniversary Wishes</a></li>
+											<?php }?>
+											
+											<?php if($this->session->userdata('user_type') == '0' || in_array('cron-reports',$previlege)){?>
+                                        <li><a href="<?= base_url(); ?>cron-reports?type=3">Service Repeat</a></li>
+											<?php }?>
+											
+											<?php if($this->session->userdata('user_type') == '0' || in_array('cron-reports',$previlege)){?>
+                                        <li><a href="<?= base_url(); ?>cron-reports?type=4">Yesterday Cancel Appointments</a></li>
+											<?php }?>
+											
+											<?php if($this->session->userdata('user_type') == '0' || in_array('cron-reports',$previlege)){?>
+                                        <li><a href="<?= base_url(); ?>cron-reports?type=5">Tomorrow Booking Reminders</a></li>
+											<?php }?>
+											
+											<?php if($this->session->userdata('user_type') == '0' || in_array('cron-reports',$previlege)){?>
+                                        <li><a href="<?= base_url(); ?>cron-reports?type=6">Today Booking Reminders</a></li>
+											<?php }?>
+                                    </ul>
+                                </li>  
+                                <?php }?>
                             </ul>
                         </div>
 

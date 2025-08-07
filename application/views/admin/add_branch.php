@@ -361,19 +361,19 @@
 															<?= $i++ ?>
 														</td>
 														<td>															
-															<?php if($gbranch_list_result->booking_rule_setup_status == '0'){
+															<?php if($gbranch_list_result->booking_rule_setup_status == '0'){ ?>
+																<a onclick="return confirm('Are you sure you want to activate booking rules setup for branch?');" href="<?=base_url();?>activate_booking_rule_setup/<?=$gbranch_list_result->id;?>" title="Active Booking Rule Setup"><i class="fa-solid fa-toggle-off" style="cursor: pointer;"></i></a>
+															<?php }else{ 
 																$text = '';
-																if($gbranch_list_result->last_booking_rule_setup_block != ""){
-																	$date = new DateTime($gbranch_list_result->last_booking_rule_setup_block);
+																if($gbranch_list_result->last_booking_rule_setup_activated != ""){
+																	$date = new DateTime($gbranch_list_result->last_booking_rule_setup_activated);
 																	$date->modify('+1 day');
-																	$activate_from = $date->format('d-m-Y h:i A');
-																	$text = '<br><label>On: ' . date('d-m-Y h:i A',strtotime($gbranch_list_result->last_booking_rule_setup_block)) . '<br><small>(It will automatically active after  ' . $activate_from . ')</small></label>';
+																	$deactivate_from = $date->format('d M, y h:i A');
+																	$text = '<br><label>On: ' . date('d M, y h:i A',strtotime($gbranch_list_result->last_booking_rule_setup_activated)) . '<br><small>(It will automatically Inactive after  ' . $deactivate_from . ')</small></label>';
 																}
 															?>
-																<a onclick="return confirm('Are you sure you want to activate booking rules setup for branch?');" href="<?=base_url();?>activate_booking_rule_setup/<?=$gbranch_list_result->id;?>" title="Active Booking Rule Setup"><i class="fa-solid fa-toggle-off" style="cursor: pointer;"></i></a>
-																<?=$text;?>
-															<?php }else{ ?>
 																<a onclick="return confirm('Are you sure you want to inactivate booking rules setup for branch?');" href="<?=base_url();?>inactivate_booking_rule_setup/<?=$gbranch_list_result->id;?>" title="Inactive Booking Rule Setup"><i style="color: green;" class="fa-solid fa-toggle-on" style="cursor: pointer;"></i></a>
+																<?=$text;?>
 															<?php } ?>
 														</td>
 														<td>

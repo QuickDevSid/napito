@@ -45,6 +45,8 @@ define('smtp_host', 'smtp-relay.brevo.com');
 define('smtp_user', '8320f5001@smtp-brevo.com');
 define('smtp_pass', '6PSDLz8vWhRNHmX7');
 
+define('FULL_CALENDAR_KEY', '0414436621-fcs-1748354970');
+
 /*
 |--------------------------------------------------------------------------
 | File and Directory Modes

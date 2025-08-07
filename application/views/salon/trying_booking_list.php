@@ -149,7 +149,7 @@ div.dataTables_wrapper div.dataTables_paginate{
                                     <th>Booking Date</th>
                                     <th>Slot</th>
                                     <th>Stylist</th>
-                                    <th>Booking Status</th>
+                                    <!-- <th>Booking Status</th> -->
                                     <th>Last Updated On</th>
                                     <th>Message</th>
                                 </tr>
@@ -352,7 +352,7 @@ if(isset($_GET['trying_booking_report_filter_type']) && $_GET['trying_booking_re
                 table.destroy();
             }
 
-            var excel_column = [0,1,2,3,4,5,6,7,8];
+            var excel_column = [0,1,2,3,4,5,6,7];
 
             $('.loader_div').show();
             setTimeout(function() {

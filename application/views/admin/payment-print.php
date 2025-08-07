@@ -81,10 +81,9 @@
   <?php 
   if(!empty($single_payment_details)){ 
     $subscription_details = $this->Admin_model->get_subscription_allocation_details($single_payment_details->subscription_allocation_id);
-    if(!empty($subscription_details)){ 
-      $branch_formatted = sprintf('%03d', $single_payment_details->branch_id);
-      $salon_formatted = sprintf('%03d', $single_payment_details->salon_id);
-      $count_formatted = sprintf('%04d', $single_payment_details->id);
+    $branch_formatted = sprintf('%03d', $single_payment_details->branch_id);
+    $salon_formatted = sprintf('%03d', $single_payment_details->salon_id);
+    $count_formatted = sprintf('%04d', $single_payment_details->id);
   ?>
   <div class="tm_container">
     <div class="tm_invoice_wrap">
@@ -95,17 +94,38 @@
               <div class="tm_logo"><img src="<?=base_url();?>assets/images/napito_logo.jpg" style="max-height: 107px;" alt=""></div>
             </div>
             <div class="tm_invoice_right tm_text_right tm_mobile_hide">
-              <div class="tm_f50 tm_text_uppercase tm_white_color">Receipt</div>
+              <div class="tm_f50 tm_text_uppercase tm_white_color">Tax Invoice</div>
             </div>
-            <div class="tm_shape_bg tm_accent_bg tm_mobile_hide"></div>
+            <div class="tm_shape_bg tm_accent_bg tm_mobile_hide" style="width:84%;"></div>
           </div>
           <div class="tm_invoice_info tm_mb25">
-            <div class="tm_card_note tm_mobile_hide"><b class="tm_primary_color">Payment Status: </b>Complete</div>
+            <div class="tm_card_note tm_mobile_hide"><b class="tm_primary_color">Date: </b><?php echo $single_payment_details->payment_date != "" ? date("d/m/Y",strtotime($single_payment_details->payment_date)) : '-'; ?><br><b class="tm_primary_color">Payment Status: </b>Complete</div>
             <div class="tm_invoice_info_list tm_white_color">
-              <p class="tm_invoice_number tm_m0">Receipt No: <b><?=$single_payment_details->invoice_id != "" ? $single_payment_details->invoice_id : 'NSP-' . $branch_formatted . '' . $salon_formatted . '' . $count_formatted; ?></b></p>
-              <p class="tm_invoice_date tm_m0">Date: <b><?php echo $single_payment_details->payment_date != "" ? date("d/m/Y",strtotime($single_payment_details->payment_date)) : '-'; ?></b></p>
+              <p class="tm_invoice_number tm_m0">Invoice No: 
+                <b>
+                  <?php
+                    $total_count = $this->Admin_model->get_year_booking_count($single_payment_details->created_on,$single_payment_details->id);
+                    $year = date('Y',strtotime($single_payment_details->created_on));
+                    $month = date('m',strtotime($single_payment_details->created_on));
+
+                    if ((int)$month >= 4) {
+                      $fy_start = (int)$year % 100;
+                      $fy_end = $fy_start + 1;
+                    } else {
+                      $fy_end = (int)$year % 100;
+                      $fy_start = $fy_end - 1;
+                    }
+                    $financial_year = 'FY' . sprintf('%02d', $fy_start) . '-' . sprintf('%02d', $fy_end);
+                    $count_formatted = sprintf('%04d', $total_count);
+                    $invoice_id = 'NAP-GST-' . $financial_year . '-' . $count_formatted;
+                    echo $invoice_id;
+                  ?>
+                  <!-- <?=$single_payment_details->invoice_id != "" ? $single_payment_details->invoice_id : 'NSP-' . $branch_formatted . '' . $salon_formatted . '' . $count_formatted; ?> -->
+                </b>
+              </p>
+              <p class="tm_invoice_date tm_m0">HSN/SAC Code: <b>998313</b></p>
             </div>
-            <div class="tm_invoice_seperator tm_accent_bg"></div>
+            <div class="tm_invoice_seperator tm_accent_bg" style="width:70.5%;margin-right: -7px;"></div>
           </div>
           <div class="tm_invoice_head tm_mb10" style="height:150px;">
             <div class="tm_invoice_left">
@@ -131,56 +151,53 @@
           <div class="tm_table tm_style1">
             <div class="">
               <div class="tm_table_responsive">
-                <?php if($single_payment_details->payment_type == '0'){ ?>
                   <table>
                     <thead>
                       <tr class="tm_accent_bg">
-                      <th class="tm_width_3 tm_semi_bold tm_white_color" style="width:45%;text-align:left;">Subscription Details</th>
-                        <th class="tm_width_4 tm_semi_bold tm_white_color" style="width:25%;text-align:left;">Subscription Amount</th>
-                        <th class="tm_width_4 tm_semi_bold tm_white_color" style="width:15%;text-align:left;">Coins Discount</th>
-                        <th class="tm_width_4 tm_semi_bold tm_white_color" style="width:15%;text-align:left;">Paid Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <th class="tm_width_3" style="width:45%;text-align:left;">
-                          <?=$subscription_details->subscription_name;?><br>
-                          <small><?= date('d M, Y h:i A', strtotime($subscription_details->subscription_start)); ?> To <?= date('d M, Y h:i A', strtotime($subscription_details->subscription_end)); ?><small>
-                        </th>
-                        <th class="tm_width_2" style="width:25%;text-align:left;"><?=$subscription_details->subscription_price;?></th>
-                        <th class="tm_width_2" style="width:15%;text-align:left;">
-                          <?=$single_payment_details->coin_balance_used_in_rs;?><br>
-                          <?=$single_payment_details->coin_balance_used != "" && $single_payment_details->coin_balance_used > 0 ? '<small>(' . $single_payment_details->coin_balance_used . ' Coins Used)</small>' : '';?>
-                        </th>
-                        <th class="tm_width_2" style="width:15%;text-align:left;"><?=$single_payment_details->payment_amount;?></th>
-                      </tr> 
-                    </tbody>
-                  </table>
-                  <?php }else{ ?>
-                  <table>
-                    <thead>
-                      <tr class="tm_accent_bg">
-                      <th class="tm_width_3 tm_semi_bold tm_white_color" style="width:45%;text-align:left;">Plan Details</th>
+                      <th class="tm_width_3 tm_semi_bold tm_white_color" style="width:45%;text-align:left;">Details</th>
                         <th class="tm_width_4 tm_semi_bold tm_white_color" style="width:25%;text-align:left;">Amount</th>
                         <th class="tm_width_4 tm_semi_bold tm_white_color" style="width:15%;text-align:left;">Coins Discount</th>
                         <th class="tm_width_4 tm_semi_bold tm_white_color" style="width:15%;text-align:left;">Paid Amount</th>
                       </tr>
                     </thead>
+                    <?php if($single_payment_details->payment_type == '0'){ ?>
                     <tbody>
                       <tr>
                         <th class="tm_width_3" style="width:45%;text-align:left;">
-                          <?=$single_payment_details->plan_name;?><br>
+                          Napito Annual Subscription <?= !empty($subscription_details) ? '<small>(' . $subscription_details->subscription_name . ')</small>' : ''; ?><br>
+                          <small><?= !empty($subscription_details) ? date('d M, Y h:i A', strtotime($subscription_details->subscription_start)) : ''; ?> To <?= !empty($subscription_details) ? date('d M, Y h:i A', strtotime($subscription_details->subscription_end)) : ''; ?><small>
                         </th>
-                        <th class="tm_width_2" style="width:25%;text-align:left;"><?=$single_payment_details->plan_price;?></th>
+                        <th class="tm_width_2" style="width:25%;text-align:left;">
+                          <?= !empty($subscription_details) ? '₹ ' . $subscription_details->subscription_price : ''; ?>
+                          <br><small>(Inc. 9% CGST & 9% SGST)</small>
+                        </th>
                         <th class="tm_width_2" style="width:15%;text-align:left;">
-                          <?=$single_payment_details->coin_balance_used_in_rs;?><br>
+                          <?='₹ ' . $single_payment_details->coin_balance_used_in_rs;?><br>
                           <?=$single_payment_details->coin_balance_used != "" && $single_payment_details->coin_balance_used > 0 ? '<small>(' . $single_payment_details->coin_balance_used . ' Coins Used)</small>' : '';?>
                         </th>
-                        <th class="tm_width_2" style="width:15%;text-align:left;"><?=$single_payment_details->payment_amount;?></th>
+                        <th class="tm_width_2" style="width:15%;text-align:left;"><?='₹ ' . $single_payment_details->payment_amount;?></th>
                       </tr> 
                     </tbody>
+                    <?php }else{ ?>
+                    <tbody>
+                      <tr>
+                        <th class="tm_width_3" style="width:45%;text-align:left;">
+                          Whatsapp Add-On Plan <?='<small>(' . $single_payment_details->plan_name . ')</small>'; ?><br>
+                          Qty: <?=$single_payment_details->plan_qty;?> Coins
+                        </th>
+                        <th class="tm_width_2" style="width:25%;text-align:left;">
+                          <?='₹ ' . $single_payment_details->plan_price;?>
+                          <br><small>(Inc. 9% CGST & 9% SGST)</small>
+                        </th>
+                        <th class="tm_width_2" style="width:15%;text-align:left;">
+                          <?='₹ ' . $single_payment_details->coin_balance_used_in_rs;?><br>
+                          <?=$single_payment_details->coin_balance_used != "" && $single_payment_details->coin_balance_used > 0 ? '<small>(' . $single_payment_details->coin_balance_used . ' Coins Used)</small>' : '';?>
+                        </th>
+                        <th class="tm_width_2" style="width:15%;text-align:left;"><?='₹ ' . $single_payment_details->payment_amount;?></th>
+                      </tr> 
+                    </tbody>
+                    <?php } ?>
                   </table>
-                  <?php } ?>
               </div>
             </div>
             <div class="tm_invoice_footer tm_border_top tm_mb15 tm_m0_md">
@@ -199,8 +216,8 @@
                       <td class="tm_width_3 tm_primary_color tm_bold tm_text_right"> <?=$single_payment_details->coin_balance_used_in_rs;?></td>
                     </tr> -->
                     <tr class="tm_accent_bg">
-                        <td class="tm_width_3 tm_border_top_0 tm_bold tm_f16 tm_white_color">Receipt Amount </td>
-                        <td class="tm_width_3 tm_border_top_0 tm_bold tm_f16 tm_white_color tm_text_right"><?=$single_payment_details->payment_amount;?></td>
+                        <td class="tm_width_3 tm_border_top_0 tm_bold tm_f16 tm_white_color">Total Amount<br><small>(Inc. Taxes)</small></td>
+                        <td class="tm_width_3 tm_border_top_0 tm_bold tm_f16 tm_white_color tm_text_right"><?='₹ ' . $single_payment_details->payment_amount;?></td>
                     </tr>
                   </tbody>
                 </table>
@@ -232,7 +249,7 @@
       </div>
     </div>
   </div>
-  <?php }} ?>
+  <?php } ?>
   <script src="<?=base_url();?>invoice_assests/jquery.min.js"></script>
   <script src="<?=base_url();?>invoice_assests/jspdf.min.js"></script>
   <script src="<?=base_url();?>invoice_assests/html2canvas.min.js"></script>

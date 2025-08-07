@@ -106,13 +106,21 @@ $(document).ready(function() {
                 setTimeout(function() {
                     $('.loader_div').hide();
                     var opts = $.parseJSON(data);
+                    // $('#today_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.today_service_sale + opts.today_service_product_sale + opts.today_product_sale + opts.today_membership_sale + opts.today_package_sale + opts.today_giftcard_sale).toFixed(2)));
+                    // $('#total_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.total_service_sale + opts.total_service_product_sale + opts.total_product_sale + opts.total_membership_sale + opts.total_package_sale + opts.total_giftcard_sale).toFixed(2)));
+                    // $('#total_service_sale_count').html(formatNumberInIndianFormat(parseFloat(opts.total_service_product_sale + opts.total_service_sale).toFixed(2)) + '<small><i title="Including Service Products" style="font-size: 12px;margin-top: 5px;margin-left: 5px;cursor:pointer;color:#008ec8;float:right;" class="fas fa-info-circle"></i></small>');
+                    // $('#total_product_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.total_product_sale).toFixed(2)));
+                    // $('#total_package_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.total_package_sale).toFixed(2)));
+                    // $('#total_membership_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.total_membership_sale).toFixed(2)));
+                    // $('#total_giftcard_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.total_giftcard_sale).toFixed(2)));
+                    
                     $('#today_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.today_service_sale + opts.today_service_product_sale + opts.today_product_sale + opts.today_membership_sale + opts.today_package_sale + opts.today_giftcard_sale).toFixed(2)));
-                    $('#total_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.total_service_sale + opts.total_service_product_sale + opts.total_product_sale + opts.total_membership_sale + opts.total_package_sale + opts.total_giftcard_sale).toFixed(2)));
-                    $('#total_service_sale_count').html(formatNumberInIndianFormat(parseFloat(opts.total_service_product_sale + opts.total_service_sale).toFixed(2)) + '<small><i title="Including Service Products" style="font-size: 12px;margin-top: 5px;margin-left: 5px;cursor:pointer;color:#008ec8;float:right;" class="fas fa-info-circle"></i></small>');
-                    $('#total_product_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.total_product_sale).toFixed(2)));
-                    $('#total_package_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.total_package_sale).toFixed(2)));
-                    $('#total_membership_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.total_membership_sale).toFixed(2)));
-                    $('#total_giftcard_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.total_giftcard_sale).toFixed(2)));
+                    $('#total_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.today_service_sale + opts.today_service_product_sale + opts.today_product_sale + opts.today_membership_sale + opts.today_package_sale + opts.today_giftcard_sale).toFixed(2)));
+                    $('#total_service_sale_count').html(formatNumberInIndianFormat(parseFloat(opts.today_service_product_sale + opts.today_service_sale).toFixed(2)) + '<small><i title="Including Service Products" style="font-size: 12px;margin-top: 5px;margin-left: 5px;cursor:pointer;color:#008ec8;float:right;" class="fas fa-info-circle"></i></small>');
+                    $('#total_product_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.today_product_sale).toFixed(2)));
+                    $('#total_package_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.today_package_sale).toFixed(2)));
+                    $('#total_membership_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.today_membership_sale).toFixed(2)));
+                    $('#total_giftcard_sale_count').text(formatNumberInIndianFormat(parseFloat(opts.today_giftcard_sale).toFixed(2)));
                 }, 1000);
             },
         });
@@ -395,7 +403,7 @@ $(document).ready(function() {
                                         closePopup('ServiceRescheduleModal');
                                         $('#reschedule_btn_div').html('')
                                         showServiceDetailsDiv(id);
-                                        setStylistCalendar(service_executive);
+                                        initCalendar();
                                     }
                                 }, 2000);
                             },
@@ -427,6 +435,7 @@ $(document).ready(function() {
             success: function(response) {
                 $('#cancel_details_response').html(response)
                 showPopup('ServiceCancelModal');
+                cancelService(id);
             },
             error: function() {
                 alert("Error fetching service details");
@@ -445,6 +454,7 @@ $(document).ready(function() {
             success: function(response) {
                 $('#cancel_details_response').html(response)
                 showPopup('ServiceCancelModal');
+                cancelService(id);
             },
             error: function() {
                 alert("Error fetching service details");
@@ -493,8 +503,8 @@ $(document).ready(function() {
         });
         if (checkedServices.length > 0) {
             $('#remark_error_' + id).text('');
-            // if (confirm("Are you sure you want to proceed?")) {
-            // openConfirmationDialog("Are you sure you want to proceed?", function(confirmed) {
+            if (confirm("Are you sure you want to cancel the Appointment?")) {
+            // openConfirmationDialog("Are you sure you want to cancel the Appointment?", function(confirmed) {
                 var confirmed = true;
                 if (confirmed) {
                     $('.loader_div').show();
@@ -512,8 +522,8 @@ $(document).ready(function() {
                                 if (response === '1') {
                                     closePopup('ServiceCancelModal');
                                     $('#cancel_btn_div').html('')
-                                    showBookingDetailsDiv(id);
-                                    setStylistCalendar($('#selected_stylist').val());
+                                    // showBookingDetailsDiv(id);
+                                    initCalendar();
                                 }
                             }, 2000);
                         },
@@ -522,44 +532,48 @@ $(document).ready(function() {
                         }
                     });
                 }
-            // });
+            }else{
+                closePopup('ServiceCancelModal');
+            }
         } else {
             $('#remark_error_' + id).text('Please select atleast one service!');
         }
     }
 
     function completeService(id) {
-        // if (confirm("Are you sure you want to proceed?")) {
-        openConfirmationDialog("Are you sure you want to proceed?", function(confirmed) {
-            if (confirmed) {
-                $('.loader_div').show();
-                $.ajax({
-                    url: BASE_URL + "salon/Ajax_controller/complete_service_ajx",
-                    method: 'POST',
-                    data: {
-                        booking_id: id
-                    },
-                    success: function(response) {
-                        setTimeout(function() {
-                            $('.loader_div').hide();
-                            if (response === '1') {
-                                closePopup('ServiceCompleteModal');
-                                $('#payment_btn_div').html('-')
-                                // showBookingDetailsDiv(id);
-                                // showBillGenerationPopup(id);
-                                setStylistCalendar($('#selected_stylist').val());
-
-                                var encodedId = btoa(id);
-                                window.location.href = BASE_URL + 'bill-setup/' + encodedId;
-                            }
-                        }, 2000);
-                    },
-                    error: function() {
-                        alert("Error fetching service details");
+        if (confirm("Are you sure the Appointment is Complete?")) {
+        // openConfirmationDialog("Are you sure the Appointment is Complete?", function(confirmed) {
+            $('.loader_div').show();
+            $.ajax({
+                url: BASE_URL + "salon/Ajax_controller/complete_service_ajx",
+                method: 'POST',
+                data: {
+                    booking_id: id
+                },
+                success: function(response) {
+                    if (response === '1') {
+                        var encodedId = btoa(id);
+                        window.location.href = BASE_URL + 'bill-setup/' + encodedId;
                     }
-                });
-            }
-        });
+                    // setTimeout(function() {
+                    //     $('.loader_div').hide();
+                    //     if (response === '1') {
+                    //         closePopup('ServiceCompleteModal');
+                    //         $('#payment_btn_div').html('-');
+                    //         initCalendar();
+
+                    //         var encodedId = btoa(id);
+                    //         window.location.href = BASE_URL + 'bill-setup/' + encodedId;
+                    //     }
+                    // }, 2000);
+                },
+                error: function() {
+                    alert("Error fetching service details");
+                }
+            });
+        }else{
+            closePopup('ServiceCompleteModal');
+        }
     }
 
     function showCompletePopupCalender(event, id) {
@@ -573,6 +587,7 @@ $(document).ready(function() {
             success: function(response) {
                 $('#complete_details_response').html(response)
                 showPopup('ServiceCompleteModal');
+                completeService(id);
             },
             error: function() {
                 alert("Error fetching service details");
@@ -590,6 +605,7 @@ $(document).ready(function() {
             success: function(response) {
                 $('#complete_details_response').html(response)
                 showPopup('ServiceCompleteModal');
+                completeService(id);
             },
             error: function() {
                 alert("Error fetching service details");
@@ -756,34 +772,6 @@ $(document).ready(function() {
         }
     }
     
-    function setStylistCalendar(stylistId) {
-        selected_stylists_calendar = stylistId;
-        var calendarEl = document.getElementById('calendar'); // Get the selected stylist ID
-        $('.navtab').removeClass('active');
-        $('#stylist_tab_' + stylistId).addClass('active');
-        $('#selected_stylist').val(stylistId);
-        $('.loader_div').show();
-        setTimeout(function() {
-            $.ajax({
-                url: BASE_URL + "salon/Ajax_controller/get_stylistwise_calender_data",
-                method: 'POST',
-                data: {
-                    stylist_id: stylistId
-                },
-                success: function(response) {
-                    var stylistData = JSON.parse(response);
-                    if (stylistData.single) {
-                        renderCalendar(calendarEl, stylistData);
-                    }
-                    $('.loader_div').hide();
-                },
-                error: function() {
-                    alert("Error fetching stylist schedule");
-                }
-            });
-        }, 1500);
-    }
-    
     function openReceiptLink(event, bookingId, bookingDetailsId) {
         event.stopPropagation();
         var url = BASE_URL + "booking-print/" + bookingId + "/" + bookingDetailsId;
@@ -805,9 +793,11 @@ $(document).ready(function() {
             data: {
                 booking_id: id
             },
-            success: function(response) {
-                $('#booking_edit_response').html(response)
-                showPopup('BookingEditModal');
+            success: function(response) {                
+                var encodedId = btoa(id);
+                window.location.href = BASE_URL + 'reschedule/' + encodedId;
+                // $('#booking_edit_response').html(response)
+                // showPopup('BookingEditModal');
             },
             error: function(xhr, status, error) {
                 console.error('Error fetching booking details:', error);
@@ -825,8 +815,10 @@ $(document).ready(function() {
                 booking_id: id
             },
             success: function(response) {
-                $('#booking_edit_response').html(response)
-                showPopup('BookingEditModal');
+                var encodedId = btoa(id);
+                window.location.href = BASE_URL + 'reschedule/' + encodedId;
+                // $('#booking_edit_response').html(response)
+                // showPopup('BookingEditModal');
             },
             error: function(xhr, status, error) {
                 console.error('Error fetching booking details:', error);

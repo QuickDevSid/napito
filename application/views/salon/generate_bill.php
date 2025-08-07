@@ -1457,16 +1457,24 @@ if(!empty($booking_rules)){
 
                                 let current_remaining = calculateRemainingAmount(<?=$booking->id;?>);
                                 if(current_remaining <= 0){  
-                                    $('#stock_selection_error_<?=$booking->id;?>').html('');
-                                    $('#stock_selection_error_<?=$booking->id;?>').hide();    
+                                    if(validatePaymentModes()){
+                                        $('#stock_selection_error_<?=$booking->id;?>').html('');
+                                        $('#stock_selection_error_<?=$booking->id;?>').hide();    
 
-                                    document.getElementById('save_payment_btn_<?=$booking->id;?>').remove();
-                                    document.getElementById('payment_btn_<?=$booking->id;?>').remove();                          
-                                    form.submit();
+                                        document.getElementById('save_payment_btn_<?=$booking->id;?>').remove();
+                                        document.getElementById('payment_btn_<?=$booking->id;?>').remove(); 
+                                        form.submit();
+                                    }else{
+                                        $('#stock_selection_error_<?=$booking->id;?>').html('Please select payment mode for all entries');
+                                        $('#stock_selection_error_<?=$booking->id;?>').show(); 
+                                        $('.loader_div').hide();   
+                                        return false;
+                                    }
                                 }else{
-                                    $('.loader_div').hide();  
                                     $('#stock_selection_error_<?=$booking->id;?>').html('Please ensure that the total paid amount matches the required amount before proceeding.');
                                     $('#stock_selection_error_<?=$booking->id;?>').show();
+                                    $('.loader_div').hide();   
+                                    return false;
                                 }
                             } else {
                                 $('.loader_div').hide();   
@@ -2636,10 +2644,12 @@ if(!empty($booking_rules)){
 
         var paymentOptions = `<?php 
             if (!empty($payment_modes)) { 
+                echo '<option value="">Select Payment Mode</option>';
                 for ($i = 0; $i < count($payment_modes); $i++) { 
                     echo '<option value="'.$payment_modes[$i].'">'.$payment_modes[$i].'</option>'; 
                 } 
             } else { 
+                echo '<option value="">Select Payment Mode</option>';
                 echo '<option value="UPI">UPI</option>';
                 echo '<option value="Cash">Cash</option>';
                 echo '<option value="Card">Card</option>';
@@ -2692,6 +2702,16 @@ if(!empty($booking_rules)){
                 $('#stock_selection_error_<?=$booking->id;?>').html('You cannot add more payments as the payable amount is reached.');
                 $('#stock_selection_error_<?=$booking->id;?>').show();
             }
+        }        
+        function validatePaymentModes() {
+            let isValid = true;
+            $(".payment_mode").each(function () {
+                if ($(this).val() === '') {
+                    isValid = false;
+                    return false;
+                }
+            });
+            return isValid;
         }
         $(document).ready(function() {
             $('.chosen-select').chosen();

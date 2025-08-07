@@ -177,14 +177,16 @@
                                                     <tr class="headings">
                                                         <th>Sr. No.</th>
                                                         <th>Offers Name</th>
-
                                                         <th>Description</th>
+                                                        <th>Gender</th>
                                                         <th>Services</th>
                                                         <th>Regular Price</th>
                                                         <th>Discount</th>
                                                         <th>Offers Price</th>
+                                                        <th>Validity Status</th>
+                                                        <th>Offer Start</th>
+                                                        <th>Offer End</th>
                                                         <th>Validity</th>
-                                                        <th>Gender</th>
                                                         <th style="display: none;">Description</th>
                                                         <th class="status-column-hidden">Status</th>
                                                         <th>Status</th>
@@ -205,6 +207,11 @@
                                                                 <td><?= $offers_list_result->offers_name ?></td>
 
                                                                 <td><a class="btn btn-primary" data-popup-open="popup-1" onclick="view_description('<?php echo $offers_list_result->description; ?>')">View</a></td>
+                                                                <td><?php if ($offers_list_result->gender == 1) {
+                                                                        echo "Female";
+                                                                    } else {
+                                                                        echo "Male";
+                                                                    } ?></td>
                                                                 <td>
                                                                     <?php
                                                                     if (!empty($service_name)) {
@@ -226,12 +233,37 @@
                                                                     <td>Rs.<?= $offers_list_result->discount ?></td>
                                                                 <?php } ?>
                                                                 <td><?= $offers_list_result->offer_price ?></td>
+                                                                <td>
+                                                                    <?php 
+                                                                        if($offers_list_result->validity_status == '1'){
+                                                                            echo 'On-Going';
+                                                                        }elseif($offers_list_result->validity_status == '0'){
+                                                                            echo 'Expired';
+                                                                        }else{
+                                                                            echo '-';
+                                                                        }
+                                                                    ?>
+                                                                </td>
+                                                                <td>
+                                                                    <?php
+                                                                        if ($offers_list_result->offer_starts != "") {
+                                                                            $offer_starts = date('d-m-Y', strtotime($offers_list_result->offer_starts));
+                                                                            $startDate = new DateTime($offers_list_result->offer_starts);
+                                                                        } else {
+                                                                            $offer_starts = date('d-m-Y', strtotime($offers_list_result->created_on));
+                                                                            $startDate = new DateTime($offers_list_result->created_on);
+                                                                        }
+                                                                        $duration = (int)$offers_list_result->duration;
+                                                                        $startDate->modify('+' . ($duration * 7) . ' days');
+
+                                                                        $offer_ends = $offers_list_result->offer_ends != "" ? date('d-m-Y',strtotime($offers_list_result->offer_ends)) : $startDate->format('d-m-Y');
+                                                                    ?>
+                                                                    <?= date('d M, Y',strtotime($offer_starts)); ?>
+                                                                </td>
+                                                                <td>
+                                                                    <?= date('d M, Y',strtotime($offer_ends)); ?>
+                                                                </td>
                                                                 <td><?= $offers_list_result->duration ?> Week</td>
-                                                                <td><?php if ($offers_list_result->gender == 1) {
-                                                                        echo "Female";
-                                                                    } else {
-                                                                        echo "Male";
-                                                                    } ?></td>
                                                                 <td style="display: none;"><?= $offers_list_result->description ?></td>
                                                                 <td class="status-column-hidden">
                                                                     <?php if ($offers_list_result->status == "1") { ?>
@@ -378,7 +410,7 @@
                                             </div>
                                             <div class="col-lg-4 col-md-4 col-sm-6 col-xs-12 form-group">
                                                 <label>Offers Duration in Week<b class="require">*</b></label>
-                                                <input autocomplete="off" type="text" class="form-control" name="duration" id="duration" value="<?php if (!empty($single_setup_offer)) {
+                                                <input autocomplete="off" type="text" class="form-control" onkeyup="setOfferEnd()" name="duration" id="duration" value="<?php if (!empty($single_setup_offer)) {
                                                                                                                                                     echo $single_setup_offer->duration;
                                                                                                                                                 } ?>" placeholder="Enter duration in week">
                                             </div>
@@ -394,6 +426,36 @@
                                                                                                                                                     echo "Female";
                                                                                                                                                 }
                                                                                                                                             } ?>">
+                                            </div>
+                                            <div class="col-lg-4 col-md-4 col-sm-6 col-xs-12 form-group">
+                                                <label>Offer Start Date<b class="require">*</b></label>
+                                                <input type="text" class="form-control dates" readonly name="offer_starts" id="offer_starts" onchange="setOfferEnd()" value="<?php 
+                                                                                                                                        if($type == 'edit'){
+                                                                                                                                            if (!empty($single_setup_offer)) {
+                                                                                                                                                if($single_setup_offer->offer_starts != ""){
+                                                                                                                                                    echo date('d-m-Y',strtotime($single_setup_offer->offer_starts));
+                                                                                                                                                }else{
+                                                                                                                                                    echo date('d-m-Y',strtotime($single_setup_offer->created_on));
+                                                                                                                                                }
+                                                                                                                                            }else{
+                                                                                                                                                echo date('d-m-Y');
+                                                                                                                                            }
+                                                                                                                                        }elseif($type == 'ready_use'){
+                                                                                                                                            echo date('d-m-Y');
+                                                                                                                                        }else{
+                                                                                                                                            echo date('d-m-Y');
+                                                                                                                                        } 
+                                                                                                                                    ?>">
+                                            </div>
+                                            <div class="col-lg-4 col-md-4 col-sm-6 col-xs-12 form-group">
+                                                <label>Offer End Date<b class="require">*</b></label>
+                                                <input type="text" class="form-control" readonly name="offer_ends" id="offer_ends" value="<?php 
+                                                                                                                                    if (!empty($single_setup_offer)) {
+                                                                                                                                        if($single_setup_offer->offer_ends != ""){
+                                                                                                                                            echo date('d-m-Y',strtotime($single_setup_offer->offer_ends));
+                                                                                                                                        }
+                                                                                                                                    }
+                                                                                                                                ?>">
                                             </div>
                                             <?php
                                             if (!empty($single_setup_offer)) {
@@ -519,7 +581,32 @@ if ($this->uri->segment(2) != "") {
 }
 ?>
 <script>
+    function setOfferEnd() {
+        var offer_start = $('#offer_starts').val();
+        var duration = parseInt($('#duration').val());
+
+        if (offer_start && !isNaN(duration)) {
+            var parts = offer_start.split('-');
+            var startDate = new Date(parts[2], parts[1] - 1, parts[0]);
+
+            startDate.setDate(startDate.getDate() + (duration * 7));
+
+            var day = ("0" + startDate.getDate()).slice(-2);
+            var month = ("0" + (startDate.getMonth() + 1)).slice(-2);
+            var year = startDate.getFullYear();
+
+            var offer_ends = day + '-' + month + '-' + year;
+
+            $('#offer_ends').val(offer_ends);
+        } else {
+            $('#offer_ends').val('');
+        }
+    }
+
     $(document).ready(function() {
+        $(".dates").datepicker({
+            dateFormat: 'dd-mm-yy'
+        });
         $(".chosen-select").chosen({});
         $('#service_name').trigger('change');
         $('#offer_form').validate({
@@ -533,6 +620,8 @@ if ($this->uri->segment(2) != "") {
                 "service_name[]": 'required',
                 gender: 'required',
                 discount_in: 'required',
+                offer_starts: 'required',
+                offer_ends: 'required',
                 duration: {
                     required: true,
                     number: true,
@@ -547,6 +636,8 @@ if ($this->uri->segment(2) != "") {
                 },
                 "service_name[]": 'Please select service!',
                 gender: 'Please select gender!',
+                offer_starts: 'Please select offer start date!',
+                offer_ends: 'Please select offer end date!',
                 duration: 'Please enter duration in week!',
 
             },
@@ -562,6 +653,7 @@ if ($this->uri->segment(2) != "") {
                 $(element).removeClass('is-invalid');
             }
         });
+        setOfferEnd();
     });
 </script>
 <script type="text/javascript">
@@ -651,7 +743,7 @@ if ($this->uri->segment(2) != "") {
                 extend: 'excel',
                 filename: 'add-offers',
                 exportOptions: {
-                    columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 11]
+                    columns: [0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
                 },
                 customize: function(xlsx) {
                     var sheet = xlsx.xl.worksheets['sheet1.xml'];

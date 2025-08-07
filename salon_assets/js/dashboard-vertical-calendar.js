@@ -1,13 +1,21 @@
 document.addEventListener('DOMContentLoaded', function() {
     initCalendar();
     initWebSocket();
+
+    setInterval(() => {
+        if (window.calendar) {
+            window.calendar.refetchEvents();
+            console.log('Fetching Calendar Data');
+        }
+    }, 2 * 60 * 1000);
 });
 
 function initCalendar(initialDate = null, serviceTime = null){
     serviceTime = serviceTime || undefined;
     var calendarEl = document.getElementById('calendar');
-    var calendar = new FullCalendar.Calendar(calendarEl, {
-        schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
+    window.calendar = new FullCalendar.Calendar(calendarEl, {
+        // schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
+        schedulerLicenseKey: FULL_CALENDAR_KEY,
         initialView: 'resourceTimeGridDay', // Agenda view with resources
         slotDuration: slotDurationMain, // Use the PHP-generated variable directly
         slotLabelInterval: slotDurationMain,
@@ -117,17 +125,19 @@ function initCalendar(initialDate = null, serviceTime = null){
         eventDrop: function(info) {
             if (info.event.extendedProps.event_type == '1') {                
                 const now = moment();
+                const newStart = moment(info.event.start);
 
                 const originalStart = moment(info.oldEvent.start);
                 if (originalStart.isBefore(now)) {
-                    displayMessage('Past Appointment cannot be Rescheduled', 'error');
-                    info.revert();
-                    return;
+                    if(!newStart.isSame(now, 'day')){
+                        displayMessage('Past Appointment cannot be Rescheduled', 'error');
+                        info.revert();
+                        return;
+                    }
                 }
 
-                const newStart = moment(info.event.start);
-                if (newStart.isBefore(now)) {
-                    displayMessage('Cannot Reschedule the Appointment to past time', 'error');
+                if (!newStart.isSame(now, 'day') || newStart.isBefore(now)) {
+                    displayMessage('You can only reschedule to a future time', 'error');
                     info.revert();
                     return;
                 }
@@ -236,7 +246,7 @@ function initCalendar(initialDate = null, serviceTime = null){
                             var bill_url = BASE_URL  + 'bill-setup/' + encodedId;
                             buttonHtml += '<a style="margin-right:0px;background-color:transparent !important; border:none;outline:none; box-shadow:none;" title="Generate Bill" type="button" id="bill_generate_button_' + arg.event.extendedProps.booking_id + '" href=" ' + bill_url + ' " class="btn btn-primary event-action-button"><i style="font-size: 15px;color: black;" class="fas fa-file-invoice"></i></button>';
                         } else {
-                            buttonHtml += '<button style="margin-right:0px;background-color:transparent !important; border:none;outline:none; box-shadow:none;" title="Receipt" id="receiptButton_' + arg.event.extendedProps.booking_id + '" onclick="openReceiptLink(event, \'' + btoa(arg.event.extendedProps.booking_id) + '\', \'' + btoa(arg.event.extendedProps.booking_service_payment_id) + '\')" class="btn btn-primary event-action-button"><i style="font-size: 15px;color: black;" class="fas fa-receipt"></i></button>';
+                            buttonHtml += '<button style="margin-right:0px;background-color:transparent !important; border:none;outline:none; box-shadow:none;" title="Receipt" id="receiptButton_' + arg.event.extendedProps.booking_id + '" onclick="openReceiptLink(event, \'' + btoa(arg.event.extendedProps.booking_id) + '\', \'' + btoa(arg.event.extendedProps.booking_payment_id) + '\')" class="btn btn-primary event-action-button"><i style="font-size: 15px;color: black;" class="fas fa-receipt"></i></button>';
                             buttonHtml += '<button style="margin-right:0px;background-color:transparent !important; border:none;outline:none; box-shadow:none;" title="Update Payment Details" type="button" id="updateBill_' + arg.event.extendedProps.booking_id + '" class="btn btn-primary event-action-button" onclick="showBillUpdatePopupCalender(event, ' + arg.event.extendedProps.booking_id + ')" data-toggle="modal" data-target="#updateBillModal"><i style="color:black;font-size: 15px;margin-left: 4px;" class="fas fa-edit"></i></button>';
                         }
                     }
@@ -313,6 +323,16 @@ function initCalendar(initialDate = null, serviceTime = null){
                 var endTime = moment(arg.event.end).format('hh:mm A');
 
                 var breakHtml = '<p class="time" style="color:#000;"><b>Shift Break</b>: ' + startTime + ' - ' + endTime + '</p>';
+
+                var eventContentHtml = '<div class="event-container>' +
+                    '<div class="event-info" style="width: 100%;display: flex;flex-direction: column;height: 100%;justify-content: center;align-items: center;text-align: center;">' +
+                    breakHtml +
+                    '</div></div>';   
+            }else if(arg.event.extendedProps.event_type == '4'){ // Leave
+                var startTime = moment(arg.event.extendedProps.leave_start).format('D MMMM, YYYY');
+                var endTime = moment(arg.event.extendedProps.leave_end).format('D MMMM, YYYY');
+
+                var breakHtml = '<p class="time" style="color:#000;"><b>Leave</b>: ' + startTime + ' - ' + endTime + '</p>';
 
                 var eventContentHtml = '<div class="event-container>' +
                     '<div class="event-info" style="width: 100%;display: flex;flex-direction: column;height: 100%;justify-content: center;align-items: center;text-align: center;">' +
@@ -406,7 +426,7 @@ function initCalendar(initialDate = null, serviceTime = null){
         });
     });
 
-    calendar.render();
+    window.calendar.render();
 }
 
 function displayMessage(message, type) {
@@ -440,7 +460,8 @@ function displayMessage(message, type) {
 }
 
 function initWebSocket() {
-    const bellSound_path = BASE_URL + 'salon_assets/bell-ringing-01c.wav';
+    // const bellSound_path = BASE_URL + 'salon_assets/bell-ringing-01c.wav';
+    const bellSound_path = BASE_URL + 'salon_assets/appointment_reminder_alert.mp3';
     const bellSound = new Audio(bellSound_path);
 
     const socketURL = SOCKET_BASE_URL + "?project=" + WS_PROJECT + "&uid=" + UID + "&type=" + CONNECTION_TYPE;
@@ -523,9 +544,10 @@ function checkAndRingNotification() {
     }
 }
 
-var appointmentBellSound_path = BASE_URL + 'salon_assets/bell-ringing-01c.wav';
-var appointmentBellSound = new Audio(appointmentBellSound_path);
 function ringAppointmentNotification(currentDateTime){
+    // var appointmentBellSound_path = BASE_URL + 'salon_assets/bell-ringing-01c.wav';
+    var appointmentBellSound_path = BASE_URL + 'salon_assets/appointment_reminder_alert.mp3';
+    var appointmentBellSound = new Audio(appointmentBellSound_path);
     $.ajax({
         url: BASE_URL + "salon/Ajax_controller/fetch_appointment_ajax",
         method: 'POST',

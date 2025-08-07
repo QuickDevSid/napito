@@ -1455,7 +1455,7 @@ public function booking_rules(){
 	}
 	
 	public function add_customer(){
-		$this->form_validation->set_rules('full_name','Full Name','required');
+		$this->form_validation->set_rules('customer_phone','Customer Phone','required');
 		if($this->form_validation->run() === FALSE){
 			$data['single'] = $this->Salon_model->get_single_customer($this->uri->segment(2));
 			$data['state'] = $this->Salon_model->get_state_list();

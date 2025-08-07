@@ -166,26 +166,72 @@ class Calendar_model extends CI_Model{
             foreach($emps as $row){
                 $single_shift_details = $this->Salon_model->get_stylist_shifts($date,$row->id);
                 if(!empty($single_shift_details)){
+                    $shift_single_from = date('H:i:s',strtotime($single_shift_details['shift_from']));
+                    $shift_single_to = date('H:i:s',strtotime($single_shift_details['shift_to']));
+
                     $shift_break_from = $single_shift_details['shift_break_from'];
                     $shift_break_to = $single_shift_details['shift_break_to'];
 
+                    $shift_from_datetime = date('Y-m-d H:i:s', strtotime("$date $shift_single_from"));
+                    $shift_to_datetime = date('Y-m-d H:i:s', strtotime("$date $shift_single_to"));
+
                     $shift_break_from_datetime = date('Y-m-d H:i:s', strtotime("$date $shift_break_from"));
                     $shift_break_to_datetime = date('Y-m-d H:i:s', strtotime("$date $shift_break_to"));
-
-                    $shift_events[] = [
-                        'event_type' => '3',
-                        'id' => 'shift_' . $single_shift_details['shift_id'],
-                        'resourceId' => $row->id,
-                        'stylist_name' => $row->full_name ?? '',
-                        'start' => $shift_break_from_datetime,
-                        'end' => $shift_break_to_datetime,
-                        'title' => 'Shift Break',
-                        'backgroundColor'=> '#E0E0E0',
-                        'borderColor'=> '#9E9E9E',
-                        'textColor'=> '#333333',
-                        'is_cancel_allowed' => '0',
-                        'is_rescheduling_allowed' => '0',
-                    ];
+                    
+                    $this->db->select('
+                        b.id as leave_id,
+                        b.emp_id,
+                        e.full_name as stylist_name,
+                        b.from_date as leave_start,
+                        b.to_date as leave_end
+                    ');
+                    $this->db->from('tbl_salon_emp_leaves b');
+                    $this->db->join('tbl_salon_employee e', 'e.id = b.emp_id');
+                    if ($date != "") {
+                        $this->db->where('DATE(b.from_date) <= ', $date);
+                        $this->db->where('DATE(b.to_date) >= ', $date);
+                    }
+                    $this->db->where('b.emp_id', $row->id);
+                    $this->db->where('b.branch_id', $this->session->userdata('branch_id'));
+                    $this->db->where('b.salon_id', $this->session->userdata('salon_id'));
+                    $this->db->where('b.is_deleted', '0');
+                    $this->db->where_in('b.leave_status', ['0','1']);
+                    $this->db->order_by('b.emp_id', 'asc');
+                    $this->db->order_by('b.from_date', 'asc');    
+                    $leave_results = $this->db->get()->row();
+                    if(!empty($leave_results)){
+                        $shift_events[] = [
+                            'event_type' => '4',
+                            'id' => 'shift_' . $single_shift_details['shift_id'],
+                            'resourceId' => $row->id,
+                            'stylist_name' => $row->full_name ?? '',
+                            'start' => $shift_from_datetime,
+                            'end' => $shift_to_datetime,
+                            'leave_start' => $leave_results->leave_start,
+                            'leave_end' => $leave_results->leave_end,
+                            'title' => 'Leave',
+                            'backgroundColor' => '#ffebee',
+                            'borderColor' => '#f44336',
+                            'textColor' => '#b71c1c',  
+                            'is_cancel_allowed' => '0',
+                            'is_rescheduling_allowed' => '0',
+                        ];
+                    }else{
+                        $shift_events[] = [
+                            'event_type' => '3',
+                            'id' => 'shift_' . $single_shift_details['shift_id'],
+                            'resourceId' => $row->id,
+                            'stylist_name' => $row->full_name ?? '',
+                            'start' => $shift_break_from_datetime,
+                            'end' => $shift_break_to_datetime,
+                            'title' => 'Shift Break',
+                            'backgroundColor'=> '#E0E0E0',
+                            'borderColor'=> '#9E9E9E',
+                            'textColor'=> '#333333',
+                            'is_cancel_allowed' => '0',
+                            'is_rescheduling_allowed' => '0',
+                        ];
+                    }
                 }
             }
         }
@@ -403,14 +449,14 @@ class Calendar_model extends CI_Model{
             return false;
         }
         
-        $this->db->where('break_date', $selected_from_date);
+        $this->db->where('DATE(break_date)', $selected_from_date);
         $this->db->where('branch_id', $branch_id);
         $this->db->where('salon_id', $salon_id);
         $this->db->where('stylist_id', $stylist_id);
-        $this->db->where('from <', $selected_to);
-        $this->db->where('to >', $selected_from);
+        $this->db->where('`from` <', $selected_to);
+        $this->db->where('`to` >', $selected_from);
         $this->db->where('is_deleted', '0');
-        $this->db->where('break_status', '0');
+        $this->db->where_in('break_status', ['0','2']);
         $breaks = $this->db->get('tbl_stylist_short_breaks')->result();
 
         if (!empty($breaks)) {
@@ -439,7 +485,73 @@ class Calendar_model extends CI_Model{
             $shift_break_from_datetime = date('Y-m-d H:i:s', strtotime("$selected_from_date $shift_break_from"));
             $shift_break_to_datetime = date('Y-m-d H:i:s', strtotime("$selected_from_date $shift_break_to"));
 
-            if(($selected_from < $shift_break_to_datetime && $selected_from > $shift_break_from_datetime) || ($selected_to < $shift_break_to_datetime && $selected_to > $shift_break_from_datetime)){
+            // if(($selected_from < $shift_break_to_datetime && $selected_from > $shift_break_from_datetime) || ($selected_to < $shift_break_to_datetime && $selected_to > $shift_break_from_datetime)){
+            //     return false;
+            // }
+            if ($selected_from < $shift_break_to_datetime && $selected_to > $shift_break_from_datetime) {
+                return false;
+            }
+        }
+
+        $is_leave = $this->Salon_model->check_staff_is_on_leave_all($stylist_id,$selected_from_date, $branch_id, $salon_id);
+        if($is_leave == '1'){
+            return false;
+        }
+
+        return true;
+    }
+    
+    public function validate_timeslot_resc($stylist_id, $selected_from, $selected_to, $branch_id, $salon_id, $booking_id) {
+        $selected_from_date = date('Y-m-d', strtotime($selected_from));
+        $selected_from = date('Y-m-d H:i:s', strtotime($selected_from));
+        $selected_to = date('Y-m-d H:i:s', strtotime($selected_to));
+
+        $current_datetime = date('Y-m-d H:i:s');
+        if ($selected_from < $current_datetime) {
+            return false;
+        }
+        
+        $this->db->where('DATE(break_date)', $selected_from_date);
+        $this->db->where('branch_id', $branch_id);
+        $this->db->where('salon_id', $salon_id);
+        $this->db->where('stylist_id', $stylist_id);
+        $this->db->where('`from` <', $selected_to);
+        $this->db->where('`to` >', $selected_from);
+        $this->db->where('is_deleted', '0');
+        $this->db->where_in('break_status', ['0','2']);
+        $breaks = $this->db->get('tbl_stylist_short_breaks')->result();
+
+        if (!empty($breaks)) {
+            return false;
+        }
+        
+        $this->db->where('tbl_booking_services_details.branch_id', $branch_id);
+        $this->db->where('tbl_booking_services_details.salon_id', $salon_id);
+        $this->db->where('tbl_booking_services_details.stylist_id', $stylist_id);
+        $this->db->where('DATE(tbl_booking_services_details.service_date)', date('Y-m-d', strtotime($selected_from_date)));
+        $this->db->where('tbl_booking_services_details.service_from <', $selected_to);
+        $this->db->where('tbl_booking_services_details.service_to >', $selected_from);
+        $this->db->where('tbl_booking_services_details.is_deleted', '0');
+        $this->db->where('tbl_booking_services_details.service_status !=', '2');
+        $this->db->where('tbl_booking_services_details.booking_id !=', $booking_id);
+        $bookings = $this->db->get('tbl_booking_services_details')->result();
+
+        if (!empty($bookings)) {
+            return false;
+        }
+        
+        $single_shift_details = $this->Salon_model->get_stylist_shifts_all($selected_from_date,$stylist_id, $branch_id, $salon_id);
+        if(!empty($single_shift_details)){
+            $shift_break_from = $single_shift_details['shift_break_from'];
+            $shift_break_to = $single_shift_details['shift_break_to'];
+
+            $shift_break_from_datetime = date('Y-m-d H:i:s', strtotime("$selected_from_date $shift_break_from"));
+            $shift_break_to_datetime = date('Y-m-d H:i:s', strtotime("$selected_from_date $shift_break_to"));
+
+            // if(($selected_from < $shift_break_to_datetime && $selected_from > $shift_break_from_datetime) || ($selected_to < $shift_break_to_datetime && $selected_to > $shift_break_from_datetime)){
+            //     return false;
+            // }
+            if ($selected_from < $shift_break_to_datetime && $selected_to > $shift_break_from_datetime) {
                 return false;
             }
         }

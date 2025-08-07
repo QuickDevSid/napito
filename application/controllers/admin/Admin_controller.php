@@ -268,10 +268,14 @@ class Admin_controller extends CI_Controller {
 			$result=$this->Admin_model->set_salon($aadhar_front,$aadhar_back,$salon_photo,$pancard_copy,$shopact);
 			if($result == "0"){
 				$this->session->set_flashdata('success','Record added successfully');
+			}elseif($result == "failed"){
+				$this->session->set_flashdata('message','This email address is already registered');
+			}elseif($result == "failed_branch"){
+				$this->session->set_flashdata('message','This email address is already registered with one of the branches');
 			}else{
 				$this->session->set_flashdata('success','Record updated successfully');
 			}
-			redirect('add-salon');
+			redirect('salon-list');
 		}
 	} 
 	
@@ -321,6 +325,15 @@ class Admin_controller extends CI_Controller {
 	public function branch_payment_history(){
 		$data['branch_details'] = $this->Admin_model->get_branch_details(isset($_GET['branch']) ? $_GET['branch'] : '');
 		$this->load->view('admin/branch_payment_history',$data);
+	}
+	public function cron_reports(){
+		$this->load->view('admin/cron_reports');
+	}
+	public function whatsapp_message_report(){
+		$this->load->view('admin/whatsapp_message_report');
+	}
+	public function notifications_message_report(){
+		$this->load->view('admin/notifications_message_report');
 	}
 	public function salon_gallary(){ 
 		$this->form_validation->set_rules('category','category type','required');
@@ -424,6 +437,8 @@ class Admin_controller extends CI_Controller {
 			$result=$this->Admin_model->set_branch($shopact);
 			if($result == "0"){
 				$this->session->set_flashdata('success','Record added successfully');
+			}elseif($result == "failed_branch"){
+				$this->session->set_flashdata('message','This email address is already registered with one of the branches');
 			}else{
 				$this->session->set_flashdata('success','Record updated successfully');
 			}

@@ -1,3 +1,5 @@
+php_value max_input_vars 100000
+
 RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

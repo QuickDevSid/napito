@@ -1,3 +1,11 @@
+<style>
+    #add_on_plan_chosen{
+        width: 100% !important;
+    }
+    #payment_mode_chosen{
+        width: 100% !important;
+    }
+</style>
 <form id="make_form" name="make_form" method="post" enctype="multipart/form-data" data-parsley-validate action="<?=base_url();?>purchase-add-on">
     <div class="row">
         <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12 form-group">
@@ -5,7 +13,7 @@
             <select class="chosen-select form-control" id="add_on_plan" name="add_on_plan">
                 <option value="">Select Plan</option>
                 <?php if(!empty($add_ons)){ foreach($add_ons as $row){?>
-                    <option value="<?=$row->id;?>" <?=$this->input->post('requested_plan') == $row->id ? 'selected' : ''; ?>><?=$row->plan_name;?> [Rs. <?=$row->price;?>]</option>
+                    <option value="<?=$row->id;?>" <?=$this->input->post('requested_plan') == $row->id ? 'selected' : ''; ?>><?=$row->plan_name;?> [Rs. <?=$row->price;?>] [Qty. <?=$row->qty;?> Coins]</option>
                 <?php }} ?>
             </select>
             <input type="hidden" id="id" class="form-control" name="id" value="<?php if (!empty($branch)) {

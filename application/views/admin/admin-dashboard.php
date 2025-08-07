@@ -440,7 +440,7 @@
                         <td>
                             <?php
                                 if(!empty($active_addon_request)){
-                                    echo '<b>' . $print->plan_name.'</b><br>Price: Rs. ' . $print->plan_price.'<br>Coins: ' . $print->plan_qty . '<br>Requested On: ' . date('d M, Y h:i A',strtotime($active_addon_request->created_on));
+                                    echo '<b>' . $active_addon_request->plan_name.'</b><br>Price: Rs. ' . $active_addon_request->plan_price.'<br>Coins: ' . $active_addon_request->plan_qty . '<br>Requested On: ' . date('d M, Y h:i A',strtotime($active_addon_request->created_on));
                                     $requested_plan = $active_addon_request->add_on_plan_id;
                                 }else{  
                                     echo 'NA';

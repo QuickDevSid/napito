@@ -5,18 +5,21 @@ class Admin_model extends CI_Model {
         $this->db->where('is_deleted','0');  
         $this->db->where('status','1');        
         $this->db->where('email',$this->input->post('email'));  
-        $this->db->where('password',$this->input->post('password'));   
         $result = $this->db->get('tbl_employee');
         $result = $result->row();       
         if(!empty($result)){
-            $session = array(
-                'admin_id'  => $result->id,
-                'user_type' => $result->user_type,
-            );
-            $this->session->set_userdata($session);
-            return true;       
+            if($this->input->post('password') != $result->password){
+                return '2';
+            }else{
+                $session = array(
+                    'admin_id'  => $result->id,
+                    'user_type' => $result->user_type,
+                );
+                $this->session->set_userdata($session);
+                return '1';     
+            }  
         }else{
-            return false;
+            return '0';
         }
     }  
     public function get_user_profile(){
@@ -133,18 +136,17 @@ class Admin_model extends CI_Model {
     } 
     public function inactivate_booking_rule_setup(){
         $data = array(
-            'booking_rule_setup_status'     => '0',
-            'last_booking_rule_setup_block' => date('Y-m-d H:i:s')
+            'booking_rule_setup_status'         => '0',
+            'last_booking_rule_setup_activated' => null
         );
-        // echo '<pre>'; print_r($data); exit;
         $this->db->where('id',$this->uri->segment(2));
         $this->db->update('tbl_branch',$data);
         return true;
     } 
     public function activate_booking_rule_setup(){
         $data = array(
-            'booking_rule_setup_status'     => '1',
-            'last_booking_rule_setup_block' => null,
+            'booking_rule_setup_status'         => '1',
+            'last_booking_rule_setup_activated' => date('Y-m-d H:i:s')
         );
         $this->db->where('id',$this->uri->segment(2));
         $this->db->update('tbl_branch',$data);
@@ -266,7 +268,25 @@ class Admin_model extends CI_Model {
             $payment_options_text = implode(',',$payment_options);
         }
 
-        if($this->input->post('id') == ""){
+        if($this->input->post('id') == ""){        
+            $this->db->where('email',$this->input->post('email'));
+            $this->db->where('is_deleted','0');
+            $exist = $this->db->get('tbl_salon');
+            $exist = $exist->row();
+            if(!empty($exist)){
+                return 'failed';
+            }
+              
+            if($this->input->post('is_branch_available') == '0'){
+                $this->db->where('email',$this->input->post('email'));
+                $this->db->where('is_deleted','0');
+                $exist = $this->db->get('tbl_branch');
+                $exist = $exist->row();
+                if(!empty($exist)){
+                    return 'failed_branch';
+                }
+            }
+
             $date=array( 
                 'created_on' => date("Y-m-d H:i:s")
             );
@@ -559,7 +579,8 @@ class Admin_model extends CI_Model {
                     $giftcard_purchase_id = '';
                     $package_allocation_id = '';
                     $trying_booking_id = '';
-                    $this->Salon_model->send_email($email_html,'','',$message_type,'',$last_id,$branch_id,'','','',$to_email,$email_subject,'',$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id);
+                    $cron_id = '';
+                    $this->Salon_model->send_email($email_html,'','',$message_type,'',$last_id,$branch_id,'','','',$to_email,$email_subject,'',$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$cron_id);
                 }
 
                 $this->session->set_flashdata('success','Record added successfully');
@@ -571,12 +592,11 @@ class Admin_model extends CI_Model {
                 redirect('add-branch/'.$last_id);
             }
         }else{
-            // echo '<pre>'; print_r($_POST); exit;
             $this->db->where('id',$this->input->post('id'));
             $this->db->update('tbl_salon',$salon_data);
             $last_id = $this->input->post('id');
 
-            if($this->input->post('is_branch_available') == '0'){
+            if($this->input->post('old_is_branch_available') == '0'){
                 $this->db->where('id',$this->input->post('hidden_self_branch_id'));
                 $exist_branch = $this->db->get('tbl_branch')->row();
                 if(!empty($exist_branch)){
@@ -584,16 +604,19 @@ class Admin_model extends CI_Model {
                         'salon_id'             	=> $last_id,        
                         'branch_name'      		=> $this->input->post('salon_name'),   
                         'salon_number' 			=> $this->input->post('salon_owner_number'),
-                        'email' 				=> $this->input->post('branch_email'),
+                        'email' 				=> $this->input->post('email'),
+                        // 'email' 				=> $this->input->post('branch_email'),
                         'password'              => $this->input->post('password'),
                         'salon_address' 		=> $this->input->post('salon_address'),
                         'state' 				=> $this->input->post('state'),
                         'city' 					=> $this->input->post('city'),
                         'pincode' 				=> $this->input->post('pincode'),
                         'category' 				=> $this->input->post('category'),
+                        // 'agree_terms' 			=> $this->input->post('agree_terms') == 'Yes' ? 'Yes' : 'No',
                         'payment_options' 	    => $payment_options_text,
                         'shopact' 				=> $shopact,
                     ); 
+                    // echo '<pre>'; print_r($data); exit;
                     $referred_by_data=array( 
                         'referred_by' 			=> $this->input->post('branch_referred_by')   
                     );
@@ -906,6 +929,14 @@ class Admin_model extends CI_Model {
         $subscription_price = '';
         $subscription_valid_till = '';
         if($this->input->post('id') == ""){
+            $this->db->where('email',$this->input->post('email'));
+            $this->db->where('is_deleted','0');
+            $exist = $this->db->get('tbl_branch');
+            $exist = $exist->row();
+            if(!empty($exist)){
+                return 'failed_branch';
+            }
+
             $date=array( 
                 'created_on'            => date("Y-m-d H:i:s")     
             );
@@ -1515,318 +1546,325 @@ class Admin_model extends CI_Model {
         if($indices != "" && !empty($indices) && is_array($indices)){
             for($count_index=0;$count_index<count($indices);$count_index++){
                 $index = $indices[$count_index];
-                $shopact = "";
-                if($_FILES['shopact_' . $index]['name'] !=""){
-                    $temp = explode('.', $_FILES['shopact_' . $index]['name']);
-                    $ext = end($temp);
-                    $new_shopact = $temp[0]."_".round(microtime(true)) . '.' . end($temp);
-                    $config = array(
-                        'upload_path' 	=> "admin_assets/images/shopact-image/",
-                        'allowed_types' => "pdf|jpg|jpeg|png",
-                        'file_name'		=> $new_shopact,
-                    );			
-                    $this->upload->initialize($config);
-                    if($this->upload->do_upload('shopact_' . $index)){
-                        $data = $this->upload->data();				
-                        $shopact = $data['file_name'];	
-                    }else{ 
-                        $error = array('error' => $this->upload->display_errors());	
-                        $this->upload->display_errors();
-                    }
-                }
-                $payment_options = $this->input->post('payment_options_' . $index);
-                $payment_options_text = null;
-                if($payment_options != "" && !empty($payment_options)){
-                    $payment_options_text = implode(',',$payment_options);
-                }
-                $data = array(
-                    'salon_id'             	=> $this->input->post('salon_id_' . $index),        
-                    'branch_name'      		=> $this->input->post('branch_name_' . $index),     
-                    'salon_number' 			=> $this->input->post('salon_number_' . $index),  
-                    'email' 				=> $this->input->post('email_' . $index),  
-                    'password'              => $this->input->post('password_' . $index),  
-                    'salon_address' 		=> $this->input->post('salon_address_' . $index),  
-                    'state' 				=> $this->input->post('state_' . $index),  
-                    'city' 					=> $this->input->post('city_' . $index),  
-                    'pincode' 				=> $this->input->post('pincode_' . $index),  
-                    'category' 				=> $this->input->post('category_' . $index),  
-                    'account_holder_name' 	=> $this->input->post('account_holder_name_' . $index),  
-                    'account_number' 		=> $this->input->post('account_number_' . $index),  
-                    'account_type' 			=> $this->input->post('account_type_' . $index),  
-                    'bank_branch_name' 		=> $this->input->post('bank_branch_name_' . $index),  
-                    'bank_name' 			=> $this->input->post('bank_name_' . $index),  
-                    'ifsc' 					=> $this->input->post('ifsc_' . $index),  
-                    // 'agree_terms' 			=> $this->input->post('agree_terms_' . $index) == 'Yes' ? 'Yes' : 'No',
-                    'shopact' 				=> $shopact,
-                    'payment_options'       => $payment_options_text
-                ); 
-                $referred_by_data=array( 
-                    'referred_by' 			=> $this->input->post('referred_by_' . $index)   
-                );
-        
-                $subscription_name = '';
-                $subscription_price = '';
-                $subscription_valid_till = '';
-        
-                $date=array( 
-                    'created_on'            => date("Y-m-d H:i:s")     
-                );
-                $new_arr = array_merge($data,$date);
-                $referred_by_data = array_merge($new_arr,$referred_by_data);
-                $this->db->insert('tbl_branch',$referred_by_data);
-                $branch_id = $this->db->insert_id();
-        
-                $branch_id_array=array( 
-                    'branch_id'            => $branch_id    
-                );
-        
-                $year_month = date('ym');
-                $formatted_branch_id = str_pad($branch_id, 4, '0', STR_PAD_LEFT);
-                $unique_id = $year_month . $formatted_branch_id; 
-                $code_data = array(
-                    'branch_unique_code'    =>  $unique_id
-                );
-                $this->db->where('id',$branch_id);
-                $this->db->update('tbl_branch',$code_data);
-        
-                $this->db->where('id',$this->input->post('subscription_' . $index));
+                $this->db->where('email',$this->input->post('email_' . $index));
                 $this->db->where('is_deleted','0');
-                $subscription = $this->db->get('tbl_subscription_master');
-                $subscription = $subscription->row();
-                if(!empty($subscription)){
-                    $current_date = new DateTime();
-                    
-                    $subscription_duration_days = $subscription->duration != "" && $subscription->duration != null ? $subscription->duration : '1';
-                    $current_date->modify("+$subscription_duration_days days");
-                    $subscription_end = $current_date->format("Y-m-d H:i:s");
-                    $subscription_start = date("Y-m-d H:i:s");
-        
-                    $sub_allocation_data = array(
-                        'branch_id'                 =>  $branch_id,
-                        'salon_id'                  =>  $this->input->post('salon_id_' . $index),
-                        'subscription_name'         =>  $subscription->subscription_name, 
-                        'subscription_id'  		    =>  $subscription->id, 
-                        'subscription_price'        =>  $subscription->amount,
-                        'subscription_validity'     =>  $subscription->duration,
-                        'subscription_start'        =>  $subscription_start,
-                        'subscription_end'          =>  $subscription_end,
-                        'added_by'                  =>  $this->session->userdata('admin_id'),
-                        'paid_amount'               =>  '0.00',
-                        'due_amount'                =>  $subscription->amount,
-                        'include_wp'                =>  $subscription->include_wp,
-                        'wp_coins_qty'              =>  $subscription->wp_coins_qty,
-                        'current_wp_coins_balance'  =>  $subscription->wp_coins_qty,
-                        'created_on'                =>  date("Y-m-d H:i:s")   
+                $exist = $this->db->get('tbl_branch');
+                $exist = $exist->row();
+                if(empty($exist)){
+                    $shopact = "";
+                    if($_FILES['shopact_' . $index]['name'] !=""){
+                        $temp = explode('.', $_FILES['shopact_' . $index]['name']);
+                        $ext = end($temp);
+                        $new_shopact = $temp[0]."_".round(microtime(true)) . '.' . end($temp);
+                        $config = array(
+                            'upload_path' 	=> "admin_assets/images/shopact-image/",
+                            'allowed_types' => "pdf|jpg|jpeg|png",
+                            'file_name'		=> $new_shopact,
+                        );			
+                        $this->upload->initialize($config);
+                        if($this->upload->do_upload('shopact_' . $index)){
+                            $data = $this->upload->data();				
+                            $shopact = $data['file_name'];	
+                        }else{ 
+                            $error = array('error' => $this->upload->display_errors());	
+                            $this->upload->display_errors();
+                        }
+                    }
+                    $payment_options = $this->input->post('payment_options_' . $index);
+                    $payment_options_text = null;
+                    if($payment_options != "" && !empty($payment_options)){
+                        $payment_options_text = implode(',',$payment_options);
+                    }
+                    $data = array(
+                        'salon_id'             	=> $this->input->post('salon_id_' . $index),        
+                        'branch_name'      		=> $this->input->post('branch_name_' . $index),     
+                        'salon_number' 			=> $this->input->post('salon_number_' . $index),  
+                        'email' 				=> $this->input->post('email_' . $index),  
+                        'password'              => $this->input->post('password_' . $index),  
+                        'salon_address' 		=> $this->input->post('salon_address_' . $index),  
+                        'state' 				=> $this->input->post('state_' . $index),  
+                        'city' 					=> $this->input->post('city_' . $index),  
+                        'pincode' 				=> $this->input->post('pincode_' . $index),  
+                        'category' 				=> $this->input->post('category_' . $index),  
+                        'account_holder_name' 	=> $this->input->post('account_holder_name_' . $index),  
+                        'account_number' 		=> $this->input->post('account_number_' . $index),  
+                        'account_type' 			=> $this->input->post('account_type_' . $index),  
+                        'bank_branch_name' 		=> $this->input->post('bank_branch_name_' . $index),  
+                        'bank_name' 			=> $this->input->post('bank_name_' . $index),  
+                        'ifsc' 					=> $this->input->post('ifsc_' . $index),  
+                        // 'agree_terms' 			=> $this->input->post('agree_terms_' . $index) == 'Yes' ? 'Yes' : 'No',
+                        'shopact' 				=> $shopact,
+                        'payment_options'       => $payment_options_text
+                    ); 
+                    $referred_by_data=array( 
+                        'referred_by' 			=> $this->input->post('referred_by_' . $index)   
                     );
-                    $this->db->insert('tbl_branch_subscription_allocation',$sub_allocation_data);
-                    $subscription_allocation_id = $this->db->insert_id();
-        
-                    $sub_data = array(
-                        'subscription_id'  		    =>  $subscription->id, 
-                        'subscription_price'        =>  $subscription->amount,
-                        'subscription_validity'     =>  $subscription->duration,
-                        'subscription_start'        =>  date("Y-m-d H:i:s"),
-                        'subscription_end'          =>  $subscription_end,
-                        'subscription_allocation_id'=>  $subscription_allocation_id,
-                        'pending_due_amount'        =>  $subscription->amount,
-                        'include_wp'                =>  $subscription->include_wp,
-                        'wp_coins_qty'              =>  $subscription->wp_coins_qty,
-                        'current_wp_coins_balance'  =>  $subscription->wp_coins_qty,
+            
+                    $subscription_name = '';
+                    $subscription_price = '';
+                    $subscription_valid_till = '';
+            
+                    $date=array( 
+                        'created_on'            => date("Y-m-d H:i:s")     
+                    );
+                    $new_arr = array_merge($data,$date);
+                    $referred_by_data = array_merge($new_arr,$referred_by_data);
+                    $this->db->insert('tbl_branch',$referred_by_data);
+                    $branch_id = $this->db->insert_id();
+            
+                    $branch_id_array=array( 
+                        'branch_id'            => $branch_id    
+                    );
+            
+                    $year_month = date('ym');
+                    $formatted_branch_id = str_pad($branch_id, 4, '0', STR_PAD_LEFT);
+                    $unique_id = $year_month . $formatted_branch_id; 
+                    $code_data = array(
+                        'branch_unique_code'    =>  $unique_id
                     );
                     $this->db->where('id',$branch_id);
-                    $this->db->update('tbl_branch',$sub_data);
-        
-                    if(rtrim($subscription->subscription_name) == 'Starter'){
-                        $design_array = ['Stylist','Owner'];
-                    }elseif(rtrim($subscription->subscription_name) == 'Growth'){
-                        $design_array = ['Stylist','Receptionist','Owner'];
-                    }elseif(rtrim($subscription->subscription_name) == 'Professional'){
-                        $design_array = ['Stylist','Receptionist','Owner','Manager', 'Cleaner'];
-                    }else{
-                        $design_array = ['Stylist','Owner'];
-                    }
-        
-                    for($i=0;$i<count($design_array);$i++){
-                        $design_data = array(
-                            'branch_id'     =>  $branch_id,
-                            'salon_id'      =>  $this->input->post('salon_id_' . $index),
-                            'designation'   =>  $design_array[$i],
-                            'created_on'    =>  date("Y-m-d H:i:s")
+                    $this->db->update('tbl_branch',$code_data);
+            
+                    $this->db->where('id',$this->input->post('subscription_' . $index));
+                    $this->db->where('is_deleted','0');
+                    $subscription = $this->db->get('tbl_subscription_master');
+                    $subscription = $subscription->row();
+                    if(!empty($subscription)){
+                        $current_date = new DateTime();
+                        
+                        $subscription_duration_days = $subscription->duration != "" && $subscription->duration != null ? $subscription->duration : '1';
+                        $current_date->modify("+$subscription_duration_days days");
+                        $subscription_end = $current_date->format("Y-m-d H:i:s");
+                        $subscription_start = date("Y-m-d H:i:s");
+            
+                        $sub_allocation_data = array(
+                            'branch_id'                 =>  $branch_id,
+                            'salon_id'                  =>  $this->input->post('salon_id_' . $index),
+                            'subscription_name'         =>  $subscription->subscription_name, 
+                            'subscription_id'  		    =>  $subscription->id, 
+                            'subscription_price'        =>  $subscription->amount,
+                            'subscription_validity'     =>  $subscription->duration,
+                            'subscription_start'        =>  $subscription_start,
+                            'subscription_end'          =>  $subscription_end,
+                            'added_by'                  =>  $this->session->userdata('admin_id'),
+                            'paid_amount'               =>  '0.00',
+                            'due_amount'                =>  $subscription->amount,
+                            'include_wp'                =>  $subscription->include_wp,
+                            'wp_coins_qty'              =>  $subscription->wp_coins_qty,
+                            'current_wp_coins_balance'  =>  $subscription->wp_coins_qty,
+                            'created_on'                =>  date("Y-m-d H:i:s")   
                         );
-                        $this->db->insert('tbl_emp_designation', $design_data);
-                    }
-        
-                    $subscription_name = $subscription->subscription_name;
-                    $subscription_price = $subscription->amount;
-                    $subscription_valid_till = $subscription_end;
-                    
-                    $marketing_type = [];
-                    $features = $subscription->features != "" ? explode(',',$subscription->features) : [];
-                    if(in_array('55',$features)){
-                        $marketing_type[] = '2';
-                    }
-                    if(in_array('56',$features)){
-                        $marketing_type[] = '1';
-                    }
-                    if(in_array('57',$features)){
-                        $marketing_type[] = '3';
-                    }
-                    if(in_array('58',$features)){
-                        $marketing_type[] = '4';
-                    }
-                    if(in_array('59',$features)){
-                        $marketing_type[] = '0';
-                    }
-                    if(in_array('60',$features)){
-                        $marketing_type[] = '5';
-                    }
+                        $this->db->insert('tbl_branch_subscription_allocation',$sub_allocation_data);
+                        $subscription_allocation_id = $this->db->insert_id();
+            
+                        $sub_data = array(
+                            'subscription_id'  		    =>  $subscription->id, 
+                            'subscription_price'        =>  $subscription->amount,
+                            'subscription_validity'     =>  $subscription->duration,
+                            'subscription_start'        =>  date("Y-m-d H:i:s"),
+                            'subscription_end'          =>  $subscription_end,
+                            'subscription_allocation_id'=>  $subscription_allocation_id,
+                            'pending_due_amount'        =>  $subscription->amount,
+                            'include_wp'                =>  $subscription->include_wp,
+                            'wp_coins_qty'              =>  $subscription->wp_coins_qty,
+                            'current_wp_coins_balance'  =>  $subscription->wp_coins_qty,
+                        );
+                        $this->db->where('id',$branch_id);
+                        $this->db->update('tbl_branch',$sub_data);
+            
+                        if(rtrim($subscription->subscription_name) == 'Starter'){
+                            $design_array = ['Stylist','Owner'];
+                        }elseif(rtrim($subscription->subscription_name) == 'Growth'){
+                            $design_array = ['Stylist','Receptionist','Owner'];
+                        }elseif(rtrim($subscription->subscription_name) == 'Professional'){
+                            $design_array = ['Stylist','Receptionist','Owner','Manager', 'Cleaner'];
+                        }else{
+                            $design_array = ['Stylist','Owner'];
+                        }
+            
+                        for($i=0;$i<count($design_array);$i++){
+                            $design_data = array(
+                                'branch_id'     =>  $branch_id,
+                                'salon_id'      =>  $this->input->post('salon_id_' . $index),
+                                'designation'   =>  $design_array[$i],
+                                'created_on'    =>  date("Y-m-d H:i:s")
+                            );
+                            $this->db->insert('tbl_emp_designation', $design_data);
+                        }
+            
+                        $subscription_name = $subscription->subscription_name;
+                        $subscription_price = $subscription->amount;
+                        $subscription_valid_till = $subscription_end;
+                        
+                        $marketing_type = [];
+                        $features = $subscription->features != "" ? explode(',',$subscription->features) : [];
+                        if(in_array('55',$features)){
+                            $marketing_type[] = '2';
+                        }
+                        if(in_array('56',$features)){
+                            $marketing_type[] = '1';
+                        }
+                        if(in_array('57',$features)){
+                            $marketing_type[] = '3';
+                        }
+                        if(in_array('58',$features)){
+                            $marketing_type[] = '4';
+                        }
+                        if(in_array('59',$features)){
+                            $marketing_type[] = '0';
+                        }
+                        if(in_array('60',$features)){
+                            $marketing_type[] = '5';
+                        }
 
-                    if(!empty($marketing_type) && count($marketing_type) > 0){    
-                        $for_product = '0';
-                        $employee_product_incentive = null;                                              
-                        if($marketing_type[$i] == '2'){   // Lost
-                            $discount_amount = '20';
-                            $discount_in = '0';
-                            $discount_type = null;
-                            $flexible_min = null;
-                            $flexible_max = null;
-                        }elseif($marketing_type[$i] == '1'){   // Regular
-                            $discount_amount = null;
-                            $discount_in = '0';
-                            $discount_type = '1';
-                            $flexible_min = '5';
-                            $flexible_max = '15';
-                        }elseif($marketing_type[$i] == '3'){   // Birthday
-                            $discount_amount = '20';
-                            $discount_in = '0';
-                            $discount_type = null;
-                            $flexible_min = null;
-                            $flexible_max = null;
-                        }elseif($marketing_type[$i] == '4'){   // Anniversary
-                            $discount_amount = '20';
-                            $discount_in = '0';
-                            $discount_type = null;
-                            $flexible_min = null;
-                            $flexible_max = null;
-                        }elseif($marketing_type[$i] == '0'){   // New
-                            $discount_amount = '10';
-                            $discount_in = '0';
-                            $discount_type = null;
-                            $flexible_min = null;
-                            $flexible_max = null;
-                        }elseif($marketing_type[$i] == '5'){   // New
-                            $discount_amount = '5';
-                            $discount_in = '0';
-                            $discount_type = '0';
+                        if(!empty($marketing_type) && count($marketing_type) > 0){    
                             $for_product = '0';
-                            $employee_product_incentive = '5';
-                            $flexible_min = null;
-                            $flexible_max = null;
-                        }else{
-                            $discount_amount = '10';
-                            $discount_in = '0';
-                            $discount_type = null;
-                            $flexible_min = null;
-                            $flexible_max = null;
-                        }
-    
-                        $this->db->where('salon_id',$this->input->post('salon_id_' . $index));
-                        $this->db->where('branch_id',$branch_id);
-                        $this->db->where('marketing_type',$marketing_type[$i]);
-                        $this->db->where('is_deleted','0');
-                        $exist_marketing = $this->db->get('tbl_automated_marketing');
-                        $exist_marketing = $exist_marketing->row();
-                        $automated_data = array(
-                            'salon_id'          => $this->input->post('salon_id_' . $index),
-                            'branch_id'         => $branch_id,
-                            'marketing_type'    => $marketing_type[$i],
-                            'discount_status'   => '1',
-                            'for_service'       => '0',
-                            'selected_service'  => null,
-                            'discount_in'       => $discount_in,
-                            'discount_type'     => $discount_type,
-                            'discount_amount'   => $discount_amount,
-                            'flexible_max'      => $flexible_max,
-                            'flexible_min'      => $flexible_min,
-                            'for_product'       => $for_product,
-                            'employee_product_incentive'      => $employee_product_incentive,
-                            'created_on'        => date('Y-m-d H:i:s')
-                        );
-                        if(!empty($exist_marketing)){
-                            $this->db->where('id',$exist_marketing->id);
-                            $this->db->update('tbl_automated_marketing', $automated_data);
-                        }else{
-                            $this->db->insert('tbl_automated_marketing', $automated_data);
-                        }
-                    }
-                }
-                
-                if($this->input->post('referred_by_' . $index) != ''){
-                    $this->setup_referal_benefits($this->input->post('referred_by_' . $index),$branch_id);
-                }
-                
-                $this->db->where('is_deleted','0');
-                $this->db->where('status','1');
-                $incentive = $this->db->get('tbl_admin_employee_incentive');
-                $incentive = $incentive->result();
-                if(!empty($incentive)){
-                    foreach($incentive as $incentive_result){
-                        $incentive_arr = array(
-                            'level' 		=> $incentive_result->level,
-                            'start_amount' 	=> $incentive_result->start_amount,
-                            'end_amount' 	=> $incentive_result->end_amount,
-                            'incentive' 	=> $incentive_result->incentive,
-                            'per_or_flat' 	=> $incentive_result->per_or_flat,
-                            'salon_id' 		=> $this->input->post('salon_id_' . $index),
-                            'branch_id' 	=> $branch_id,
-                            'created_on' 	=> date("Y-m-d H:i:s"),
-                        );
-                        $this->db->insert('tbl_salon_employee_incentive',$incentive_arr);
-                    }
-                }             
-                
-                $this->db->where('is_deleted','0');
-                $this->db->where('status','1');
-                $facilities = $this->db->get('tbl_facility_master');
-                $facilities = $facilities->result();
-                if(!empty($facilities)){
-                    foreach($facilities as $facilities_result){
-                        $facilities_result_data = array(
-                            'icon' 	        => $facilities_result->icon,
-                            'facility_name' => $facilities_result->facility_name,
-                            'salon_id' 		=> $this->input->post('salon_id_' . $index),
-                            'branch_id' 	=> $branch_id,
-                            'primary_table_id'  =>  $facilities_result->id,
-                            'created_on' 	=> date("Y-m-d H:i:s"),
-                        );
-                        $this->db->insert('tbl_salon_facility_master',$facilities_result_data);
-                    }
-                }  
+                            $employee_product_incentive = null;                                              
+                            if($marketing_type[$i] == '2'){   // Lost
+                                $discount_amount = '20';
+                                $discount_in = '0';
+                                $discount_type = null;
+                                $flexible_min = null;
+                                $flexible_max = null;
+                            }elseif($marketing_type[$i] == '1'){   // Regular
+                                $discount_amount = null;
+                                $discount_in = '0';
+                                $discount_type = '1';
+                                $flexible_min = '5';
+                                $flexible_max = '15';
+                            }elseif($marketing_type[$i] == '3'){   // Birthday
+                                $discount_amount = '20';
+                                $discount_in = '0';
+                                $discount_type = null;
+                                $flexible_min = null;
+                                $flexible_max = null;
+                            }elseif($marketing_type[$i] == '4'){   // Anniversary
+                                $discount_amount = '20';
+                                $discount_in = '0';
+                                $discount_type = null;
+                                $flexible_min = null;
+                                $flexible_max = null;
+                            }elseif($marketing_type[$i] == '0'){   // New
+                                $discount_amount = '10';
+                                $discount_in = '0';
+                                $discount_type = null;
+                                $flexible_min = null;
+                                $flexible_max = null;
+                            }elseif($marketing_type[$i] == '5'){   // New
+                                $discount_amount = '5';
+                                $discount_in = '0';
+                                $discount_type = '0';
+                                $for_product = '0';
+                                $employee_product_incentive = '5';
+                                $flexible_min = null;
+                                $flexible_max = null;
+                            }else{
+                                $discount_amount = '10';
+                                $discount_in = '0';
+                                $discount_type = null;
+                                $flexible_min = null;
+                                $flexible_max = null;
+                            }
         
-                $new_profile_array = array_merge($new_arr,$branch_id_array);
-                $this->db->insert('tbl_store_profile',$new_profile_array); 
-        
-                $profile = $this->get_profile_name($this->session->userdata('admin_id'));
-                $salon_id = $this->input->post('salon_id_' . $index);
-                $branch_id = $branch_id;
-                $type = '0';
-                $title = 'Branch Created';
-                $desc = 'New Branch created' . (!empty($profile) ? ' by '. $profile->full_name : '');
-                if($subscription_name != "" && $subscription_price != "" & $subscription_valid_till != ""){
-                    $desc .= ' and ' . $subscription_name . ' subscription allocated worth Rs. ' . $subscription_price . ' (Valid Till: ' . date('d M, Y h:i A',strtotime($subscription_valid_till)) . ')';
-                }
-                $this->set_branch_log($branch_id,$salon_id,$type,$desc,$title);
+                            $this->db->where('salon_id',$this->input->post('salon_id_' . $index));
+                            $this->db->where('branch_id',$branch_id);
+                            $this->db->where('marketing_type',$marketing_type[$i]);
+                            $this->db->where('is_deleted','0');
+                            $exist_marketing = $this->db->get('tbl_automated_marketing');
+                            $exist_marketing = $exist_marketing->row();
+                            $automated_data = array(
+                                'salon_id'          => $this->input->post('salon_id_' . $index),
+                                'branch_id'         => $branch_id,
+                                'marketing_type'    => $marketing_type[$i],
+                                'discount_status'   => '1',
+                                'for_service'       => '0',
+                                'selected_service'  => null,
+                                'discount_in'       => $discount_in,
+                                'discount_type'     => $discount_type,
+                                'discount_amount'   => $discount_amount,
+                                'flexible_max'      => $flexible_max,
+                                'flexible_min'      => $flexible_min,
+                                'for_product'       => $for_product,
+                                'employee_product_incentive'      => $employee_product_incentive,
+                                'created_on'        => date('Y-m-d H:i:s')
+                            );
+                            if(!empty($exist_marketing)){
+                                $this->db->where('id',$exist_marketing->id);
+                                $this->db->update('tbl_automated_marketing', $automated_data);
+                            }else{
+                                $this->db->insert('tbl_automated_marketing', $automated_data);
+                            }
+                        }
+                    }
+                    
+                    if($this->input->post('referred_by_' . $index) != ''){
+                        $this->setup_referal_benefits($this->input->post('referred_by_' . $index),$branch_id);
+                    }
+                    
+                    $this->db->where('is_deleted','0');
+                    $this->db->where('status','1');
+                    $incentive = $this->db->get('tbl_admin_employee_incentive');
+                    $incentive = $incentive->result();
+                    if(!empty($incentive)){
+                        foreach($incentive as $incentive_result){
+                            $incentive_arr = array(
+                                'level' 		=> $incentive_result->level,
+                                'start_amount' 	=> $incentive_result->start_amount,
+                                'end_amount' 	=> $incentive_result->end_amount,
+                                'incentive' 	=> $incentive_result->incentive,
+                                'per_or_flat' 	=> $incentive_result->per_or_flat,
+                                'salon_id' 		=> $this->input->post('salon_id_' . $index),
+                                'branch_id' 	=> $branch_id,
+                                'created_on' 	=> date("Y-m-d H:i:s"),
+                            );
+                            $this->db->insert('tbl_salon_employee_incentive',$incentive_arr);
+                        }
+                    }             
+                    
+                    $this->db->where('is_deleted','0');
+                    $this->db->where('status','1');
+                    $facilities = $this->db->get('tbl_facility_master');
+                    $facilities = $facilities->result();
+                    if(!empty($facilities)){
+                        foreach($facilities as $facilities_result){
+                            $facilities_result_data = array(
+                                'icon' 	        => $facilities_result->icon,
+                                'facility_name' => $facilities_result->facility_name,
+                                'salon_id' 		=> $this->input->post('salon_id_' . $index),
+                                'branch_id' 	=> $branch_id,
+                                'primary_table_id'  =>  $facilities_result->id,
+                                'created_on' 	=> date("Y-m-d H:i:s"),
+                            );
+                            $this->db->insert('tbl_salon_facility_master',$facilities_result_data);
+                        }
+                    }  
+            
+                    $new_profile_array = array_merge($new_arr,$branch_id_array);
+                    $this->db->insert('tbl_store_profile',$new_profile_array); 
+            
+                    $profile = $this->get_profile_name($this->session->userdata('admin_id'));
+                    $salon_id = $this->input->post('salon_id_' . $index);
+                    $branch_id = $branch_id;
+                    $type = '0';
+                    $title = 'Branch Created';
+                    $desc = 'New Branch created' . (!empty($profile) ? ' by '. $profile->full_name : '');
+                    if($subscription_name != "" && $subscription_price != "" & $subscription_valid_till != ""){
+                        $desc .= ' and ' . $subscription_name . ' subscription allocated worth Rs. ' . $subscription_price . ' (Valid Till: ' . date('d M, Y h:i A',strtotime($subscription_valid_till)) . ')';
+                    }
+                    $this->set_branch_log($branch_id,$salon_id,$type,$desc,$title);
 
-                $message_type = '13';
-                $email_subject = 'Branch Registration Completed Successfully';
-                $to_email = $this->input->post('email_' . $index);
-                $email_html = $this->get_registration_content($branch_id,$this->input->post('salon_id_' . $index));
-                if($to_email != "" && $email_html != ""){
-                    $membership_history_id = '';
-                    $giftcard_purchase_id = '';
-                    $package_allocation_id = '';
-                    $trying_booking_id = '';
-                    $this->Salon_model->send_email($email_html,'','',$message_type,'',$this->input->post('salon_id_' . $index),$branch_id,'','','',$to_email,$email_subject,'',$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id);
+                    $message_type = '13';
+                    $email_subject = 'Branch Registration Completed Successfully';
+                    $to_email = $this->input->post('email_' . $index);
+                    $email_html = $this->get_registration_content($branch_id,$this->input->post('salon_id_' . $index));
+                    if($to_email != "" && $email_html != ""){
+                        $membership_history_id = '';
+                        $giftcard_purchase_id = '';
+                        $package_allocation_id = '';
+                        $trying_booking_id = '';
+                        $cron_id = '';
+                        $this->Salon_model->send_email($email_html,'','',$message_type,'',$this->input->post('salon_id_' . $index),$branch_id,'','','',$to_email,$email_subject,'',$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$cron_id);
+                    }
                 }
             }
             return true;
@@ -2014,12 +2052,24 @@ class Admin_model extends CI_Model {
             $this->db->insert('tbl_branch_payment_details',$data);
             $branch_payment_id = $this->db->insert_id();
             
-            $branch_formatted = sprintf('%03d', $branch);
-            $salon_formatted = sprintf('%03d', $salon);
-            $count_formatted = sprintf('%04d', $branch_payment_id);
+            $total_count = $this->get_year_booking_count(date('Y-m-d H:i:s'),$branch_payment_id);
+            $year = date('Y');
+            $month = date('m');
+
+            if ((int)$month >= 4) {
+                $fy_start = (int)$year % 100;
+                $fy_end = $fy_start + 1;
+            } else {
+                $fy_end = (int)$year % 100;
+                $fy_start = $fy_end - 1;
+            }
+            $financial_year = 'FY' . sprintf('%02d', $fy_start) . '-' . sprintf('%02d', $fy_end);
+            $count_formatted = sprintf('%04d', $total_count);
+            $invoice_id = 'NAP-GST-' . $financial_year . '-' . $count_formatted;
             $invoice_id_data = array(
-                'invoice_id'    =>  'NSP-' . $branch_formatted . '' . $salon_formatted . '' . $count_formatted
+                'invoice_id' => $invoice_id
             );
+
             $this->db->where('id',$branch_payment_id);
             $this->db->update('tbl_branch_payment_details',$invoice_id_data);
 
@@ -2376,6 +2426,78 @@ class Admin_model extends CI_Model {
 		$result = $this->db->get('tbl_branch_payment_details');
 		return $result->num_rows();
 	}
+    
+	public function get_cron_report_ajx($length, $start, $search){
+		$this->db->select('tbl_cron_reports.*');		
+
+        if($this->input->post('type') != ""){
+            $this->db->where('tbl_cron_reports.type',$this->input->post('type'));
+        }
+        if($this->input->post('from_date') != ""){
+            $this->db->where('DATE(tbl_cron_reports.created_on) >=', date('Y-m-d',strtotime($this->input->post('from_date'))));
+        }
+        if($this->input->post('to_date') != ""){
+            $this->db->where('DATE(tbl_cron_reports.created_on) <=', date('Y-m-d',strtotime($this->input->post('to_date'))));
+        }
+
+		if($search !=""){
+			$this->db->or_like('tbl_cron_reports.description',$search);
+			$this->db->or_like('tbl_cron_reports.response',$search);
+		}	
+
+        $this->db->where('tbl_cron_reports.is_deleted','0');
+		$this->db->order_by('tbl_cron_reports.created_on','DESC');
+		$this->db->limit($length,$start);
+		$result = $this->db->get('tbl_cron_reports');
+		return $result->result();		
+	}
+	public function get_cron_report_ajx_count($search){
+		$this->db->select('tbl_cron_reports.*');		
+
+        if($this->input->post('type') != ""){
+            $this->db->where('tbl_cron_reports.type',$this->input->post('type'));
+        }
+        if($this->input->post('from_date') != ""){
+            $this->db->where('DATE(tbl_cron_reports.created_on) >=', date('Y-m-d',strtotime($this->input->post('from_date'))));
+        }
+        if($this->input->post('to_date') != ""){
+            $this->db->where('DATE(tbl_cron_reports.created_on) <=', date('Y-m-d',strtotime($this->input->post('to_date'))));
+        }
+
+		if($search !=""){
+			$this->db->or_like('tbl_cron_reports.description',$search);
+			$this->db->or_like('tbl_cron_reports.response',$search);
+		}	
+        
+        $this->db->where('tbl_cron_reports.is_deleted','0');
+		$this->db->order_by('tbl_cron_reports.created_on','DESC');
+		$result = $this->db->get('tbl_cron_reports');
+		return $result->num_rows();	
+	}
+    public function get_year_booking_count($date,$id){
+        $year = date('Y', strtotime($date));
+        $month = date('m', strtotime($date));
+
+        if ((int)$month >= 4) {
+            $from_date = date('Y-04-01', strtotime($date));
+            $to_date = date(($year + 1) . '-03-31');
+        } else {
+            $from_date = date(($year - 1) . '-04-01');
+            $to_date = date($year . '-03-31', strtotime($date));
+        }
+
+		$this->db->select('tbl_branch_payment_details.*,tbl_employee.full_name,tbl_salon.salon_name,tbl_branch.salon_number,tbl_branch.email,tbl_branch.branch_name,tbl_branch.is_deleted as branch_is_deleted');		
+		$this->db->join('tbl_salon','tbl_salon.id = tbl_branch_payment_details.salon_id','left');
+		$this->db->join('tbl_branch','tbl_branch.id = tbl_branch_payment_details.branch_id','left');
+		$this->db->join('tbl_employee','tbl_employee.id = tbl_branch_payment_details.payment_entry_by','left');
+        $this->db->where('tbl_branch_payment_details.created_on >=', $from_date);
+        $this->db->where('tbl_branch_payment_details.created_on <=', $to_date);
+        $this->db->where('tbl_branch_payment_details.id <',$id);
+        $this->db->where('tbl_branch_payment_details.is_deleted','0');
+		$this->db->order_by('tbl_branch_payment_details.created_on','DESC');
+		$result = $this->db->get('tbl_branch_payment_details');
+		return $result->num_rows();
+    }
 	public function get_single_payment_details($id){
 		$this->db->select('tbl_branch_payment_details.*,tbl_employee.full_name,tbl_salon.salon_name,tbl_branch.salon_number,tbl_branch.email,tbl_branch.branch_name,tbl_branch.is_deleted as branch_is_deleted');		
 		$this->db->join('tbl_salon','tbl_salon.id = tbl_branch_payment_details.salon_id','left');
@@ -2752,7 +2874,8 @@ class Admin_model extends CI_Model {
         $this->db->join('tbl_salon', 'tbl_salon.id = tbl_branch.salon_id');
         $this->db->where('tbl_branch.is_deleted', '0');
         $this->db->where('tbl_branch.include_wp', '1');
-        $this->db->where('tbl_branch.current_wp_coins_balance <= ' . (int)$value, NULL, FALSE);
+        // $this->db->where('tbl_branch.current_wp_coins_balance <= ' . (int)$value, NULL, FALSE);
+        $this->db->where('tbl_branch.current_wp_coins_balance <= (tbl_branch.wp_coins_qty * ' . (int)$value . ' / 100)', NULL, FALSE);
         $this->db->order_by('tbl_branch.id', 'DESC');
         
         $result = $this->db->get();
@@ -5391,8 +5514,9 @@ public function get_single_status_color()
             $giftcard_purchase_id = '';
             $trying_booking_id = '';
             $wp_template_data = [];
+            $cron_id = '';
 
-            $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+            $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
 		}
 		return true;
 	}
@@ -5463,8 +5587,9 @@ public function get_single_status_color()
             $giftcard_purchase_id = '';
             $trying_booking_id = '';
             $wp_template_data = [];
+            $cron_id = '';
 
-            $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+            $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
 		}
 		return true;
 	}
@@ -6549,73 +6674,101 @@ public function get_single_status_color()
         $setup = $this->Master_model->get_backend_setups();
         $value = !empty($setup) ? (int)$setup->wp_low_qty_value : 25;
 		$branch_details = $this->Admin_model->get_branch_details($branch);
-		if(!empty($branch_details) && $branch_details->include_wp == '1' && $branch_details->current_wp_coins_balance <= $value){
-            $add_on_plan = $this->input->post('add_on_plan');
-            $this->db->select('tbl_whatsapp_addon_plans.*,tbl_subscription_master.subscription_name');
-            $this->db->join('tbl_subscription_master', 'tbl_subscription_master.id = tbl_whatsapp_addon_plans.subscription_id');
-            $this->db->where('tbl_whatsapp_addon_plans.subscription_id',$branch_details->subscription_id);
-            $this->db->where('tbl_whatsapp_addon_plans.id',$add_on_plan);
-            $this->db->where('tbl_whatsapp_addon_plans.is_deleted','0');
-            $this->db->where('tbl_subscription_master.is_deleted','0');
-            $this->db->order_by('tbl_whatsapp_addon_plans.id','DESC');
-            $result = $this->db->get('tbl_whatsapp_addon_plans');
-            $exist = $result->row();
-            if(!empty($exist)){                
-                $opening_due = $branch_details->pending_due_amount != "" ? (float)$branch_details->pending_due_amount : 0.00;
-                $closing_due = $opening_due - (float)$exist->price;
+		if(!empty($branch_details)){ 
+			$wp_coins_qty = $branch_details->wp_coins_qty != "" ? (int)$branch_details->wp_coins_qty : 0;
+			$value = ($value * $wp_coins_qty) / 100;
+            if($branch_details->include_wp == '1' && $branch_details->current_wp_coins_balance <= $value){
+                $add_on_plan = $this->input->post('add_on_plan');
+                $this->db->select('tbl_whatsapp_addon_plans.*,tbl_subscription_master.subscription_name');
+                $this->db->join('tbl_subscription_master', 'tbl_subscription_master.id = tbl_whatsapp_addon_plans.subscription_id');
+                $this->db->where('tbl_whatsapp_addon_plans.subscription_id',$branch_details->subscription_id);
+                $this->db->where('tbl_whatsapp_addon_plans.id',$add_on_plan);
+                $this->db->where('tbl_whatsapp_addon_plans.is_deleted','0');
+                $this->db->where('tbl_subscription_master.is_deleted','0');
+                $this->db->order_by('tbl_whatsapp_addon_plans.id','DESC');
+                $result = $this->db->get('tbl_whatsapp_addon_plans');
+                $exist = $result->row();
+                if(!empty($exist)){                
+                    $opening_due = $branch_details->pending_due_amount != "" ? (float)$branch_details->pending_due_amount : 0.00;
+                    $closing_due = $opening_due - (float)$exist->price;
 
-                $active_addon = $this->Salon_model->get_branch_active_addons($branch_details->id,$branch_details->salon_id);
-                $old_addon_payment_id = null;
-                if(!empty($active_addon)){
-                    $old_addon_payment_id = $active_addon->id;
-                    $this->db->where('id',$old_addon_payment_id);
-                    $this->db->update('tbl_branch_payment_details',array('wp_addon_status'=>'0','addon_inactive_on'=>date('Y-m-d H:i:s'),'addon_inactive_remark'=>'New Add on Purchased'));
+                    $active_addon = $this->Salon_model->get_branch_active_addons($branch_details->id,$branch_details->salon_id);
+                    $old_addon_payment_id = null;
+                    if(!empty($active_addon)){
+                        $old_addon_payment_id = $active_addon->id;
+                        $this->db->where('id',$old_addon_payment_id);
+                        $this->db->update('tbl_branch_payment_details',array('wp_addon_status'=>'0','addon_inactive_on'=>date('Y-m-d H:i:s'),'addon_inactive_remark'=>'New Add on Purchased'));
+                    }
+                    
+                    $active_addon_request = $this->Salon_model->get_branch_active_addon_request($branch_details->id,$branch_details->salon_id);
+                    $old_addon_request_id = null;
+                    if(!empty($active_addon_request)){
+                        $old_addon_request_id = $active_addon_request->id;
+                        $this->db->where('id',$old_addon_request_id);
+                        $this->db->update('tbl_wp_addon_requests',array('wp_addon_request_status'=>'0','inactive_on'=>date('Y-m-d H:i:s'),'inactive_remark'=>'Add on Plan Purchased'));
+                    }
+
+                    $data = array(
+                        'branch_id'                     =>  $branch_details->id,
+                        'salon_id'                      =>  $branch_details->salon_id,
+                        'payment_type'                  =>  '1',
+                        'wp_addon_status'               =>  '1',
+                        'payment_amount'                =>  $exist->price,
+                        'coin_balance_used'             =>  0,
+                        'coin_balance_used_in_rs'       =>  0,
+                        'per_coin_rs_value'             =>  null,
+                        'payment_date'                  =>  date('Y-m-d'),
+                        'remark'                        =>  'Whatsapp Add On Plan Payment',
+                        'add_on_plan_id'                =>  $exist->id,
+                        'plan_name'                     =>  $exist->plan_name,
+                        'plan_price'                    =>  $exist->price,
+                        'plan_qty'                      =>  $exist->qty,
+                        'payment_entry_by'              =>  $this->session->userdata('admin_id'),
+                        'opening_due'                   =>  $opening_due,
+                        'closing_due'                   =>  $closing_due,
+                        'payment_mode'                  =>  $payment_mode,
+                        'payment_id'                    =>  $payment_id,
+                        'old_addon_payment_id'          =>  $old_addon_payment_id,
+                        'addon_request_id'              =>  $old_addon_request_id,
+                        'created_on'                    =>  date('Y-m-d H:i:s')
+                    );
+                    $this->db->insert('tbl_branch_payment_details',$data);
+                    $branch_payment_id = $this->db->insert_id();
+                    
+                    $total_count = $this->get_year_booking_count(date('Y-m-d H:i:s'),$branch_payment_id);
+                    $year = date('Y');
+                    $month = date('m');
+
+                    if ((int)$month >= 4) {
+                        $fy_start = (int)$year % 100;
+                        $fy_end = $fy_start + 1;
+                    } else {
+                        $fy_end = (int)$year % 100;
+                        $fy_start = $fy_end - 1;
+                    }
+                    $financial_year = 'FY' . sprintf('%02d', $fy_start) . '-' . sprintf('%02d', $fy_end);
+                    $count_formatted = sprintf('%04d', $total_count);
+                    $invoice_id = 'NAP-GST-' . $financial_year . '-' . $count_formatted;
+                    $invoice_id_data = array(
+                        'invoice_id' => $invoice_id
+                    );
+
+                    $this->db->where('id',$branch_payment_id);
+                    $this->db->update('tbl_branch_payment_details',$invoice_id_data);
+                    
+                    $old_current_wp_coins_balance = $branch_details->current_wp_coins_balance != "" ? (int)$branch_details->current_wp_coins_balance : 0;
+                    $count = $exist->qty != "" ? (int)$exist->qty : 0;
+                    $branch_data = array(
+                        'current_wp_coins_balance'  =>  $old_current_wp_coins_balance + $count
+                    );
+                    $this->db->where('subscription_id', $branch_details->subscription_id);
+                    $this->db->where('id', $branch_details->id);
+                    $this->db->update('tbl_branch', $branch_data);
+
+                    return '0';
+                }else{
+                    return '1';
                 }
-                
-                $active_addon_request = $this->Salon_model->get_branch_active_addon_request($branch_details->id,$branch_details->salon_id);
-                $old_addon_request_id = null;
-                if(!empty($active_addon_request)){
-                    $old_addon_request_id = $active_addon_request->id;
-                    $this->db->where('id',$old_addon_request_id);
-                    $this->db->update('tbl_wp_addon_requests',array('wp_addon_request_status'=>'0','inactive_on'=>date('Y-m-d H:i:s'),'inactive_remark'=>'Add on Plan Purchased'));
-                }
-
-                $data = array(
-                    'branch_id'                     =>  $branch_details->id,
-                    'salon_id'                      =>  $branch_details->salon_id,
-                    'payment_type'                  =>  '1',
-                    'wp_addon_status'               =>  '1',
-                    'payment_amount'                =>  $exist->price,
-                    'coin_balance_used'             =>  0,
-                    'coin_balance_used_in_rs'       =>  0,
-                    'per_coin_rs_value'             =>  null,
-                    'payment_date'                  =>  date('Y-m-d'),
-                    'remark'                        =>  'Whatsapp Add On Plan Payment',
-                    'add_on_plan_id'                =>  $exist->id,
-                    'plan_name'                     =>  $exist->plan_name,
-                    'plan_price'                    =>  $exist->price,
-                    'plan_qty'                      =>  $exist->qty,
-                    'payment_entry_by'              =>  $this->session->userdata('admin_id'),
-                    'opening_due'                   =>  $opening_due,
-                    'closing_due'                   =>  $closing_due,
-                    'payment_mode'                  =>  $payment_mode,
-                    'payment_id'                    =>  $payment_id,
-                    'old_addon_payment_id'          =>  $old_addon_payment_id,
-                    'addon_request_id'              =>  $old_addon_request_id,
-                    'created_on'                    =>  date('Y-m-d H:i:s')
-                );
-                $this->db->insert('tbl_branch_payment_details',$data);
-                
-                $old_current_wp_coins_balance = $branch_details->current_wp_coins_balance != "" ? (int)$branch_details->current_wp_coins_balance : 0;
-                $count = $exist->qty != "" ? (int)$exist->qty : 0;
-                $branch_data = array(
-                    'current_wp_coins_balance'  =>  $old_current_wp_coins_balance + $count
-                );
-                $this->db->where('subscription_id', $branch_details->subscription_id);
-                $this->db->where('id', $branch_details->id);
-                $this->db->update('tbl_branch', $branch_data);
-
-                return '0';
             }else{
                 return '1';
             }
@@ -6631,42 +6784,48 @@ public function get_single_status_color()
         $setup = $this->Master_model->get_backend_setups();
         $value = !empty($setup) ? (int)$setup->wp_low_qty_value : 25;
 		$branch_details = $this->Admin_model->get_branch_details($branch);
-		if(!empty($branch_details) && $branch_details->include_wp == '1' && $branch_details->current_wp_coins_balance <= $value){
-            $add_on_plan = $this->input->post('add_on_plan');
-            $this->db->select('tbl_whatsapp_addon_plans.*,tbl_subscription_master.subscription_name');
-            $this->db->join('tbl_subscription_master', 'tbl_subscription_master.id = tbl_whatsapp_addon_plans.subscription_id');
-            $this->db->where('tbl_whatsapp_addon_plans.subscription_id',$branch_details->subscription_id);
-            $this->db->where('tbl_whatsapp_addon_plans.id',$add_on_plan);
-            $this->db->where('tbl_whatsapp_addon_plans.is_deleted','0');
-            $this->db->where('tbl_subscription_master.is_deleted','0');
-            $this->db->order_by('tbl_whatsapp_addon_plans.id','DESC');
-            $result = $this->db->get('tbl_whatsapp_addon_plans');
-            $exist = $result->row();
-            if(!empty($exist)){      
-                $active_addon_request = $this->Salon_model->get_branch_active_addon_request($branch_details->id,$branch_details->salon_id);
-                $old_addon_request_id = null;
-                if(!empty($active_addon_request)){
-                    $old_addon_request_id = $active_addon_request->id;
-                    $this->db->where('id',$old_addon_request_id);
-                    $this->db->update('tbl_wp_addon_requests',array('wp_addon_request_status'=>'0','inactive_on'=>date('Y-m-d H:i:s'),'inactive_remark'=>'New Add on Request Raised'));
-                }
-                $addon_remark = $this->input->post('addon_remark');   
-                $data = array(
-                    'branch_id'                     =>  $branch_details->id,
-                    'salon_id'                      =>  $branch_details->salon_id,
-                    'wp_addon_request_status'       =>  '1',
-                    'request_type'                  =>  '0',
-                    'remark'                        =>  $addon_remark,
-                    'add_on_plan_id'                =>  $exist->id,
-                    'plan_name'                     =>  $exist->plan_name,
-                    'plan_price'                    =>  $exist->price,
-                    'plan_qty'                      =>  $exist->qty,
-                    'old_addon_request_id'          =>  $old_addon_request_id,
-                    'created_on'                    =>  date('Y-m-d H:i:s')
-                );
-                $this->db->insert('tbl_wp_addon_requests',$data);
+		if(!empty($branch_details)){ 
+			$wp_coins_qty = $branch_details->wp_coins_qty != "" ? (int)$branch_details->wp_coins_qty : 0;
+			$value = ($value * $wp_coins_qty) / 100;
+            if($branch_details->include_wp == '1' && $branch_details->current_wp_coins_balance <= $value){
+                $add_on_plan = $this->input->post('add_on_plan');
+                $this->db->select('tbl_whatsapp_addon_plans.*,tbl_subscription_master.subscription_name');
+                $this->db->join('tbl_subscription_master', 'tbl_subscription_master.id = tbl_whatsapp_addon_plans.subscription_id');
+                $this->db->where('tbl_whatsapp_addon_plans.subscription_id',$branch_details->subscription_id);
+                $this->db->where('tbl_whatsapp_addon_plans.id',$add_on_plan);
+                $this->db->where('tbl_whatsapp_addon_plans.is_deleted','0');
+                $this->db->where('tbl_subscription_master.is_deleted','0');
+                $this->db->order_by('tbl_whatsapp_addon_plans.id','DESC');
+                $result = $this->db->get('tbl_whatsapp_addon_plans');
+                $exist = $result->row();
+                if(!empty($exist)){      
+                    $active_addon_request = $this->Salon_model->get_branch_active_addon_request($branch_details->id,$branch_details->salon_id);
+                    $old_addon_request_id = null;
+                    if(!empty($active_addon_request)){
+                        $old_addon_request_id = $active_addon_request->id;
+                        $this->db->where('id',$old_addon_request_id);
+                        $this->db->update('tbl_wp_addon_requests',array('wp_addon_request_status'=>'0','inactive_on'=>date('Y-m-d H:i:s'),'inactive_remark'=>'New Add on Request Raised'));
+                    }
+                    $addon_remark = $this->input->post('addon_remark');   
+                    $data = array(
+                        'branch_id'                     =>  $branch_details->id,
+                        'salon_id'                      =>  $branch_details->salon_id,
+                        'wp_addon_request_status'       =>  '1',
+                        'request_type'                  =>  '0',
+                        'remark'                        =>  $addon_remark,
+                        'add_on_plan_id'                =>  $exist->id,
+                        'plan_name'                     =>  $exist->plan_name,
+                        'plan_price'                    =>  $exist->price,
+                        'plan_qty'                      =>  $exist->qty,
+                        'old_addon_request_id'          =>  $old_addon_request_id,
+                        'created_on'                    =>  date('Y-m-d H:i:s')
+                    );
+                    $this->db->insert('tbl_wp_addon_requests',$data);
 
-                return '0';
+                    return '0';
+                }else{
+                    return '1';
+                }
             }else{
                 return '1';
             }

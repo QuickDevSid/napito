@@ -20,14 +20,17 @@ class Welcome extends CI_Controller {
 			$this->load->view('admin/login');  
 		}else{
 			$result = $this->Admin_model->admin_login();  
-												
-			if($result){
-				$this->session->set_flashdata('success','Login successfully');
+								  		
+			if($result == '1'){
+				$this->session->set_flashdata('success','Login successful');
 				redirect('admin-dashboard');
-			}else{
-				$this->session->set_flashdata('message','Login failed, please try again');
-				redirect('login');
+			}elseif($result == '0'){
+				$this->session->set_flashdata('message','Login failed. Email address not registered');
+			}elseif($result == '2'){
+				$this->session->set_flashdata('message','Login failed. Incorrect password');
 			}
+			
+			redirect('login');
 		}
 	}
 	
@@ -42,14 +45,16 @@ class Welcome extends CI_Controller {
 			}else{				
 				$result = $this->Salon_model->salon_login();  		
 				if($result == '1'){
-					$this->session->set_flashdata('success','Login successfully');
+					$this->session->set_flashdata('success','Login successful');
 					redirect('salon-dashboard-new');
 				}elseif($result == '0'){
-					$this->session->set_flashdata('message','Login failed, please try again');
+					$this->session->set_flashdata('message','Login failed. Email address not registered');
 				}elseif($result == '2'){
-					$this->session->set_flashdata('message','Subscription payment not received. Please contact to admin');
+					$this->session->set_flashdata('message','Login failed. Subscription payment not received. Please contact to admin');
 				}elseif($result == '3'){
-					$this->session->set_flashdata('message','Subscription validity expired. Please contact to admin');
+					$this->session->set_flashdata('message','Login failed. Subscription validity expired. Please contact to admin');
+				}elseif($result == '4'){
+					$this->session->set_flashdata('message','Login failed. Incorrect password');
 				}
 				redirect('');
 			}
@@ -65,5 +70,8 @@ class Welcome extends CI_Controller {
 	}  	
 	public function test_notification(){
 		$this->Common_model->test_notification();
+	}	
+	public function set_offer_expiry(){
+		$this->Salon_model->set_offer_expiry();
 	}
 }

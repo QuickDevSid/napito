@@ -165,7 +165,7 @@ div.dataTables_wrapper div.dataTables_paginate{
                             <thead>
                                 <tr>
                                     <th>Sr. No.</th>
-                                    <th>Meesage Type</th>
+                                    <th>Message Type</th>
                                     <th>Customer</th>
                                     <th>Message</th>
                                     <th>Sent On</th>

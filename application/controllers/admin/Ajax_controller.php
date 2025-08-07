@@ -162,10 +162,14 @@ class Ajax_controller extends CI_Controller {
         $setup = $this->Master_model->get_backend_setups();
         $value = !empty($setup) ? (int)$setup->wp_low_qty_value : 25;
 		$data['branch'] = $this->Admin_model->get_branch_details($this->input->post('id'));
-		if(!empty($data['branch']) && $data['branch']->include_wp == '1' && $data['branch']->current_wp_coins_balance <= $value){
-			$data['add_ons'] = $this->Admin_model->get_subscription_whatsapp_addon_plans($data['branch']->subscription_id);
-            $data['payment_modes'] = $data['branch']->payment_options != "" ? explode(',', $data['branch']->payment_options) : [];
-			$this->load->view('purchase_wp_add_on',$data);
+		if(!empty($data['branch'])){ 
+			$wp_coins_qty = $data['branch']->wp_coins_qty != "" ? (int)$data['branch']->wp_coins_qty : 0;
+			$value = ($value * $wp_coins_qty) / 100;
+			if($data['branch']->include_wp == '1' && $data['branch']->current_wp_coins_balance <= $value){
+				$data['add_ons'] = $this->Admin_model->get_subscription_whatsapp_addon_plans($data['branch']->subscription_id);
+				$data['payment_modes'] = $data['branch']->payment_options != "" ? explode(',', $data['branch']->payment_options) : [];
+				$this->load->view('purchase_wp_add_on',$data);
+			}
 		}
 	}
 	public function get_customize_message_response_form_ajx() {
@@ -444,6 +448,57 @@ class Ajax_controller extends CI_Controller {
 			}
 		}
 		$TotalProducts = $this->Admin_model->get_branch_payments_ajx_count($search);
+		
+		$output = array(
+			"draw" 				=> $draw,
+			"recordsTotal" 		=> $TotalProducts,
+			"recordsFiltered" 	=> $TotalProducts,
+			"data" 				=> $data
+		);
+		echo json_encode($output);
+		exit();
+	}
+	public function get_cron_report_ajx(){
+		$draw = intval($this->input->post("draw"));
+		$start = intval($this->input->post("start"));
+		$length = intval($this->input->post("length"));
+		$order = $this->input->post("order");
+		$search = $this->input->post("search");
+		$search = $search['value'];
+		$col = 0;
+		$dir = "";
+		if(!empty($order)){
+			foreach($order as $o){
+				$col = $o['column'];
+				$dir= $o['dir'];
+			}
+		}
+		if($dir != "asc" && $dir != "desc"){
+			$dir = "desc";
+		}		
+		$document = $this->Admin_model->get_cron_report_ajx($length, $start, $search);
+		$data = array();
+		if(!empty($document)){
+			$page = $start / $length + 1;
+			$offset = ($page - 1) * $length + 1;
+			foreach($document as $print){
+				$sub_array = array();
+				$sub_array[] = $offset++;
+				$sub_array[] = date('d M, Y h:i A',strtotime($print->created_on));
+				if($print->sent_on == '1'){
+					$sub_array[] = '<a href="' . base_url() . 'notifications-message-report?cron_id=' . $print->id . '" class="btn btn-info">View</a>';	
+				}elseif($print->sent_on == ''){
+					$sub_array[] = '-';
+				}else{
+					$sub_array[] = '<a href="' . base_url() . 'whatsapp-message-report?cron_id=' . $print->id . '" class="btn btn-info">View</a>';	
+				}						
+				$sub_array[] = $print->description != "" ? $print->description : '-';
+				$sub_array[] = $print->response != "" ? $print->response : '-';
+					
+				$data[] = $sub_array; 
+			}
+		}
+		$TotalProducts = $this->Admin_model->get_cron_report_ajx_count($search);
 		
 		$output = array(
 			"draw" 				=> $draw,

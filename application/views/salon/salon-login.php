@@ -89,6 +89,19 @@
         .login_content{
             max-width: 350px;
         }
+        
+
+        .login_hide_show {
+            position: fixed;
+            top: 50px;
+            right: 20px;
+            transform: translateX(-15%);
+            height: 50px;
+            width: auto;
+            display: flex;
+
+            background-color: transparent;
+        }
     </style>
 
 
@@ -148,19 +161,19 @@
 
 
 
-    <?php if ($this->session->flashdata('success') != "") { ?>
-        <div class="alert alert-success animated fadeInUp">
-            <strong>Success!</strong> <?= $this->session->flashdata('success') ?>
-        </div>
-    <?php } else if ($this->session->flashdata('message') != "") { ?>
-        <div class="alert alert-danger animated fadeInUp">
-            <strong>Error!</strong> <?= $this->session->flashdata('message') ?>
-        </div>
-    <?php } elseif (validation_errors() != '') { ?>
-        <div class="alert alert-danger animated fadeInUp">
-            <strong>Error!</strong> <?= validation_errors() ?>
-        </div>
-    <?php } ?>
+<?php if ($this->session->flashdata('success') != "") { ?>
+    <div class="login_hide_show alert alert-success animated fadeInUp" style="color:#297401;">
+        <strong style="color:#297401;"></strong> <?= $this->session->flashdata('success') ?>
+    </div>
+<?php } else if ($this->session->flashdata('message') != "") { ?>
+    <div class="login_hide_show alert alert-danger animated fadeInUp" style="background-color: red;">
+        <strong></strong> <?= $this->session->flashdata('message') ?>
+    </div>
+<?php } elseif (validation_errors() != '') { ?>
+    <div class="login_hide_show alert alert-danger animated fadeInUp" style="background-color: red;">
+        <strong></strong> <?= validation_errors() ?>
+    </div>
+<?php } ?>
 
 
 

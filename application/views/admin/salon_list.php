@@ -33,7 +33,7 @@
                                     <tr class="headings">
                                         <th>
                                             <!-- <input type="checkbox" class="tableflat"> -->
-                                            Sr.No
+                                            Sr. No.
                                         </th>
                                         <th>Salon Name</th>
                                         <th>Salon Owner Name</th>
@@ -81,7 +81,7 @@
                                                 }
                                             ?>
                                         </td>
-                                        <td><a style="color: blue;" href="<?=base_url();?>add-branch/<?=$add_salon_record_result->id?>">Go for Branaches </td>
+                                        <td><a style="color: blue;" href="<?=base_url();?>add-branch/<?=$add_salon_record_result->id?>">Go for Branches </td>
                                         <!--<td><a  style="color: blue;" href="<?=base_url();?>salon-gallary/<?= $add_salon_record_result->id?>">Add Image</a></td>-->
                                         <td>
                                             <a class="btn btn-danger" onclick="return confirm('Are you sure to delete this record?');" href="<?=base_url()?>admin_delete/<?=$add_salon_record_result->id?>/tbl_salon"><i class="fa-solid fa-trash"></i></a>

@@ -10,59 +10,64 @@ use Ratchet\Client\Connector;
 class Salon_model extends CI_Model{
     public function salon_login(){
         $this->db->select('tbl_branch.*,tbl_branch_subscription_allocation.allocation_status');
+        $this->db->join('tbl_salon', 'tbl_salon.id = tbl_branch.salon_id');
         $this->db->join('tbl_branch_subscription_allocation', 'tbl_branch_subscription_allocation.id = tbl_branch.subscription_allocation_id','left');
         $this->db->where('tbl_branch.is_deleted', '0');
+        $this->db->where('tbl_salon.is_deleted', '0');
         $this->db->where('tbl_branch.status', '1');
         // $this->db->where('tbl_branch_subscription_allocation.allocation_status', '1');
         // $this->db->where('tbl_branch.subscription_end >=', date('Y-m-d H:i:s'));
         // $this->db->where('tbl_branch.subscription_start <=', date('Y-m-d H:i:s'));
         $this->db->where('tbl_branch.email', $this->input->post('email'));
-        $this->db->where('tbl_branch.password', $this->input->post('password')); 
         $result = $this->db->get('tbl_branch');
         $result = $result->row(); 
         if (!empty($result)) {
-            // if($result->allocation_status != "1"){
-            //     return '2';
-            // }
-            
-            // $currentDateTime = date('Y-m-d H:i:s');
-            // if (!(strtotime($result->subscription_end) >= strtotime($currentDateTime) && 
-            //     strtotime($result->subscription_start) <= strtotime($currentDateTime))) {
-            //     return '3';
-            // }
+            if($this->input->post('password') != $result->password){
+                return '4';
+            }else{
+                // if($result->allocation_status != "1"){
+                //     return '2';
+                // }
+                
+                // $currentDateTime = date('Y-m-d H:i:s');
+                // if (!(strtotime($result->subscription_end) >= strtotime($currentDateTime) && 
+                //     strtotime($result->subscription_start) <= strtotime($currentDateTime))) {
+                //     return '3';
+                // }
 
-			$this->db->where('is_deleted', '0');
-			$this->db->where('branch_id',$result->id);
-			$this->db->where('salon_id',$result->salon_id);
-			$store = $this->db->get('tbl_store_profile');
-			$store = $store->row();
+                $this->db->where('is_deleted', '0');
+                $this->db->where('branch_id',$result->id);
+                $this->db->where('salon_id',$result->salon_id);
+                $store = $this->db->get('tbl_store_profile');
+                $store = $store->row();
 
-            $servicable_genders = [];
-            if(!empty($result)){
-                if($result->category == '1' || $result->category == '0'){
-                    $servicable_genders = [$result->category];
-                }elseif($result->category == '2'){
-                    $servicable_genders = ['0','1'];
+                $servicable_genders = [];
+                if(!empty($result)){
+                    if($result->category == '1' || $result->category == '0'){
+                        $servicable_genders = [$result->category];
+                    }elseif($result->category == '2'){
+                        $servicable_genders = ['0','1'];
+                    }
                 }
+                
+                $subscription_slugs_array = $this->get_subscription_slugs($result->subscription_id);
+
+                $session = array(
+                    'branch_id' 	=> $result->id,
+                    'salon_id' 		=> $result->salon_id,
+                    'branch_name' 	=> $result->branch_name,
+                    'store_gender' 	=> !empty($result) ? $result->category : '',
+                    'servicable_genders' 	=> implode(',',$servicable_genders),
+                    'subscription_id' 	        => !empty($subscription_data) ? $subscription_data->id : '',
+                    'subscription_features' 	=> !empty($subscription_data) ? $subscription_data->features : '',
+                    'whatsapp_notification_features' => !empty($subscription_data) ? $subscription_data->whatsapp_notification_features : '',
+                    'subscription_feature_slugs'=> !empty($subscription_slugs_array) ? implode(',',$subscription_slugs_array) : ''
+                );
+
+                $this->session->set_userdata($session);
+
+                return '1';
             }
-            
-            $subscription_slugs_array = $this->get_subscription_slugs($result->subscription_id);
-
-            $session = array(
-                'branch_id' 	=> $result->id,
-                'salon_id' 		=> $result->salon_id,
-                'branch_name' 	=> $result->branch_name,
-                'store_gender' 	=> !empty($result) ? $result->category : '',
-                'servicable_genders' 	=> implode(',',$servicable_genders),
-                'subscription_id' 	        => !empty($subscription_data) ? $subscription_data->id : '',
-                'subscription_features' 	=> !empty($subscription_data) ? $subscription_data->features : '',
-                'whatsapp_notification_features' => !empty($subscription_data) ? $subscription_data->whatsapp_notification_features : '',
-                'subscription_feature_slugs'=> !empty($subscription_slugs_array) ? implode(',',$subscription_slugs_array) : ''
-            );
-
-            $this->session->set_userdata($session);
-
-            return '1';
         } else {
             return '0';
         }
@@ -125,6 +130,64 @@ class Salon_model extends CI_Model{
             );
             $this->session->set_userdata($new_session_data);
             echo '1';
+        }else{
+            echo '0';
+        }
+    }
+    public function set_updated_offer_data_ajx(){
+        $this->db->where('is_deleted', '0');
+        $this->db->where('offer_starts !=', null);
+        $this->db->where('offer_ends !=', null);
+        $result = $this->db->get('tbl_offers');
+        $result = $result->result();
+        if(!empty($result)){
+            foreach($result as $row){
+                $offer_ends = date('Y-m-d',strtotime($row->offer_ends));
+                $validity_status = '1';
+                $today = new DateTime();
+                if (new DateTime($offer_ends) < $today) {
+                    $validity_status = '0';
+                }
+
+                $data = array(
+                    'validity_status'   => $validity_status
+                );
+                $this->db->where('id', $row->id);
+                $this->db->update('tbl_offers',$data);
+            }
+            echo '1';
+        }else{
+            echo '0';
+        }
+    }
+    
+    public function set_updated_active_booking_rule_data_ajx(){
+        $this->db->where('booking_rule_setup_status', '1');
+        $this->db->where('is_deleted', '0');
+        $this->db->where('id', $this->session->userdata('branch_id'));
+        $this->db->where('salon_id', $this->session->userdata('salon_id'));
+        $result = $this->db->get('tbl_branch');
+        $result = $result->row();
+        if(!empty($result)){
+            if($result->last_booking_rule_setup_activated != ""){
+                $date = new DateTime($result->last_booking_rule_setup_activated);
+                $date->modify('+1 day');
+                $activate_from = $date->format('Y-m-d H:i:s');
+
+                if(date('Y-m-d H:i:s') >= $activate_from){
+                    $data = array(
+                        'booking_rule_setup_status'         =>  '0',
+                        'last_booking_rule_setup_activated' =>  null
+                    );
+                    $this->db->where('id', $result->id);
+                    $this->db->update('tbl_branch',$data);
+                    echo '1';
+                }else{
+                    echo '0';
+                }
+            }else{
+                echo '0';
+            }
         }else{
             echo '0';
         }
@@ -1945,7 +2008,14 @@ class Salon_model extends CI_Model{
                 $this->db->where('id', $customer_id);
                 $this->db->update('tbl_salon_customer', $data);
             }else{
+                $f_name = $this->input->post('f_name') != "" ? $this->input->post('f_name') : null;
+                $l_name = $this->input->post('l_name') != "" ? $this->input->post('l_name') : null;
+                $full_name = $f_name . ' ' . $l_name;
+
                 $general_data = array(
+                    'f_name'                    => $f_name,
+                    'l_name'                    => $l_name,
+                    // 'full_name'                 => $full_name,
                     'full_name' 				=> $this->input->post('full_name'),
                     'customer_phone' 			=> ($this->input->post('customer_phone') != "" ? $this->input->post('customer_phone') : $this->input->post('selected_customer_phone')),
                     'gender' 					=> $this->input->post('gender'),
@@ -2261,7 +2331,7 @@ class Salon_model extends CI_Model{
                     $visit_text = '';
                     if(!empty($branch)){
                         if($branch->branch_name != ""){
-                            $visit_text .= $branch->branch_name.'%0a';
+                            $visit_text .= $branch->branch_name;
                         }
                     }
 
@@ -2304,8 +2374,9 @@ class Salon_model extends CI_Model{
                     }
                     $wp_template_data = [];
                     $trying_booking_id = '';
+                    $cron_id = '';
 
-                    $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                    $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                 }
             }
         }
@@ -2363,7 +2434,14 @@ class Salon_model extends CI_Model{
                     $this->db->where('id', $customer_id);
                     $this->db->update('tbl_salon_customer', $data);
                 }else{
+                    $f_name = $this->input->post('f_name') != "" ? $this->input->post('f_name') : null;
+                    $l_name = $this->input->post('l_name') != "" ? $this->input->post('l_name') : null;
+                    $full_name = $f_name . ' ' . $l_name;
+
                     $general_data = array(
+                        'f_name'                    => $f_name,
+                        'l_name'                    => $l_name,
+                        // 'full_name'                 => $full_name,
                         'full_name' 				=> $this->input->post('full_name'),
                         'customer_phone' 			=> ($this->input->post('customer_phone') != "" ? $this->input->post('customer_phone') : $this->input->post('selected_customer_phone')),
                         'gender' 					=> $this->input->post('gender'),
@@ -2562,7 +2640,7 @@ class Salon_model extends CI_Model{
                         $visit_text = '';
                         if(!empty($branch)){
                             if($branch->branch_name != ""){
-                                $visit_text .= $branch->branch_name.'%0a';
+                                $visit_text .= $branch->branch_name;
                             }
                         }
 
@@ -2605,8 +2683,9 @@ class Salon_model extends CI_Model{
                         }
                         $wp_template_data = [];
                         $trying_booking_id = '';
+                        $cron_id = '';
 
-                        $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                        $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                     }
                 }
             }
@@ -2671,7 +2750,14 @@ class Salon_model extends CI_Model{
                     $this->db->where('id', $customer_id);
                     $this->db->update('tbl_salon_customer', $data);
                 }else{
+                    $f_name = $this->input->post('f_name') != "" ? $this->input->post('f_name') : null;
+                    $l_name = $this->input->post('l_name') != "" ? $this->input->post('l_name') : null;
+                    $full_name = $f_name . ' ' . $l_name;
+
                     $general_data = array(
+                        'f_name'                    => $f_name,
+                        'l_name'                    => $l_name,
+                        // 'full_name'                 => $full_name,
                         'full_name' 				=> $this->input->post('full_name'),
                         'customer_phone' 			=> ($this->input->post('customer_phone') != "" ? $this->input->post('customer_phone') : $this->input->post('selected_customer_phone')),
                         'gender' 					=> $this->input->post('gender'),
@@ -2828,7 +2914,7 @@ class Salon_model extends CI_Model{
                         $visit_text = '';
                         if(!empty($branch)){
                             if($branch->branch_name != ""){
-                                $visit_text .= $branch->branch_name.'%0a';
+                                $visit_text .= $branch->branch_name;
                             }
                         }
 
@@ -2871,8 +2957,9 @@ class Salon_model extends CI_Model{
                         }
                         $wp_template_data = [];
                         $trying_booking_id = '';
+                        $cron_id = '';
 
-                        $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                        $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                     }
                 }
             }
@@ -3030,6 +3117,10 @@ class Salon_model extends CI_Model{
         $this->db->where('salon_id',$this->session->userdata('salon_id'));
         $exist = $this->db->get('tbl_salon_customer')->row();
 
+        $f_name = $this->input->post('f_name') != "" ? $this->input->post('f_name') : null;
+        $l_name = $this->input->post('l_name') != "" ? $this->input->post('l_name') : null;
+        $full_name = $f_name . ' ' . $l_name;
+
         $hidden_start = $this->input->post('hidden_start') != "" ? $this->input->post('hidden_start') : '';
         $hidden_end = $this->input->post('hidden_end') != "" ? $this->input->post('hidden_end') : '';
         $hidden_stylist = $this->input->post('hidden_stylist') != "" ? $this->input->post('hidden_stylist') : '';
@@ -3037,6 +3128,9 @@ class Salon_model extends CI_Model{
         $data = array(
             'branch_id' 		=> $this->session->userdata('branch_id'),
             'salon_id' 			=> $this->session->userdata('salon_id'),
+            'f_name' 		    => $f_name,
+            'l_name' 		    => $l_name,
+            // 'full_name' 		=> $full_name,
             'full_name' 		=> $this->input->post('full_name'),
             'customer_phone' 	=> $this->input->post('customer_phone'),
             'custom_note' 	    => $this->input->post('custom_note'),
@@ -3347,7 +3441,7 @@ class Salon_model extends CI_Model{
             $visit_text = '';
             if(!empty($branch)){
                 if($branch->branch_name != ""){
-                    $visit_text .= 'Visit '.$branch->branch_name.'%0a';
+                    $visit_text .= 'Visit '.$branch->branch_name;
                 }
             }
 
@@ -4805,7 +4899,7 @@ class Salon_model extends CI_Model{
                                 $visit_text = '';
                                 if(!empty($branch)){
                                     if($branch->branch_name != ""){
-                                        $visit_text .= $branch->branch_name.'%0a';
+                                        $visit_text .= $branch->branch_name;
                                     }
                                 }
 
@@ -4848,8 +4942,9 @@ class Salon_model extends CI_Model{
                                 $giftcard_purchase_id = '';
                                 $trying_booking_id = '';
                                 $wp_template_data = [];
+                                $cron_id = '';
 
-                                $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                                $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                             }
                         }
                     }
@@ -5934,7 +6029,7 @@ class Salon_model extends CI_Model{
                     $visit_text = '';
                     if(!empty($branch)){
                         if($branch->branch_name != ""){
-                            $visit_text .= $branch->branch_name.'%0a';
+                            $visit_text .= $branch->branch_name;
                         }
                     }
 
@@ -5980,8 +6075,9 @@ class Salon_model extends CI_Model{
                     $giftcard_purchase_id = '';
                     $trying_booking_id = '';
                     $wp_template_data = [];
+                    $cron_id = '';
 
-                    $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                    $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                 }
             }
         }
@@ -7529,38 +7625,52 @@ class Salon_model extends CI_Model{
         return 0;
     }
 
-    public function validate_booking($services,$branch,$salon){
-        if(!empty($services)){
-            // for($i=0;$i<count($services);$i++){
-            //     $this->db->where_in('service_status',['0','1']);
-            //     $this->db->where('is_deleted','0');
-            //     $this->db->where('branch_id',$branch);
-            //     $this->db->where('salon_id', $salon);
-            //     $this->db->where('stylist_id', $services[$i]['selected_stylist']);
-            //     $this->db->where('DATE(service_date)', date('Y-m-d',strtotime($services[$i]['service_from'])));
-            //     $this->db->where('service_from >=', date('Y-m-d H:i:s',strtotime($services[$i]['service_from'])));
-            //     $this->db->where('service_from <=', date('Y-m-d H:i:s',strtotime($services[$i]['service_to'])));
-            //     $result = $this->db->get('tbl_booking_services_details')->num_rows();
-            //     if($result > 0){
-            //         return 0;
-            //     }
-            // }
+    public function validate_booking_short_breakwise($services,$branch,$salon){
+        if(!empty($services)){            
+            for($i=0;$i<count($services);$i++){ 
+                $selected_from_date = date('Y-m-d', strtotime($services[$i]['service_from']));       
+                $selected_from = date('Y-m-d H:i:s', strtotime($services[$i]['service_from']));       
+                $selected_to = date('Y-m-d H:i:s', strtotime($services[$i]['service_to'])); 
 
-            // for($i=0;$i<count($services);$i++){
-            //     $this->db->where_in('service_status',['0','1']);
-            //     $this->db->where('is_deleted','0');
-            //     $this->db->where('branch_id',$branch);
-            //     $this->db->where('salon_id', $salon);
-            //     $this->db->where('stylist_id', $services[$i]['selected_stylist']);
-            //     $this->db->where('DATE(service_date)', date('Y-m-d',strtotime($services[$i]['service_to'])));
-            //     $this->db->where('service_to >=', date('Y-m-d H:i:s',strtotime($services[$i]['service_from'])));
-            //     $this->db->where('service_to <=', date('Y-m-d H:i:s',strtotime($services[$i]['service_to'])));
-            //     $result = $this->db->get('tbl_booking_services_details')->num_rows();
-            //     if($result > 0){
-            //         return 0;
-            //     }
-            // }
-            
+                $this->db->where('DATE(break_date)', $selected_from_date);
+                $this->db->where('branch_id', $branch);
+                $this->db->where('salon_id', $salon);
+                $this->db->where('stylist_id', $services[$i]['selected_stylist']);
+                $this->db->where('is_deleted', '0');
+                $this->db->where_in('break_status', ['0','2']);
+                $breaks = $this->db->get('tbl_stylist_short_breaks')->result();
+
+                if (!empty($breaks)) {
+                    foreach($breaks as $row){
+                        $break_from = date('Y-m-d H:i:s', strtotime($row->from));
+                        $break_to = date('Y-m-d H:i:s', strtotime($row->to));
+
+                        if ($selected_from < $break_to && $selected_to > $break_from) {
+                            return 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        return 1;
+    }
+
+    public function validate_booking_resc($services,$branch,$salon){
+        if(!empty($services)){            
+            for($i=0;$i<count($services);$i++){
+                $is_allowed = $this->Calendar_model->validate_timeslot_resc($services[$i]['stylist_id'], $services[$i]['service_from'], $services[$i]['service_to'], $branch, $salon, $services[$i]['booking_id']);
+                if(!$is_allowed){
+                    return 0;
+                }
+            }
+        }
+
+        return 1;
+    }
+
+    public function validate_booking($services,$branch,$salon){
+        if(!empty($services)){            
             for($i=0;$i<count($services);$i++){
                 $is_allowed = $this->Calendar_model->validate_timeslot($services[$i]['selected_stylist'], $services[$i]['service_from'], $services[$i]['service_to'], $branch, $salon);
                 if(!$is_allowed){
@@ -7568,7 +7678,6 @@ class Salon_model extends CI_Model{
                 }
             }
         }
-
 
         return 1;
     }
@@ -7787,6 +7896,21 @@ class Salon_model extends CI_Model{
         $result = $this->db->get('tbl_admin_services');
        // echo "<pre>";print_r($result->row());exit;
         return $result->row();
+    }
+    public function get_salon_services_list_for_emp_new($gender = '')
+    {
+        $this->db->select('tbl_salon_emp_service.*,tbl_admin_sub_category.sub_category_marathi,tbl_admin_sub_category.sub_category as sub_category_name,tbl_admin_service_category.sup_category, tbl_admin_service_category.sup_category_marathi');
+        $this->db->join('tbl_admin_sub_category', 'tbl_salon_emp_service.sub_category = tbl_admin_sub_category.id');
+        $this->db->join('tbl_admin_service_category', 'tbl_salon_emp_service.category = tbl_admin_service_category.id');
+        $this->db->order_by('CAST(tbl_salon_emp_service.order AS UNSIGNED)', 'asc');
+        $this->db->where('tbl_salon_emp_service.is_deleted', '0');
+        $this->db->where('tbl_salon_emp_service.salon_id', $this->session->userdata('salon_id'));
+        $this->db->where('tbl_salon_emp_service.branch_id', $this->session->userdata('branch_id'));
+        if($gender != ""){
+            $this->db->where('tbl_salon_emp_service.gender', $gender);
+        }
+        $result = $this->db->get('tbl_salon_emp_service');
+        return $result->result();
     }
     public function get_salon_services_list_for_emp($gender = '')
     {
@@ -13162,12 +13286,52 @@ public function get_student_courses($id)
         echo $result->num_rows();
     }
     public function get_unique_customer_mobile(){
+        if($this->input->post('id') != "0" && $this->input->post('id') != ""){
+            $this->db->where('id !=', $this->input->post('id'));
+        }
         $this->db->where('customer_phone', $this->input->post('customer_phone'));
         $this->db->where('is_deleted', '0');
         $this->db->where('branch_id', $this->session->userdata('branch_id'));
         $this->db->where('salon_id', $this->session->userdata('salon_id'));
         $result = $this->db->get('tbl_salon_customer');
         echo $result->num_rows();
+    }
+    public function set_offer_expiry(){
+        $this->db->where('is_deleted', '0');
+        $result = $this->db->get('tbl_offers');
+        $result = $result->result();
+        if(!empty($result)){
+            foreach($result as $row){
+                if ($row->offer_starts == "") {
+                    if ($row->offer_starts != "") {
+                        $offer_starts = date('d-m-Y', strtotime($row->offer_starts));
+                        $startDate = new DateTime($row->offer_starts);
+                    } else {
+                        $offer_starts = date('d-m-Y', strtotime($row->created_on));
+                        $startDate = new DateTime($row->created_on);
+                    }
+                    $duration = (int)$row->duration;
+                    $startDate->modify('+' . ($duration * 7) . ' days');
+
+                    $offer_ends = $row->offer_ends != "" ? date('d-m-Y',strtotime($row->offer_ends)) : $startDate->format('d-m-Y');
+                    
+                    $validity_status = '1';
+                    $today = new DateTime();
+                    if (new DateTime($offer_ends) < $today) {
+                        $validity_status = '0';
+                    }
+
+                    $data = array(
+                        'offer_starts' 		=> $offer_starts != "" ? date('Y-m-d',strtotime($offer_starts)) : null,
+                        'offer_ends' 		=> $offer_ends != "" ? date('Y-m-d',strtotime($offer_ends)) : null,
+                        'validity_status'   => $validity_status
+                    );
+                    $this->db->where('id', $row->id);
+                    $this->db->update('tbl_offers', $data);
+                }
+            }
+        }
+        return true;
     }
 	public function set_offers(){
         $data = array(
@@ -13189,15 +13353,68 @@ public function get_student_courses($id)
         $this->set_onboarding_status('12');
         
         if($this->input->post('id') == ""){
+            if ($this->input->post('offer_starts') != "") {
+                $offer_starts = date('d-m-Y', strtotime($this->input->post('offer_starts')));
+                $startDate = new DateTime($this->input->post('offer_starts'));
+            } else {
+                $offer_starts = date('d-m-Y');
+                $startDate = new DateTime($offer_starts);
+            }
+            $duration = (int)$this->input->post('duration');
+            $startDate->modify('+' . ($duration * 7) . ' days');
+
+            $offer_ends = $this->input->post('offer_ends') != "" ? date('d-m-Y',strtotime($this->input->post('offer_ends'))) : $startDate->format('d-m-Y');
+            
+            $validity_status = '1';
+            $today = new DateTime();
+            if (new DateTime($offer_ends) < $today) {
+                $validity_status = '0';
+            }
+            
             $date = array(
-                'created_on'  => date("Y-m-d H:i:s")
+                'created_on'        => date("Y-m-d H:i:s"),
+                'offer_starts' 		=> $offer_starts != "" ? date('Y-m-d',strtotime($offer_starts)) : null,
+                'offer_ends' 		=> $offer_ends != "" ? date('Y-m-d',strtotime($offer_ends)) : null,
+                'validity_status'   => $validity_status
             );
             $new_arr = array_merge($data, $date);
             $this->db->insert('tbl_offers', $new_arr);
             return 0;
         }else{
+            $this->db->where('is_deleted', '0');
             $this->db->where('id', $this->input->post('id'));
-            $this->db->update('tbl_offers', $data);
+            $result = $this->db->get('tbl_offers');
+            $row = $result->row();
+            if(!empty($row)){
+                if ($this->input->post('offer_starts') != "") {
+                    $offer_starts = date('d-m-Y', strtotime($this->input->post('offer_starts')));
+                    $startDate = new DateTime($this->input->post('offer_starts'));
+                } else {
+                    $offer_starts = date('d-m-Y',strtotime($row->created_on));
+                    $startDate = new DateTime($row->created_on);
+                }
+                $duration = (int)$this->input->post('duration');
+                $startDate->modify('+' . ($duration * 7) . ' days');
+
+                $offer_ends = $this->input->post('offer_ends') != "" ? date('d-m-Y',strtotime($this->input->post('offer_ends'))) : $startDate->format('d-m-Y');
+                
+                $validity_status = '1';
+                $today = new DateTime();
+                if (new DateTime($offer_ends) < $today) {
+                    $validity_status = '0';
+                }
+                
+                $date = array(
+                    'offer_starts' 		=> $offer_starts != "" ? date('Y-m-d',strtotime($offer_starts)) : null,
+                    'offer_ends' 		=> $offer_ends != "" ? date('Y-m-d',strtotime($offer_ends)) : null,
+                    'validity_status'   => $validity_status
+                );
+                $new_arr = array_merge($data, $date);
+
+                // echo '<pre>'; print_r($new_arr); exit;
+                $this->db->where('id', $this->input->post('id'));
+                $this->db->update('tbl_offers', $new_arr);
+            }
             return 1;
         }
     } 
@@ -13382,7 +13599,10 @@ public function get_student_courses($id)
             $this->db->where('DATE(tbl_new_booking.service_start_date) <=', $to_date);
         }
         $this->db->where('tbl_new_booking.is_deleted', '0');
-        $this->db->where('tbl_new_booking.reminder', $reminder_on);
+        $this->db->where('tbl_new_booking.booking_status !=', '2');
+        if($reminder_on != ""){
+            $this->db->where('tbl_new_booking.reminder', $reminder_on);
+        }
         $result = $this->db->get('tbl_new_booking')->result();
         return $result;
     }
@@ -13429,6 +13649,7 @@ public function get_student_courses($id)
         if($to_date != ""){
             $this->db->where('DATE(tbl_trying_for_booking.created_on) <=', $to_date);
         }
+        $this->db->where('tbl_trying_for_booking.booking_status', '0');
         $this->db->where('tbl_trying_for_booking.is_deleted', '0');
         $this->db->order_by('tbl_trying_for_booking.updated_on', 'desc');
         if($length != "" && $start != ""){
@@ -13457,6 +13678,7 @@ public function get_student_courses($id)
             $this->db->where('DATE(tbl_booking_services_details.service_date) <=', $to_date);
         }
         $this->db->where('tbl_booking_services_details.is_deleted', '0');
+        $this->db->group_by('tbl_booking_services_details.booking_id');
         $result = $this->db->get('tbl_booking_services_details')->result();
         return $result;
     }
@@ -13514,9 +13736,9 @@ public function get_student_courses($id)
         $custom = array(
             'in_process'    =>  0,
             'trying_booking'=>  count($this->get_trying_bookings('0',date('Y-m-d'),date('Y-m-d'),'','','')),
-            'pending'       =>  count($this->get_bookings('0','','','')),
-            'completed'     =>  count($this->get_bookings('1','','','')),
-            'cancelled'     =>  count($this->get_bookings('2','','','')),
+            'pending'       =>  count($this->get_bookings('0',date('Y-m-d'),date('Y-m-d'),'')),
+            'completed'     =>  count($this->get_bookings('1',date('Y-m-d'),date('Y-m-d'),'')),
+            'cancelled'     =>  count($this->get_bookings('2',date('Y-m-d'),date('Y-m-d'),'')),
             'today_all'     =>  count($this->get_bookings('',date('Y-m-d'),date('Y-m-d'),'')),
         );
 		echo json_encode($custom);
@@ -13941,11 +14163,11 @@ public function get_student_courses($id)
     }
     public function get_dashboard_redemption_counts_ajx(){   
         $custom = array(
-            'total_used_memberships_count'      =>  count($this->get_total_used_memberships()),
-            'total_used_coupons_count'          =>  count($this->get_total_used_coupons()),
-            'total_used_offers_count'           =>  count($this->get_total_used_offers()),
-            'total_used_package_count'          =>  count($this->get_total_used_package()),
-            'total_used_giftcards_count'        =>  count($this->get_total_used_giftcards()),            
+            'total_used_memberships_count'      =>  count($this->get_total_used_memberships(date('Y-m-d'),date('Y-m-d'))),
+            'total_used_coupons_count'          =>  count($this->get_total_used_coupons(date('Y-m-d'),date('Y-m-d'))),
+            'total_used_offers_count'           =>  count($this->get_total_used_offers(date('Y-m-d'),date('Y-m-d'))),
+            'total_used_package_count'          =>  count($this->get_total_used_package(date('Y-m-d'),date('Y-m-d'))),
+            'total_used_giftcards_count'        =>  count($this->get_total_used_giftcards(date('Y-m-d'),date('Y-m-d'))),            
         );
 		echo json_encode($custom);
 	}
@@ -13956,7 +14178,7 @@ public function get_student_courses($id)
         );
 		echo json_encode($custom);
 	}
-    public function get_total_used_giftcards(){
+    public function get_total_used_giftcards($from_date = '', $to_date = ''){
         $this->db->select('tbl_service_payment.*, tbl_gift_card.gift_name');
         $this->db->join('tbl_gift_card', 'tbl_gift_card.id = tbl_service_payment.applied_giftcard_id');
         $this->db->where('tbl_service_payment.is_deleted', '0');
@@ -13967,12 +14189,18 @@ public function get_student_courses($id)
         $this->db->where('tbl_service_payment.applied_giftcard_id !=', '');
         $this->db->where('tbl_service_payment.applied_giftcard_id !=', '0');
         $this->db->where('tbl_service_payment.applied_giftcard_id !=', null);
+        if ($from_date != "") {
+            $this->db->where('DATE(tbl_service_payment.payment_date) >=', $from_date);
+        }
+        if ($to_date != "") {
+            $this->db->where('DATE(tbl_service_payment.payment_date) <=', $to_date);
+        }
         // $this->db->group_by('tbl_service_payment.applied_giftcard_id');        
         $query = $this->db->get('tbl_service_payment');
         $result = $query->result();
         return $result;
     }
-    public function get_total_used_memberships(){
+    public function get_total_used_memberships($from_date = '', $to_date = ''){
         $this->db->select('tbl_service_payment.*, tbl_memebership.membership_name');
         $this->db->join('tbl_memebership', 'tbl_memebership.id = tbl_service_payment.membership_id');
         $this->db->where('tbl_service_payment.is_deleted', '0');
@@ -13983,12 +14211,18 @@ public function get_student_courses($id)
         $this->db->where('tbl_service_payment.membership_id !=', '');
         $this->db->where('tbl_service_payment.membership_id !=', '0');
         $this->db->where('tbl_service_payment.membership_id !=', null);
+        if ($from_date != "") {
+            $this->db->where('DATE(tbl_service_payment.payment_date) >=', $from_date);
+        }
+        if ($to_date != "") {
+            $this->db->where('DATE(tbl_service_payment.payment_date) <=', $to_date);
+        }
         // $this->db->group_by('tbl_service_payment.membership_id');   
         $query = $this->db->get('tbl_service_payment');
         $result = $query->result();
         return $result;
     }
-    public function get_total_used_coupons(){
+    public function get_total_used_coupons($from_date = '', $to_date = ''){
         $this->db->select('tbl_service_payment.*, tbl_coupon_code.coupon_name');
         $this->db->join('tbl_coupon_code', 'tbl_coupon_code.id = tbl_service_payment.selected_coupon_id');
 		$this->db->where('tbl_service_payment.branch_id', $this->session->userdata('branch_id'));
@@ -13998,12 +14232,18 @@ public function get_student_courses($id)
         $this->db->where('tbl_service_payment.selected_coupon_id !=', '');
         $this->db->where('tbl_service_payment.selected_coupon_id !=', '0');
         $this->db->where('tbl_service_payment.selected_coupon_id !=', null);
+        if ($from_date != "") {
+            $this->db->where('DATE(tbl_service_payment.payment_date) >=', $from_date);
+        }
+        if ($to_date != "") {
+            $this->db->where('DATE(tbl_service_payment.payment_date) <=', $to_date);
+        }
         // $this->db->group_by('tbl_service_payment.selected_coupon_id');        
         $query = $this->db->get('tbl_service_payment');
         $result = $query->result();
         return $result;
     }
-    public function get_total_used_package(){
+    public function get_total_used_package($from_date = '', $to_date = ''){
         $this->db->select('tbl_service_payment.*, tbl_package.package_name');
         $this->db->join('tbl_package', 'tbl_package.id = tbl_service_payment.pacakge_id');
 		$this->db->where('tbl_service_payment.branch_id', $this->session->userdata('branch_id'));
@@ -14015,12 +14255,18 @@ public function get_student_courses($id)
         $this->db->where('tbl_service_payment.pacakge_id !=', '');
         $this->db->where('tbl_service_payment.pacakge_id !=', '0');
         $this->db->where('tbl_service_payment.pacakge_id !=', null);
+        if ($from_date != "") {
+            $this->db->where('DATE(tbl_service_payment.payment_date) >=', $from_date);
+        }
+        if ($to_date != "") {
+            $this->db->where('DATE(tbl_service_payment.payment_date) <=', $to_date);
+        }
         // $this->db->group_by('tbl_service_payment.pacakge_id');        
         $query = $this->db->get('tbl_service_payment');
         $result = $query->result();
         return $result;
     }
-    public function get_total_used_offers(){        
+    public function get_total_used_offers($from_date = '', $to_date = ''){        
         $this->db->select('tbl_service_payment.*, tbl_offers.offers_name');
         $this->db->join('tbl_offers', 'tbl_offers.id = tbl_service_payment.applied_offer_id');
 		$this->db->where('tbl_service_payment.branch_id', $this->session->userdata('branch_id'));
@@ -14031,6 +14277,12 @@ public function get_student_courses($id)
         $this->db->where('tbl_service_payment.applied_offer_id !=', '');
         $this->db->where('tbl_service_payment.applied_offer_id !=', '0');
         $this->db->where('tbl_service_payment.applied_offer_id !=', null);
+        if ($from_date != "") {
+            $this->db->where('DATE(tbl_service_payment.payment_date) >=', $from_date);
+        }
+        if ($to_date != "") {
+            $this->db->where('DATE(tbl_service_payment.payment_date) <=', $to_date);
+        }
         $query = $this->db->get('tbl_service_payment');
         $result = $query->result();
         return $result;
@@ -15659,20 +15911,35 @@ public function get_student_courses($id)
         $this->db->where('customer_name', $id);
         $this->db->where('branch_id', $this->session->userdata('branch_id'));
         $this->db->where('salon_id', $this->session->userdata('salon_id'));
-        $this->db->order_by('booking_date','asc');
+        $this->db->order_by('service_start_date','asc');
         $this->db->limit(1);
         $result = $this->db->get('tbl_new_booking');
         return $result->row();
     }   
     public function get_customer_last_booking($id){
+        $this->db->where('id', $id);
+        $customer = $this->db->get('tbl_salon_customer');
+        $customer = $customer->row();
+        
+        if($customer->salon_id != ''){
+            $salon_id = $customer->salon_id;
+        }else{
+            $salon_id = $this->session->userdata('salon_id');
+        }
+
+        if($customer->branch_id != ''){
+            $branch_id = $customer->branch_id;
+        }else{
+            $branch_id = $this->session->userdata('branch_id');
+        }
+
         $this->db->where('is_deleted', '0');
         $this->db->where('customer_name', $id);
-        $this->db->where('branch_id', $this->session->userdata('branch_id'));
-        $this->db->where('salon_id', $this->session->userdata('salon_id'));
-        $this->db->order_by('booking_date','desc');
+        $this->db->where('branch_id', $branch_id);
+        $this->db->where('salon_id', $salon_id);
+        $this->db->order_by('service_start_date','desc');
         $this->db->limit(1);
         $result = $this->db->get('tbl_new_booking');
-        // echo 'First<pre>'; print_r($id);
         return $result->row();
     }
     public function get_customer_report_data_ajx_count($search){
@@ -16027,6 +16294,7 @@ public function get_student_courses($id)
     public function get_employee_whatsapp_coins_report_list($length, $start, $search) {
         $from = $this->input->post('from_date');
         $to = $this->input->post('to_date');
+        $ids = $this->input->post('ids') != "" ? explode(',',$this->input->post('ids')) : [];
         $this->db->select('tbl_messages_history.*,tbl_salon_customer.dob, tbl_salon_customer.doa, tbl_salon_customer.full_name,tbl_salon_customer.customer_phone,tbl_salon.salon_name,tbl_branch.branch_name');
         $this->db->join('tbl_salon_customer','tbl_salon_customer.id = tbl_messages_history.send_customer');
         $this->db->join('tbl_branch','tbl_branch.id = tbl_messages_history.branch_id');
@@ -16034,14 +16302,22 @@ public function get_student_courses($id)
         $this->db->where('tbl_messages_history.is_deleted', '0');
         $this->db->where('tbl_messages_history.send_on', '1');
         $this->db->where('tbl_messages_history.wp_gateway', '1');
-		if($this->input->post('admin_panel') == '1' && $this->input->post('branch') != ''){
-            $this->db->where('tbl_messages_history.branch_id', $this->input->post('branch'));
-        }else{
-            $this->db->where('tbl_messages_history.branch_id', $this->session->userdata('branch_id'));
-            $this->db->where('tbl_messages_history.salon_id', $this->session->userdata('salon_id')); 
+		if($this->input->post('type') != ''){
+            $this->db->where('tbl_messages_history.type', $this->input->post('type'));
         }
-        if($from != "" && $to != ""){       
+        if(!empty($ids)){
+            $this->db->where_in('tbl_messages_history.id', $ids);
+        }
+		if($this->input->post('salon') != ''){
+            $this->db->where('tbl_messages_history.salon_id', $this->input->post('salon'));
+        }
+		if($this->input->post('cron_id') != ''){
+            $this->db->where('tbl_messages_history.cron_id', $this->input->post('cron_id'));
+        }
+        if($from != ""){       
             $this->db->where('DATE(tbl_messages_history.created_on) >=',date('Y-m-d',strtotime($from)));
+        }
+        if($to != ""){       
             $this->db->where('DATE(tbl_messages_history.created_on) <=', date('Y-m-d',strtotime($to)));
         }
             
@@ -16065,6 +16341,7 @@ public function get_student_courses($id)
     public function get_employee_whatsapp_coins_report_count($search){
         $from = $this->input->post('from_date');
         $to = $this->input->post('to_date');
+        $ids = $this->input->post('ids') != "" ? explode(',',$this->input->post('ids')) : [];
         $this->db->select('tbl_messages_history.*,tbl_salon_customer.dob, tbl_salon_customer.doa, tbl_salon_customer.full_name,tbl_salon_customer.customer_phone,tbl_salon.salon_name,tbl_branch.branch_name');
         $this->db->join('tbl_salon_customer','tbl_salon_customer.id = tbl_messages_history.send_customer');
         $this->db->join('tbl_branch','tbl_branch.id = tbl_messages_history.branch_id');
@@ -16072,14 +16349,25 @@ public function get_student_courses($id)
         $this->db->where('tbl_messages_history.is_deleted', '0');
         $this->db->where('tbl_messages_history.send_on', '1');
         $this->db->where('tbl_messages_history.wp_gateway', '1');
-		if($this->input->post('admin_panel') == '1' && $this->input->post('branch') != ''){
-            $this->db->where('tbl_messages_history.branch_id', $this->input->post('branch'));
-        }else{
-            $this->db->where('tbl_messages_history.branch_id', $this->session->userdata('branch_id'));
-            $this->db->where('tbl_messages_history.salon_id', $this->session->userdata('salon_id')); 
+		if($this->input->post('type') != ''){
+            $this->db->where('tbl_messages_history.type', $this->input->post('type'));
         }
-        if($from != "" && $to != ""){       
+		if($this->input->post('branch') != ''){
+            $this->db->where('tbl_messages_history.branch_id', $this->input->post('branch'));
+        }
+        if(!empty($ids)){
+            $this->db->where_in('tbl_messages_history.id', $ids);
+        }
+		if($this->input->post('salon') != ''){
+            $this->db->where('tbl_messages_history.salon_id', $this->input->post('salon'));
+        }
+		if($this->input->post('cron_id') != ''){
+            $this->db->where('tbl_messages_history.cron_id', $this->input->post('cron_id'));
+        }
+        if($from != ""){       
             $this->db->where('DATE(tbl_messages_history.created_on) >=',date('Y-m-d',strtotime($from)));
+        }
+        if($to != ""){       
             $this->db->where('DATE(tbl_messages_history.created_on) <=', date('Y-m-d',strtotime($to)));
         }
             
@@ -16097,6 +16385,97 @@ public function get_student_courses($id)
         $this->db->order_by('tbl_messages_history.id', 'DESC');
 		$result = $this->db->get('tbl_messages_history');
 		return $result->num_rows();
+	}
+    
+    public function get_notification_report_data_ajx($length, $start, $search) {
+        $from = $this->input->post('from_date');
+        $to = $this->input->post('to_date');
+        $ids = $this->input->post('ids') != "" ? explode(',',$this->input->post('ids')) : [];
+        $this->db->select('tbl_customer_notifications.*,tbl_salon_customer.dob, tbl_salon_customer.doa, tbl_salon_customer.full_name,tbl_salon_customer.customer_phone,tbl_salon.salon_name,tbl_branch.branch_name');
+        $this->db->join('tbl_salon_customer','tbl_salon_customer.id = tbl_customer_notifications.send_customer');
+        $this->db->join('tbl_branch','tbl_branch.id = tbl_customer_notifications.branch_id');
+        $this->db->join('tbl_salon','tbl_salon.id = tbl_customer_notifications.salon_id');
+        $this->db->where('tbl_customer_notifications.is_deleted', '0');
+		if($this->input->post('type') != ''){
+            $this->db->where('tbl_customer_notifications.type', $this->input->post('type'));
+        }
+        if(!empty($ids)){
+            $this->db->where_in('tbl_customer_notifications.id', $ids);
+        }
+		if($this->input->post('salon') != ''){
+            $this->db->where('tbl_customer_notifications.salon_id', $this->input->post('salon'));
+        }
+		if($this->input->post('cron_id') != ''){
+            $this->db->where('tbl_customer_notifications.cron_id', $this->input->post('cron_id'));
+        }
+        if($from != ""){       
+            $this->db->where('DATE(tbl_customer_notifications.created_on) >=',date('Y-m-d',strtotime($from)));
+        }
+        if($to != ""){       
+            $this->db->where('DATE(tbl_customer_notifications.created_on) <=', date('Y-m-d',strtotime($to)));
+        }
+            
+        if ($search !== "") {
+            $this->db->group_start();
+            $this->db->like('tbl_customer_notifications.created_on', $search);
+            $this->db->or_like('tbl_customer_notifications.content', $search);
+            $this->db->or_like('tbl_customer_notifications.title', $search);
+            $this->db->or_like('tbl_salon_customer.full_name', $search);
+            $this->db->or_like('tbl_salon_customer.customer_phone', $search);
+            $this->db->or_like('tbl_salon_customer.email', $search);
+            $this->db->or_like('tbl_salon_customer.dob', $search);
+            $this->db->group_end();
+        }
+        
+        $this->db->limit($length, $start);
+        $this->db->order_by('tbl_customer_notifications.created_on', 'DESC');
+        $result = $this->db->get('tbl_customer_notifications');
+        return $result->result();
+    } 
+    
+    public function get_notification_report_data_ajx_count($search){
+        $from = $this->input->post('from_date');
+        $to = $this->input->post('to_date');
+        $ids = $this->input->post('ids') != "" ? explode(',',$this->input->post('ids')) : [];
+        $this->db->select('tbl_customer_notifications.*,tbl_salon_customer.dob, tbl_salon_customer.doa, tbl_salon_customer.full_name,tbl_salon_customer.customer_phone,tbl_salon.salon_name,tbl_branch.branch_name');
+        $this->db->join('tbl_salon_customer','tbl_salon_customer.id = tbl_customer_notifications.send_customer');
+        $this->db->join('tbl_branch','tbl_branch.id = tbl_customer_notifications.branch_id');
+        $this->db->join('tbl_salon','tbl_salon.id = tbl_customer_notifications.salon_id');
+        $this->db->where('tbl_customer_notifications.is_deleted', '0');
+		if($this->input->post('type') != ''){
+            $this->db->where('tbl_customer_notifications.type', $this->input->post('type'));
+        }
+        if(!empty($ids)){
+            $this->db->where_in('tbl_customer_notifications.id', $ids);
+        }
+		if($this->input->post('salon') != ''){
+            $this->db->where('tbl_customer_notifications.salon_id', $this->input->post('salon'));
+        }
+		if($this->input->post('cron_id') != ''){
+            $this->db->where('tbl_customer_notifications.cron_id', $this->input->post('cron_id'));
+        }
+        if($from != ""){       
+            $this->db->where('DATE(tbl_customer_notifications.created_on) >=',date('Y-m-d',strtotime($from)));
+        }
+        if($to != ""){       
+            $this->db->where('DATE(tbl_customer_notifications.created_on) <=', date('Y-m-d',strtotime($to)));
+        }
+            
+        if ($search !== "") {
+            $this->db->group_start();
+            $this->db->like('tbl_customer_notifications.created_on', $search);
+            $this->db->or_like('tbl_customer_notifications.content', $search);
+            $this->db->or_like('tbl_customer_notifications.title', $search);
+            $this->db->or_like('tbl_salon_customer.full_name', $search);
+            $this->db->or_like('tbl_salon_customer.customer_phone', $search);
+            $this->db->or_like('tbl_salon_customer.email', $search);
+            $this->db->or_like('tbl_salon_customer.dob', $search);
+            $this->db->group_end();
+        }
+        
+        $this->db->order_by('tbl_customer_notifications.created_on', 'DESC');
+        $result = $this->db->get('tbl_customer_notifications');
+        return $result->num_rows();
 	}
     
     public function get_trying_booking_report_data_ajx($length, $start, $search) {
@@ -16456,8 +16835,11 @@ public function get_student_courses($id)
             $lost_customer_cutoff_stop_date = date('Y-m-d', strtotime("-$lost_customer_criteria_expire_days days", strtotime(date('Y-m-d'))));
             
             $last_booking = $this->get_customer_last_booking($id);
+            // if($id == 9801){
+            //     echo '<pre>'; print_r($last_booking); exit;
+            // }
             if (!empty($last_booking)) {
-                $last_booking_date = date('Y-m-d', strtotime($last_booking->booking_date));
+                $last_booking_date = date('Y-m-d', strtotime($last_booking->service_start_date));
                 if ($last_booking_date <= $lost_customer_cutoff_date && $last_booking_date > $lost_customer_cutoff_stop_date) {
                     return '2';
                 }
@@ -19244,17 +19626,19 @@ public function get_student_courses($id)
                         $is_service_available = '1';
                     }
 
-                    $is_stylist_available_storewise = $this->get_is_selected_booking_available_storewise($selectedfrom,$selectedto);
-                    if($is_stylist_available_storewise){
-                        $store_flag = '1';
-                    }
+                    // $is_stylist_available_storewise = $this->get_is_selected_booking_available_storewise($selectedfrom,$selectedto);
+                    // if($is_stylist_available_storewise){
+                    //     $store_flag = '1';
+                    // }
+                    $store_flag = '1';
 
-                    $is_emergency = $this->Salon_model->check_is_salon_close_for_period_setup_datewise(date('Y-m-d',strtotime($selectedfrom)));
-                    if($is_emergency){
-                        $is_emergency_flag = '1';
-                    }else{
-                        $is_emergency_flag = '0';
-                    }
+                    // $is_emergency = $this->Salon_model->check_is_salon_close_for_period_setup_datewise(date('Y-m-d',strtotime($selectedfrom)));
+                    // if($is_emergency){
+                    //     $is_emergency_flag = '1';
+                    // }else{
+                    //     $is_emergency_flag = '0';
+                    // }
+                    $is_emergency_flag = '0';
 
                     $is_stylist_available_shiftwise = $this->get_is_selected_stylist_available_shiftwise_details($result->id,$selectedfrom,$selectedto);
                     // $is_stylist_available_shiftwise = $this->get_is_selected_stylist_available_shiftwise($result->id,$selectedfrom,$selectedto);
@@ -19262,10 +19646,11 @@ public function get_student_courses($id)
                         $shift_flag = '1';
                     }
 
-                    $is_stylist_available_breakwise = $this->get_is_selected_stylist_available_breakwise($result->id,$selectedfrom,$selectedto);
-                    if($is_stylist_available_breakwise){
-                        $break_flag = '0';
-                    }
+                    // $is_stylist_available_breakwise = $this->get_is_selected_stylist_available_breakwise($result->id,$selectedfrom,$selectedto);
+                    // if($is_stylist_available_breakwise){
+                    //     $break_flag = '0';
+                    // }
+                    $break_flag = '0';
 
                     $is_stylist_available_short_breakwise = $this->get_is_selected_stylist_available_short_breakwise($result->id,$selectedfrom,$selectedto);
                     if($is_stylist_available_short_breakwise){
@@ -20151,7 +20536,7 @@ public function get_student_courses($id)
                                 $visit_text = '';
                                 if(!empty($branch)){
                                     if($branch->branch_name != ""){
-                                        $visit_text .= $branch->branch_name.'%0a';
+                                        $visit_text .= $branch->branch_name;
                                     }
                                 }
 
@@ -20194,8 +20579,9 @@ public function get_student_courses($id)
                                 $giftcard_purchase_id = '';
                                 $trying_booking_id = '';
                                 $wp_template_data = [];
+                                $cron_id = '';
 
-                                $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                                $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                             }
                         }
                     }
@@ -20229,6 +20615,7 @@ public function get_student_courses($id)
         }
     }
     public function send_trying_for_booking_messages($booking_id){
+        $count = 0;
         $this->db->where('id',$booking_id);
         $single = $this->db->get('tbl_new_booking')->row();
         if(!empty($single)){
@@ -20257,7 +20644,17 @@ public function get_student_courses($id)
                     $trying_bookings = $this->db->get('tbl_trying_for_booking')->result();
                     if(!empty($trying_bookings)){
                         foreach($trying_bookings as $trying_bookings_result){
-                            if($trying_bookings_result->customer_phone != "" && $trying_bookings_result->customer_phone != null && $trying_bookings_result->customer_phone != '0000000000'){
+                            $this->db->select('tbl_new_booking.*,tbl_salon_customer.customer_phone,tbl_salon_customer.full_name');
+                            $this->db->join('tbl_salon_customer', 'tbl_salon_customer.id = tbl_new_booking.customer_name');
+                            $this->db->where('DATE(tbl_new_booking.service_start_date)', $service_start_date);
+                            $this->db->where('tbl_new_booking.branch_id', $trying_bookings_result->branch_id);
+                            $this->db->where('tbl_new_booking.salon_id', $trying_bookings_result->salon_id);
+                            $this->db->where('tbl_new_booking.customer_name', $trying_bookings_result->customer_id);
+                            $this->db->where('tbl_new_booking.is_deleted','0');
+                            $this->db->group_by('tbl_new_booking.customer_id');
+                            $existing_booking = $this->db->get('tbl_new_booking')->num_rows();
+                            if($existing_booking <= 0 && $trying_bookings_result->customer_phone != "" && $trying_bookings_result->customer_phone != null && $trying_bookings_result->customer_phone != '0000000000'){
+                                $count = $count + 1;
                                 $cleanedNumber = preg_replace('/[^0-9]/', '', $customer_details->customer_phone);
                                 $finalNumber = substr($cleanedNumber, -10);
                                 $finalNumber = '91' . $finalNumber;
@@ -20265,7 +20662,7 @@ public function get_student_courses($id)
                                 $visit_text = '';
                                 if(!empty($branch)){
                                     if($branch->branch_name != ""){
-                                        // $visit_text .= $branch->branch_name.'%0a';
+                                        // $visit_text .= $branch->branch_name;
                                         $visit_text .= $branch->salon_number;
                                     }
                                 }
@@ -20305,6 +20702,7 @@ public function get_student_courses($id)
                                         $message_send_on = '1'; //WP
                                     }
                                 }
+                                $message_send_on = '1';
                                 $membership_history_id = '';
                                 $package_allocation_id = '';
                                 $giftcard_purchase_id = '';
@@ -20323,13 +20721,17 @@ public function get_student_courses($id)
                                         ]
                                     ]
                                 ];
+                                $cron_id = '';
 
-                                $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                                $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                             }
-                        }
+                        }   
                     }
                 }
             }
+        } 
+        if($count > 0){
+            $this->Salon_model->send_cron_confirmation($wp_template_data);
         }
         return true;
     }
@@ -25513,6 +25915,17 @@ public function get_student_courses($id)
     }
     
     public function get_booking_service_details($id){
+		$from_date = $this->input->post('from_date');
+		$to_date = $this->input->post('to_date');
+		$customer = $this->input->post('customer');
+		$filter_id = $this->input->post('id');
+		$service = $this->input->post('service');
+		$stylist = $this->input->post('stylist');
+		$status = $this->input->post('status');
+		$is_app = $this->input->post('is_app');
+		$counter_bookings = $this->input->post('counter_bookings');
+		$guest_bookings = $this->input->post('guest_bookings');
+
         $this->db->select('tbl_booking_services_details.*,tbl_admin_service_category.sup_category,tbl_admin_service_category.sup_category_marathi,tbl_admin_sub_category.sub_category as sub_category_name,tbl_admin_sub_category.sub_category_marathi,tbl_new_booking.amount_to_paid,tbl_salon_employee.full_name as stylist_name, tbl_salon_customer.full_name as customer_name,tbl_salon_customer.customer_phone, tbl_salon_emp_service.service_name,tbl_salon_emp_service.service_name_marathi');
         $this->db->join('tbl_salon_emp_service','tbl_salon_emp_service.id = tbl_booking_services_details.service_id');
         $this->db->join('tbl_salon_customer','tbl_salon_customer.id = tbl_booking_services_details.customer_name');
@@ -25520,8 +25933,48 @@ public function get_student_courses($id)
         $this->db->join('tbl_salon_employee','tbl_salon_employee.id = tbl_booking_services_details.stylist_id');
         $this->db->join('tbl_admin_sub_category','tbl_admin_sub_category.id = tbl_salon_emp_service.sub_category');
         $this->db->join('tbl_admin_service_category','tbl_admin_service_category.id = tbl_salon_emp_service.category');
-        $this->db->where('tbl_booking_services_details.booking_id',$id);
-        $this->db->where('tbl_booking_services_details.is_deleted','0');
+        $this->db->where('tbl_booking_services_details.is_deleted','0');        
+		
+		if($filter_id != "" && $filter_id != '0'){
+			$this->db->where('tbl_booking_services_details.booking_id',$filter_id);
+		}else{
+            $this->db->where('tbl_booking_services_details.booking_id',$id);
+        }
+		if($is_app != "" && $is_app == 'on'){
+			$this->db->where('tbl_new_booking.booking_generated_from','1');
+		}
+		if($counter_bookings != "" && $counter_bookings == 'on'){
+			$this->db->where('tbl_new_booking.is_direct_billing','1');
+		}
+		if($guest_bookings != "" && $guest_bookings == 'on'){
+			$this->db->where('tbl_new_booking.is_guest_booking','1');
+		}
+		if($customer != "" && $customer != '0'){
+			$this->db->where('tbl_new_booking.customer_name',$customer);
+		}
+		if($from_date != "" && $from_date != '0'){
+			$this->db->where('DATE(tbl_booking_services_details.service_date) >=',date('Y-m-d',strtotime($from_date)));
+		}
+		if($to_date != "" && $to_date != '0'){
+			$this->db->where('DATE(tbl_booking_services_details.service_date) <=',date('Y-m-d',strtotime($to_date)));
+		}
+		if($service != "" && $service != '0'){
+			$this->db->where('tbl_booking_services_details.service_id',$service);
+		}
+		if($stylist != "" && $stylist != '0'){
+			$this->db->where('tbl_booking_services_details.stylist_id',$stylist);
+		}
+		if($status != ""){
+			$this->db->where('tbl_booking_services_details.service_status',$status);
+            if($status == "0"){
+			    $this->db->where_in('tbl_new_booking.booking_status',['1','3','4']);
+            }elseif($status == "1"){
+			    $this->db->where_in('tbl_new_booking.booking_status',['5']);
+            }elseif($status == "2"){
+			    $this->db->where_in('tbl_new_booking.booking_status',['2']);
+            }
+		}
+
         $result = $this->db->get('tbl_booking_services_details')->result();
         return $result;
     }
@@ -26989,7 +27442,7 @@ public function get_student_courses($id)
                         $visit_text = '';
                         if(!empty($branch)){
                             if($branch->branch_name != ""){
-                                $visit_text .= $branch->branch_name.'%0a';
+                                $visit_text .= $branch->branch_name;
                             }
                         }
 
@@ -27032,8 +27485,9 @@ public function get_student_courses($id)
                         $giftcard_purchase_id = '';
                         $trying_booking_id = '';
                         $wp_template_data = [];
+                        $cron_id = '';
 
-                        $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                        $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                     }
                 }
             }
@@ -29248,6 +29702,7 @@ public function get_student_courses($id)
 		$this->db->join('tbl_booking_services_details','tbl_new_booking.id = tbl_booking_services_details.booking_id');
         $this->db->where('tbl_new_booking.branch_id',$this->session->userdata('branch_id'));
         $this->db->where('tbl_new_booking.salon_id',$this->session->userdata('salon_id'));
+		$this->db->where('tbl_new_booking.services !=','');
 		$this->db->where('tbl_new_booking.is_deleted','0');
         $this->db->where('tbl_new_booking.booking_type','0');
 		
@@ -29281,8 +29736,15 @@ public function get_student_courses($id)
         if(isset($_GET['stylist']) && $_GET['stylist'] != "" && $_GET['stylist'] != '0'){
 			$this->db->where('tbl_booking_services_details.stylist_id',$_GET['stylist']);
 		}
-        if(isset($_GET['status']) && $_GET['status'] != ""){
+		if(isset($_GET['status']) && $_GET['status'] != ""){
 			$this->db->where('tbl_booking_services_details.service_status',$_GET['status']);
+            if($_GET['status'] == "0"){
+			    $this->db->where_in('tbl_new_booking.booking_status',['1','3','4']);
+            }elseif($_GET['status'] == "1"){
+			    $this->db->where_in('tbl_new_booking.booking_status',['5']);
+            }elseif($_GET['status'] == "2"){
+			    $this->db->where_in('tbl_new_booking.booking_status',['2']);
+            }
 		}
 		$this->db->order_by('tbl_new_booking.id','desc');
 		$this->db->group_by('tbl_new_booking.id');
@@ -29390,6 +29852,7 @@ public function get_student_courses($id)
 		$this->db->join('tbl_booking_services_details','tbl_new_booking.id = tbl_booking_services_details.booking_id');
         $this->db->where('tbl_new_booking.branch_id',$this->session->userdata('branch_id'));
         $this->db->where('tbl_new_booking.salon_id',$this->session->userdata('salon_id'));
+		$this->db->where('tbl_new_booking.services !=','');
 		$this->db->where('tbl_new_booking.is_deleted','0');
         $this->db->where('tbl_new_booking.booking_type','0');
 		
@@ -29422,6 +29885,13 @@ public function get_student_courses($id)
 		}
 		if($status != ""){
 			$this->db->where('tbl_booking_services_details.service_status',$status);
+            if($status == "0"){
+			    $this->db->where_in('tbl_new_booking.booking_status',['1','3','4']);
+            }elseif($status == "1"){
+			    $this->db->where_in('tbl_new_booking.booking_status',['5']);
+            }elseif($status == "2"){
+			    $this->db->where_in('tbl_new_booking.booking_status',['2']);
+            }
 		}
 		$this->db->order_by('tbl_new_booking.id','desc');
 		$this->db->group_by('tbl_new_booking.id');
@@ -29664,6 +30134,13 @@ public function get_student_courses($id)
     public function get_day_timeslots_ajx(){
         $booking_rules = $this->get_booking_rules();
         
+        $slot_type = $this->input->post('slot_type');
+        $slot_thresholds = [
+            'morning'   => ['start' => '05:00:00', 'end' => '12:00:00'],
+            'afternoon' => ['start' => '12:00:00', 'end' => '17:00:00'],
+            'evening'   => ['start' => '17:00:00', 'end' => '23:00:00'],
+        ];
+
         $employee = $this->input->post('employee');
         $employee_selection_rule = $this->input->post('employee_selection_rule');
         $user_selected_service = $this->input->post('user_selected_service');
@@ -29699,7 +30176,23 @@ public function get_student_courses($id)
                     if($date == date('Y-m-d') && date('Y-m-d H:i:s') >= $one_hour_prior){   // change it to >= when make it live
                         $store_end_for_timeslots = date('Y-m-d 23:59:59', strtotime($date));
                     }
-                    $slots = $this->generateCommonTimePairs($date,$store_start,$store_end_for_timeslots,$duration);
+
+                    // $slots = $this->generateCommonTimePairs($date,$store_start,$store_end_for_timeslots,$duration);
+
+
+                    
+                    $threshold = $slot_thresholds[$slot_type];
+
+                    $threshold_start = date('Y-m-d H:i:s', strtotime($date . ' ' . $threshold['start']));
+                    $threshold_end   = date('Y-m-d H:i:s', strtotime($date . ' ' . $threshold['end']));
+
+                    $slot_start_time = max($store_start, $threshold_start);
+                    $slot_end_time   = min($store_end_for_timeslots, $threshold_end);
+
+                    $slots = $this->Salon_model->generateCommonTimePairs($date, $slot_start_time, $slot_end_time, $duration);
+
+
+
                     $slots_morning = [];
                     $slots_afternoon = [];
                     $slots_evening = [];
@@ -29715,14 +30208,16 @@ public function get_student_courses($id)
                         }
                     }
                     if($booking_start != ""){
-                        if ($booking_start >= '05:00:00' && $booking_start < '12:00:00') {
+                        // if ($booking_start >= '05:00:00' && $booking_start < '12:00:00') {
+                        if($slot_type == 'morning'){
                             $is_morning_active = 'active';
                             $is_afternoon_active = '';
                             $is_evening_active = '';
                             $morning_content = 'display: block;';
                             $afternoon_content = 'display: none;';
                             $evening_content = 'display: none;';
-                        }elseif ($booking_start >= '12:00:00' && $booking_start < '17:00:00') {
+                        // }elseif ($booking_start >= '12:00:00' && $booking_start < '17:00:00') {
+                        }elseif ($slot_type == 'afternoon'){
                             $is_morning_active = '';
                             $is_afternoon_active = 'active';
                             $is_evening_active = '';
@@ -29738,14 +30233,16 @@ public function get_student_courses($id)
                             $evening_content = 'display: block;';
                         }
                     }else{
-                        if (date('H:i:s') >= '05:00:00' && date('H:i:s') < '12:00:00') {
+                        // if (date('H:i:s') >= '05:00:00' && date('H:i:s') < '12:00:00') {
+                        if($slot_type == 'morning'){
                             $is_morning_active = 'active';
                             $is_afternoon_active = '';
                             $is_evening_active = '';
                             $morning_content = 'display: block;';
                             $afternoon_content = 'display: none;';
                             $evening_content = 'display: none;';
-                        }elseif (date('H:i:s') >= '12:00:00' && date('H:i:s') < '17:00:00') {
+                        // }elseif (date('H:i:s') >= '12:00:00' && date('H:i:s') < '17:00:00') {
+                        }elseif ($slot_type == 'afternoon'){
                             $is_morning_active = '';
                             $is_afternoon_active = 'active';
                             $is_evening_active = '';
@@ -29763,13 +30260,9 @@ public function get_student_courses($id)
                     }
         ?>
         <div class="tab">
-            <?php if(!empty($slots_morning)){ ?>
-            <button type="button" class="slot-tablinks <?=$is_morning_active;?>" onclick="openSlot(event, 'Morning')">Morning</button>
-            <?php }if(!empty($slots_afternoon)){ ?>
-            <button type="button" class="slot-tablinks <?=$is_afternoon_active;?>" onclick="openSlot(event, 'Afternoon')">Afternoon</button>
-            <?php }if(!empty($slots_evening)){ ?>
-            <button type="button" class="slot-tablinks <?=$is_evening_active;?>" onclick="openSlot(event, 'Evening')">Evening</button>
-            <?php } ?>
+            <button type="button" class="slot-tablinks <?=$is_morning_active;?>" onclick="fetchTimeSlots('morning'), openSlot(event, 'Morning')">Morning</button>
+            <button type="button" class="slot-tablinks <?=$is_afternoon_active;?>" onclick="fetchTimeSlots('afternoon'), openSlot(event, 'Afternoon')">Afternoon</button>
+            <button type="button" class="slot-tablinks <?=$is_evening_active;?>" onclick="fetchTimeSlots('evening'), openSlot(event, 'Evening')">Evening</button>
         </div>
         <?php if(!empty($slots_morning)){ ?>
         <div id="Morning" class="slot-tabcontent" style="<?=$morning_content;?>">
@@ -30227,12 +30720,12 @@ public function get_student_courses($id)
                             }
                         }
 
-                        $is_stylist_available_storewise = $this->get_is_selected_booking_available_storewise($selected_single_slot_from,$selected_single_slot_to);
-                        $is_stylist_available_storewise = $late_flag ? $late_flag : $is_stylist_available_storewise;
-                        if($is_stylist_available_storewise){
-                            $is_emergency = $this->Salon_model->check_is_salon_close_for_period_setup_datewise(date('Y-m-d',strtotime($selected_single_slot_from)));
-                            $is_emergency = $late_flag ? $late_flag : !$is_emergency;
-                            if($is_emergency){
+                        // $is_stylist_available_storewise = $this->get_is_selected_booking_available_storewise($selected_single_slot_from,$selected_single_slot_to);
+                        // $is_stylist_available_storewise = $late_flag ? $late_flag : $is_stylist_available_storewise;
+                        // if($is_stylist_available_storewise){
+                        //     $is_emergency = $this->Salon_model->check_is_salon_close_for_period_setup_datewise(date('Y-m-d',strtotime($selected_single_slot_from)));
+                        //     $is_emergency = $late_flag ? $late_flag : !$is_emergency;
+                        //     if($is_emergency){
                                 foreach($stylists as $stylists_result){
                                     $is_stylist_on_leave = $this->check_staff_is_on_leave($stylists_result->id,date('Y-m-d',strtotime($selected_single_slot_from)));
                                     $is_stylist_on_leave = $late_flag ? $late_flag : ($is_stylist_on_leave == '0' ? true : false);
@@ -30243,21 +30736,21 @@ public function get_student_courses($id)
                                             $is_stylist_available_bookingwise = $this->get_is_selected_stylist_available_bookingwise($stylists_result->id,$selected_single_slot_from,$selected_single_slot_to);
                                             $is_stylist_available_bookingwise = $late_flag ? $late_flag : $is_stylist_available_bookingwise;
                                             if($is_stylist_available_bookingwise){
-                                                $is_stylist_available_breakwise = $this->get_is_selected_stylist_available_breakwise($stylists_result->id,$selected_single_slot_from,$selected_single_slot_to);
-                                                $is_stylist_available_breakwise = $late_flag ? $late_flag : $is_stylist_available_breakwise;
-                                                if($is_stylist_available_breakwise){
+                                                // $is_stylist_available_breakwise = $this->get_is_selected_stylist_available_breakwise($stylists_result->id,$selected_single_slot_from,$selected_single_slot_to);
+                                                // $is_stylist_available_breakwise = $late_flag ? $late_flag : $is_stylist_available_breakwise;
+                                                // if($is_stylist_available_breakwise){
                                                     $is_stylist_available_short_breakwise = $this->get_is_selected_stylist_available_short_breakwise($stylists_result->id,$selected_single_slot_from,$selected_single_slot_to);
                                                     if($is_stylist_available_short_breakwise){
                                                         $single_stylist_flag = 1;
                                                         break;
                                                     }
-                                                }
+                                                // }
                                             }
                                         }
                                     }
                                 }
-                            }
-                        }
+                        //     }
+                        // }
                     }
                 }            
 
@@ -30318,7 +30811,7 @@ public function get_student_courses($id)
         }
         return true;
     }
-    public function check_slot_vacent_for_selected_services_all_stylist($from,$selected_services, $branch_id, $salon_id, $stylist_id){
+    public function check_slot_vacent_for_selected_services_all_stylist($from,$selected_services, $branch_id, $salon_id, $stylist_id, $reservation_id = ''){
         $selected_from = date('Y-m-d H:i:s',strtotime($from));
 
         if(!empty($selected_services)){
@@ -30334,31 +30827,34 @@ public function get_student_courses($id)
 
                         $selected_to = date('Y-m-d H:i:s', strtotime($selected_from . ' +' . $duration . ' minutes'));
 
-                        $is_stylist_available_storewise = $this->get_is_selected_booking_available_storewise_all($selected_from,$selected_to, $branch_id, $salon_id);
-                        if($is_stylist_available_storewise){
-                            $is_emergency = $this->Salon_model->check_is_salon_close_for_period_setup_datewise_all(date('Y-m-d',strtotime($selected_from)), $branch_id, $salon_id);
-                            if(!$is_emergency){
+                        // $is_stylist_available_storewise = $this->get_is_selected_booking_available_storewise_all($selected_from,$selected_to, $branch_id, $salon_id);
+                        // if($is_stylist_available_storewise){
+                        //     $is_emergency = $this->Salon_model->check_is_salon_close_for_period_setup_datewise_all(date('Y-m-d',strtotime($selected_from)), $branch_id, $salon_id);
+                        //     if(!$is_emergency){
                                 foreach($stylists as $stylists_result){
-                                    $is_stylist_on_leave = $this->check_staff_is_on_leave_all($stylists_result->id,date('Y-m-d',strtotime($selected_from)), $branch_id, $salon_id);
-                                    if($is_stylist_on_leave == '0'){
-                                        $is_stylist_available_shiftwise = $this->get_is_selected_stylist_available_shiftwise_all($stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
-                                        if($is_stylist_available_shiftwise){
-                                            $is_stylist_available_bookingwise = $this->get_is_selected_stylist_available_bookingwise_all($stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
-                                            if($is_stylist_available_bookingwise){
-                                                $is_stylist_available_breakwise = $this->get_is_selected_stylist_available_breakwise_all($stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
-                                                if($is_stylist_available_breakwise){
-                                                    $is_stylist_available_short_breakwise = $this->get_is_selected_stylist_available_short_breakwise($stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
-                                                    if($is_stylist_available_short_breakwise){
-                                                        $single_stylist_flag = 1;
-                                                        break;
+                                    $is_stylist_available_reservationwise = $this->get_is_selected_stylist_available_slot_reservewise($stylists_result->id,$selected_from,$selected_to, $reservation_id, $branch_id, $salon_id);
+                                    if($is_stylist_available_reservationwise){
+                                        $is_stylist_on_leave = $this->check_staff_is_on_leave_all($stylists_result->id,date('Y-m-d',strtotime($selected_from)), $branch_id, $salon_id);
+                                        if($is_stylist_on_leave == '0'){
+                                            $is_stylist_available_shiftwise = $this->get_is_selected_stylist_available_shiftwise_all($stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
+                                            if($is_stylist_available_shiftwise){
+                                                $is_stylist_available_bookingwise = $this->get_is_selected_stylist_available_bookingwise_all($stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
+                                                if($is_stylist_available_bookingwise){
+                                                    $is_stylist_available_breakwise = $this->get_is_selected_stylist_available_breakwise_all($stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
+                                                    if($is_stylist_available_breakwise){
+                                                        $is_stylist_available_short_breakwise = $this->get_is_selected_stylist_available_short_breakwise($stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
+                                                        if($is_stylist_available_short_breakwise){
+                                                            $single_stylist_flag = 1;
+                                                            break;
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
                                     }
                                 }
-                            }
-                        }
+                        //     }
+                        // }
                     }
                 }            
 
@@ -30520,7 +31016,7 @@ public function get_student_courses($id)
         }
         return true;
     }
-    public function check_slot_vacent_for_selected_resch_services_all_stylist($from,$reschedule_details, $branch_id, $salon_id, $stylist_id){
+    public function check_slot_vacent_for_selected_resch_services_all_stylist($from,$reschedule_details, $branch_id, $salon_id, $stylist_id, $reservation_id = ''){
         $selected_from = date('Y-m-d H:i:s',strtotime($from));
         // $selected_slot_to = date('Y-m-d H:i:s',strtotime($to));
 
@@ -30543,18 +31039,21 @@ public function get_student_courses($id)
                             $is_emergency = $this->Salon_model->check_is_salon_close_for_period_setup_datewise_all(date('Y-m-d',strtotime($selected_from)), $branch_id, $salon_id);
                             if(!$is_emergency){
                                 foreach($stylists as $stylists_result){
-                                    $is_stylist_on_leave = $this->check_staff_is_on_leave_all($stylists_result->id,date('Y-m-d',strtotime($selected_from)), $branch_id, $salon_id);
-                                    if($is_stylist_on_leave == '0'){
-                                        $is_stylist_available_shiftwise = $this->get_is_selected_stylist_available_shiftwise_all($stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
-                                        if($is_stylist_available_shiftwise){
-                                            $is_stylist_available_bookingwise = $this->get_is_selected_stylist_available_resch_bookingwise_all($reschedule_details[$i]['booking_details_id'],$stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
-                                            if($is_stylist_available_bookingwise){
-                                                $is_stylist_available_breakwise = $this->get_is_selected_stylist_available_breakwise_all($stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
-                                                if($is_stylist_available_breakwise){
-                                                    $is_stylist_available_short_breakwise = $this->get_is_selected_stylist_available_short_breakwise($stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
-                                                    if($is_stylist_available_short_breakwise){
-                                                        $single_stylist_flag = 1;
-                                                        break;
+                                    $is_stylist_available_slot_reservationwise = $this->get_is_selected_stylist_available_slot_reservewise($stylists_result->id,$selected_from,$selected_to, $reservation_id, $branch_id, $salon_id);
+                                    if($is_stylist_available_slot_reservationwise){
+                                        $is_stylist_on_leave = $this->check_staff_is_on_leave_all($stylists_result->id,date('Y-m-d',strtotime($selected_from)), $branch_id, $salon_id);
+                                        if($is_stylist_on_leave == '0'){
+                                            $is_stylist_available_shiftwise = $this->get_is_selected_stylist_available_shiftwise_all($stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
+                                            if($is_stylist_available_shiftwise){
+                                                $is_stylist_available_bookingwise = $this->get_is_selected_stylist_available_resch_bookingwise_all($reschedule_details[$i]['booking_details_id'],$stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
+                                                if($is_stylist_available_bookingwise){
+                                                    $is_stylist_available_breakwise = $this->get_is_selected_stylist_available_breakwise_all($stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
+                                                    if($is_stylist_available_breakwise){
+                                                        $is_stylist_available_short_breakwise = $this->get_is_selected_stylist_available_short_breakwise($stylists_result->id,$selected_from,$selected_to, $branch_id, $salon_id);
+                                                        if($is_stylist_available_short_breakwise){
+                                                            $single_stylist_flag = 1;
+                                                            break;
+                                                        }
                                                     }
                                                 }
                                             }
@@ -30580,43 +31079,55 @@ public function get_student_courses($id)
         $selected_from_dt = strtotime($selected_from);
         $selected_to_dt = strtotime($selected_to);
 
+
         $this->db->where('tbl_booking_services_details.branch_id', $branch_id);
         $this->db->where('tbl_booking_services_details.salon_id', $salon_id);
-        $this->db->where('tbl_booking_services_details.stylist_id', $stylist);
-        $this->db->where('DATE(tbl_booking_services_details.service_date)', date('Y-m-d', $selected_from_dt));
         $this->db->where('tbl_booking_services_details.is_deleted', '0');
-        $this->db->where('tbl_booking_services_details.service_status != ', '2');
-        $bookings = $this->db->get('tbl_booking_services_details')->result();
+        $this->db->where('tbl_booking_services_details.id', $booking_details_id);
+        $exist = $this->db->get('tbl_booking_services_details')->row();
+        if(!empty($exist)){
+            $this->db->where('tbl_booking_services_details.branch_id', $branch_id);
+            $this->db->where('tbl_booking_services_details.salon_id', $salon_id);
+            $this->db->where('tbl_booking_services_details.stylist_id', $stylist);
+            $this->db->where('DATE(tbl_booking_services_details.service_date)', date('Y-m-d', $selected_from_dt));
+            $this->db->where('tbl_booking_services_details.is_deleted', '0');
+            $this->db->where('tbl_booking_services_details.service_status != ', '2');
+            $this->db->where('tbl_booking_services_details.id != ', $exist->id);
+            $this->db->where('tbl_booking_services_details.booking_id != ', $exist->booking_id);
+            $bookings = $this->db->get('tbl_booking_services_details')->result();
 
-        $overlapping_bookings = array();
-        $stylist_available = true;
+            $overlapping_bookings = array();
+            $stylist_available = true;
 
-        if(!empty($bookings)){
-            foreach($bookings as $bookings_result){
-                $service_from_dt = strtotime($bookings_result->service_from);
-                $service_to_dt = strtotime($bookings_result->service_to);
+            if(!empty($bookings)){
+                foreach($bookings as $bookings_result){
+                    $service_from_dt = strtotime($bookings_result->service_from);
+                    $service_to_dt = strtotime($bookings_result->service_to);
 
-                if(($selected_from_dt >= $service_from_dt && $selected_from_dt < $service_to_dt) || 
-                    ($selected_to_dt > $service_from_dt && $selected_to_dt <= $service_to_dt) ||
-                    ($selected_from_dt < $service_from_dt && $selected_to_dt > $service_to_dt)){
-                        if($booking_details_id != $bookings_result->id){
-                            $stylist_available = false;
-                            $overlapping_bookings[] = $bookings_result->id;
-                        }
+                    if(($selected_from_dt >= $service_from_dt && $selected_from_dt < $service_to_dt) || 
+                        ($selected_to_dt > $service_from_dt && $selected_to_dt <= $service_to_dt) ||
+                        ($selected_from_dt < $service_from_dt && $selected_to_dt > $service_to_dt)){
+                            if($exist->id != $bookings_result->id){
+                                $stylist_available = false;
+                                $overlapping_bookings[] = $bookings_result->id;
+                            }
+                    }
                 }
             }
-        }
 
-        $custom[] = array(
-            'stylist'                 =>  $stylist,
-            'overlapping_bookings'    =>  $overlapping_bookings,
-        );
+            $custom[] = array(
+                'stylist'                 =>  $stylist,
+                'overlapping_bookings'    =>  $overlapping_bookings,
+            );            
 
-        if($stylist_available){
-            return true; // Return true as soon as an available stylist is found
+            if($stylist_available){
+                return true; // Return true as soon as an available stylist is found
+            }
+        
+            return false; // Return false only if no stylist is available
+        }else{
+            return false;
         }
-    
-        return false; // Return false only if no stylist is available
     }
     
     public function check_slot_vacent_for_selected_services_edit($booking_details_id,$from,$selected_services){
@@ -30635,8 +31146,8 @@ public function get_student_courses($id)
 
                         $selected_to = date('Y-m-d H:i:s', strtotime($selected_from . ' +' . $duration . ' minutes'));
 
-                        $is_stylist_available_storewise = $this->get_is_selected_booking_available_storewise($selected_from,$selected_to);
-                        if($is_stylist_available_storewise){
+                        // $is_stylist_available_storewise = $this->get_is_selected_booking_available_storewise($selected_from,$selected_to);
+                        // if($is_stylist_available_storewise){
                             $is_emergency = $this->Salon_model->check_is_salon_close_for_period_setup_datewise(date('Y-m-d',strtotime($selected_from)));
                             if(!$is_emergency){
                                 foreach($stylists as $stylists_result){
@@ -30646,20 +31157,20 @@ public function get_student_courses($id)
                                         if($is_stylist_available_shiftwise){
                                             $is_stylist_available_bookingwise = $this->get_is_selected_stylist_available_bookingwise_edit($booking_details_id,$stylists_result->id,$selected_from,$selected_to);
                                             if($is_stylist_available_bookingwise){
-                                                $is_stylist_available_breakwise = $this->get_is_selected_stylist_available_breakwise($stylists_result->id,$selected_from,$selected_to);
-                                                if($is_stylist_available_breakwise){
+                                                // $is_stylist_available_breakwise = $this->get_is_selected_stylist_available_breakwise($stylists_result->id,$selected_from,$selected_to);
+                                                // if($is_stylist_available_breakwise){
                                                     $is_stylist_available_short_breakwise = $this->get_is_selected_stylist_available_short_breakwise($stylists_result->id,$selected_from,$selected_to);
                                                     if($is_stylist_available_short_breakwise){
                                                         $single_stylist_flag = 1;
                                                         break;
                                                     }
-                                                }
+                                                // }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
+                        // }
                     }
                 }        
                 if($single_stylist_flag == 0){
@@ -30713,12 +31224,19 @@ public function get_student_courses($id)
             $shift_single_from = date('H:i:s',strtotime($shift_details['shift_from']));
             $shift_single_to = date('H:i:s',strtotime($shift_details['shift_to']));
 
+            $shift_break_from = date('H:i:s',strtotime($shift_details['shift_break_from']));
+            $shift_break_to = date('H:i:s',strtotime($shift_details['shift_break_to']));
+
             $selected_slot_from_datetime_time = date('H:i:s',strtotime($selected_slot_datetime_from));
             $selected_slot_to_datetime_time = date('H:i:s',strtotime($selected_slot_datetime_to));
-            // echo '<pre>Slot from'; print_r($selected_slot_from_datetime_time);
-            // echo '<pre>Slot to'; print_r($selected_slot_to_datetime_time);
             
-            if ($selected_slot_from_datetime_time >= $shift_single_from && $selected_slot_to_datetime_time <= $shift_single_to) {
+            if ($selected_slot_from_datetime_time >= $shift_single_from && $selected_slot_to_datetime_time <= $shift_single_to) {                    
+                if(($selected_slot_from_datetime_time >= $shift_break_from && $selected_slot_from_datetime_time < $shift_break_to) || 
+                    ($selected_slot_to_datetime_time > $shift_break_from && $selected_slot_to_datetime_time <= $shift_break_to) ||
+                    ($selected_slot_from_datetime_time < $shift_break_from && $selected_slot_to_datetime_time > $shift_break_to)){
+                    return false;
+                }
+
                 return true;
             }
         }
@@ -30743,23 +31261,31 @@ public function get_student_courses($id)
     }
     public function get_is_selected_stylist_available_shiftwise_details($stylist, $selected_slot_datetime_from, $selected_slot_datetime_to){
         $shift_details = $this->get_stylist_shifts(date('Y-m-d',strtotime($selected_slot_datetime_from)),$stylist);
-        // echo '<pre>Shift to'; print_r($shift_details);
         $shift_id = '';
         $shift_type = '';
         if(!empty($shift_details)){
             $shift_single_from = date('H:i:s',strtotime($shift_details['shift_from']));
             $shift_single_to = date('H:i:s',strtotime($shift_details['shift_to']));
+
+            $shift_break_from = date('H:i:s',strtotime($shift_details['shift_break_from']));
+            $shift_break_to = date('H:i:s',strtotime($shift_details['shift_break_to']));
+
             $shift_id = $shift_details['shift_id'];
             $shift_type = $shift_details['shift_type'];
 
             $selected_slot_from_datetime_time = date('H:i:s',strtotime($selected_slot_datetime_from));
             $selected_slot_to_datetime_time = date('H:i:s',strtotime($selected_slot_datetime_to));
-            // echo '<pre>Slot from'; print_r($selected_slot_from_datetime_time);
-            // echo '<pre>Slot to'; print_r($selected_slot_to_datetime_time);
-            // echo '<pre>shift from'; print_r($shift_single_from);
-            // echo '<pre>shift to'; print_r($shift_single_to);
             
             if ($selected_slot_from_datetime_time >= $shift_single_from && $selected_slot_to_datetime_time <= $shift_single_to) {
+                if(($selected_slot_from_datetime_time >= $shift_break_from && $selected_slot_from_datetime_time < $shift_break_to) || 
+                    ($selected_slot_to_datetime_time > $shift_break_from && $selected_slot_to_datetime_time <= $shift_break_to) ||
+                    ($selected_slot_from_datetime_time < $shift_break_from && $selected_slot_to_datetime_time > $shift_break_to)){
+                    return array(
+                        'is_allowed'    =>  false,
+                        'shift_id'      =>  $shift_id,
+                        'shift_type'    =>  $shift_type,
+                    );
+                }
                 return array(
                     'is_allowed'    =>  true,
                     'shift_id'      =>  $shift_id,
@@ -30826,6 +31352,35 @@ public function get_student_courses($id)
         
         return false;
     }
+    public function get_is_selected_stylist_available_slot_reservewise($stylist, $selected_from, $selected_to, $reservation_id = '' , $branch_id = '', $salon_id = ''){
+        if($salon_id == ''){
+            $salon_id = $this->session->userdata('salon_id');
+        }
+        if($branch_id == ''){
+            $branch_id = $this->session->userdata('branch_id');
+        }
+
+        $selected_from_date = date('Y-m-d',strtotime($selected_from));
+        $selected_from = date('Y-m-d H:i:s',strtotime($selected_from));
+        $selected_to = date('Y-m-d H:i:s',strtotime($selected_to));
+        
+        if($reservation_id != ""){
+            $this->db->where('id !=', $reservation_id);
+        }
+        $this->db->where('slot_from <', $selected_to);
+        $this->db->where('slot_to >', $selected_from);
+        $this->db->where('stylist_id', $stylist);
+        $this->db->where('branch_id', $branch_id);
+        $this->db->where('salon_id', $salon_id);
+        $this->db->where('status', '0');
+        $this->db->where('expire_on >', date('Y-m-d H:i:s'));
+        $reservation = $this->db->get('tbl_stylist_slot_reservations')->row(); 
+
+        if(!empty($reservation)){
+            return false;
+        }
+        return true;
+    }
     public function get_is_selected_stylist_available_short_breakwise($stylist, $selected_from, $selected_to, $branch_id = '', $salon_id = ''){
         if($salon_id == ''){
             $salon_id = $this->session->userdata('salon_id');
@@ -30838,14 +31393,14 @@ public function get_student_courses($id)
         $selected_from = date('Y-m-d H:i:s',strtotime($selected_from));
         $selected_to = date('Y-m-d H:i:s',strtotime($selected_to));
         
-        $this->db->where('break_date', $selected_from_date);
+        $this->db->where('DATE(break_date)', $selected_from_date);
         $this->db->where('branch_id', $branch_id);
         $this->db->where('salon_id', $salon_id);
         $this->db->where('stylist_id', $stylist);
         $this->db->where('from <', $selected_to);
         $this->db->where('to >', $selected_from);
         $this->db->where('is_deleted', '0');
-        $this->db->where('break_status', '0');
+        $this->db->where_in('break_status', ['0','2']);
         $breaks = $this->db->get('tbl_stylist_short_breaks')->result();
 
         if(!empty($breaks)){
@@ -30873,7 +31428,48 @@ public function get_student_courses($id)
         
         return false;
     }
-    public function get_is_selected_stylist_available_bookingwise($stylist, $selected_from, $selected_to){
+    public function get_is_selected_stylist_available_bookingwise($stylist, $selected_from, $selected_to)
+    {
+        $branch_id = $this->session->userdata('branch_id');
+        $salon_id  = $this->session->userdata('salon_id');
+
+        // Get buffering time in seconds (default 5 minutes = 300 sec)
+        $buffer_minutes = 5;
+        $rules = $this->Salon_model->get_booking_rules();
+        if (!empty($rules) && !empty($rules->buffering_time)) {
+            $buffer_minutes = (int)$rules->buffering_time;
+        }
+        $buffer_seconds = $buffer_minutes * 60;
+
+        // Extract date from selected_from for matching service_date
+        $service_date = date('Y-m-d', strtotime($selected_from));
+
+        // Build query to check for overlapping bookings
+        $this->db->select('id');
+        $this->db->from('tbl_booking_services_details');
+        $this->db->where([
+            'branch_id'   => $branch_id,
+            'salon_id'    => $salon_id,
+            'stylist_id'  => $stylist,
+            'is_deleted'  => '0'
+        ]);
+        $this->db->where('service_status !=', '2');
+        $this->db->where('DATE(service_date)', $service_date);
+
+        // SQL overlap condition with buffer applied
+        $this->db->where("(
+            UNIX_TIMESTAMP('$selected_from') < UNIX_TIMESTAMP(service_to) + $buffer_seconds
+            AND
+            UNIX_TIMESTAMP('$selected_to') > UNIX_TIMESTAMP(service_from) - $buffer_seconds
+        )", null, false);
+
+        $query = $this->db->get();
+
+        // Return true if stylist is available (no overlaps), else false
+        return ($query->num_rows() === 0);
+    }
+
+    public function get_is_selected_stylist_available_bookingwise_old($stylist, $selected_from, $selected_to){
         $custom = array();
         $selected_from_dt = strtotime($selected_from);
         $selected_to_dt = strtotime($selected_to);
@@ -31402,6 +31998,13 @@ public function get_student_courses($id)
     public function get_day_timeslots_edit_service_ajx(){
         $booking_rules = $this->get_booking_rules();
         
+        $slot_type = $this->input->post('slot_type');
+        $slot_thresholds = [
+            'morning'   => ['start' => '05:00:00', 'end' => '12:00:00'],
+            'afternoon' => ['start' => '12:00:00', 'end' => '17:00:00'],
+            'evening'   => ['start' => '17:00:00', 'end' => '23:00:00'],
+        ];
+        
         $user_selected_service = $this->input->post('user_selected_service');
         $employee = $this->input->post('employee');
         $employee_selection_rule = $this->input->post('employee_selection_rule');
@@ -31440,8 +32043,29 @@ public function get_student_courses($id)
 
                     $store_start = date('Y-m-d H:i:s',strtotime($date.' '.$working_hrs['start']));
                     $store_end = date('Y-m-d H:i:s',strtotime($date.' '.$working_hrs['end']));
-                    $slots = $this->generateCommonTimePairs($date,$store_start,$store_end,$duration);
+                    $one_hour_prior = date('Y-m-d H:i:s', strtotime($store_end . ' -1 hour'));
+                    $store_end_for_timeslots = $store_end;
+                    if($date == date('Y-m-d') && date('Y-m-d H:i:s') >= $one_hour_prior){   // change it to >= when make it live
+                        $store_end_for_timeslots = date('Y-m-d 23:59:59', strtotime($date));
+                    }
+
+                    // $slots = $this->generateCommonTimePairs($date,$store_start,$store_end,$duration);
+
+
                     
+                    $threshold = $slot_thresholds[$slot_type];
+
+                    $threshold_start = date('Y-m-d H:i:s', strtotime($date . ' ' . $threshold['start']));
+                    $threshold_end   = date('Y-m-d H:i:s', strtotime($date . ' ' . $threshold['end']));
+
+                    $slot_start_time = max($store_start, $threshold_start);
+                    $slot_end_time   = min($store_end_for_timeslots, $threshold_end);
+
+                    $slots = $this->Salon_model->generateCommonTimePairs($date, $slot_start_time, $slot_end_time, $duration);
+
+
+
+
                     $slots_morning = [];
                     $slots_afternoon = [];
                     $slots_evening = [];
@@ -31457,14 +32081,16 @@ public function get_student_courses($id)
                         }
                     }
                     if($booking_start != ""){
-                        if ($booking_start >= '05:00:00' && $booking_start < '12:00:00') {
+                        // if ($booking_start >= '05:00:00' && $booking_start < '12:00:00') {
+                        if($slot_type == 'morning'){
                             $is_morning_active = 'active';
                             $is_afternoon_active = '';
                             $is_evening_active = '';
                             $morning_content = 'display: block;';
                             $afternoon_content = 'display: none;';
                             $evening_content = 'display: none;';
-                        }elseif ($booking_start >= '12:00:00' && $booking_start < '17:00:00') {
+                        // }elseif ($booking_start >= '12:00:00' && $booking_start < '17:00:00') {
+                        }elseif ($slot_type == 'afternoon'){
                             $is_morning_active = '';
                             $is_afternoon_active = 'active';
                             $is_evening_active = '';
@@ -31480,14 +32106,16 @@ public function get_student_courses($id)
                             $evening_content = 'display: block;';
                         }
                     }else{
-                        if (date('H:i:s') >= '05:00:00' && date('H:i:s') < '12:00:00') {
+                        // if (date('H:i:s') >= '05:00:00' && date('H:i:s') < '12:00:00') {
+                        if($slot_type == 'morning'){
                             $is_morning_active = 'active';
                             $is_afternoon_active = '';
                             $is_evening_active = '';
                             $morning_content = 'display: block;';
                             $afternoon_content = 'display: none;';
                             $evening_content = 'display: none;';
-                        }elseif (date('H:i:s') >= '12:00:00' && date('H:i:s') < '17:00:00') {
+                        // }elseif (date('H:i:s') >= '12:00:00' && date('H:i:s') < '17:00:00') {
+                        }elseif ($slot_type == 'afternoon'){
                             $is_morning_active = '';
                             $is_afternoon_active = 'active';
                             $is_evening_active = '';
@@ -31505,17 +32133,13 @@ public function get_student_courses($id)
                     }
         ?>
         <div class="tab">
-            <?php if(!empty($slots_morning)){ ?>
-            <button type="button" class="slot-tablinks <?=$is_morning_active;?>" onclick="openSlot(event, 'Morning')">Morning</button>
-            <?php }if(!empty($slots_afternoon)){ ?>
-            <button type="button" class="slot-tablinks <?=$is_afternoon_active;?>" onclick="openSlot(event, 'Afternoon')">Afternoon</button>
-            <?php }if(!empty($slots_evening)){ ?>
-            <button type="button" class="slot-tablinks <?=$is_evening_active;?>" onclick="openSlot(event, 'Evening')">Evening</button>
-            <?php } ?>
+            <button type="button" class="slot-tablinks <?=$is_morning_active;?>" onclick="fetchTimeSlots(<?=$booking_details_id; ?>,'morning','manual'), openSlot(event, 'Morning')">Morning</button>
+            <button type="button" class="slot-tablinks <?=$is_afternoon_active;?>" onclick="fetchTimeSlots(<?=$booking_details_id; ?>,'afternoon','manual'), openSlot(event, 'Afternoon')">Afternoon</button>
+            <button type="button" class="slot-tablinks <?=$is_evening_active;?>" onclick="fetchTimeSlots(<?=$booking_details_id; ?>,'evening','manual'), openSlot(event, 'Evening')">Evening</button>
         </div>
         <?php if(!empty($slots_morning)){ ?>
         <div id="Morning" class="slot-tabcontent" style="<?=$morning_content;?>">
-            <div class="row timeslot_row extra_service_timeslots" style="align-items: self-start;margin: 0px !important; display: flex !important;height: auto !important; max-height: 75px; overflow: hidden; overflow-y: auto;">
+            <div class="row timeslot_row extra_service_timeslots" style="align-items: self-start;margin: 0px !important; display: flex !important;height: auto !important; max-height: 100px; overflow: hidden; overflow-y: auto;">
                 <?php
                 $morning_allowed_slots = 0;
                 if(!empty($slots_morning)){
@@ -31544,7 +32168,7 @@ public function get_student_courses($id)
                                         $style = '#ff000061';
                                     }
                     ?>
-                                    <div class="single_timeslot" style="cursor:pointer;background-color:<?=$style;?>;display: inline-block !important;padding: 2px 2px !important; width: 13% !important;margin: 5px 2px !important;" onclick="selectTimeslotRadioEdit('','<?= str_replace([' ', '-', ':'], '_', $slots[$i]['from']); ?>',<?=$booking_details_id;?>)">
+                                    <div class="single_timeslot" style="cursor:pointer;background-color:<?=$style;?>;display: inline-block !important;padding: 2px 2px !important; width: max-content !important;text-align:center;margin: 5px 2px !important;" onclick="selectTimeslotRadioEdit('','<?= str_replace([' ', '-', ':'], '_', $slots[$i]['from']); ?>',<?=$booking_details_id;?>)">
                                         <input type="radio" style="cursor:pointer;" <?php if($booking_start != '' && $booking_start == date('H:i:s',strtotime($slots[$i]['from']))){ echo 'checked'; }?> class="booking_start_time_slot" name="booking_start_time_slot_<?=$booking_details_id;?>" id="booking_start_time_slot_<?=$booking_details_id;?>_<?= str_replace([' ', '-', ':'], '_', $slots[$i]['from']); ?>" value="<?=date('h:i A',strtotime($slots[$i]['from']));?>">
                                         <label style=" font-size: 11px;cursor:pointer;"><?=date('h:i A',strtotime($slots[$i]['from']));?></label>
                                     </div>
@@ -31566,7 +32190,7 @@ public function get_student_courses($id)
         </div>
         <?php }if(!empty($slots_afternoon)){ ?>
         <div id="Afternoon" class="slot-tabcontent" style="<?=$afternoon_content;?>">
-            <div class="row timeslot_row extra_service_timeslots" style="align-items: self-start;margin: 0px !important; display: flex !important;height: auto !important; max-height: 75px; overflow: hidden; overflow-y: auto;">
+            <div class="row timeslot_row extra_service_timeslots" style="align-items: self-start;margin: 0px !important; display: flex !important;height: auto !important; max-height: 100px; overflow: hidden; overflow-y: auto;">
                 <?php
                 $afternoon_allowed_slots = 0;
                 if(!empty($slots_afternoon)){
@@ -31595,7 +32219,7 @@ public function get_student_courses($id)
                                         $style = '#ff000061';
                                     }
                     ?>
-                                    <div class="single_timeslot" style="cursor:pointer;background-color:<?=$style;?>;display: inline-block !important;padding: 2px 2px !important; width: 13% !important;margin: 5px 2px !important;" onclick="selectTimeslotRadioEdit('','<?= str_replace([' ', '-', ':'], '_', $slots[$i]['from']); ?>',<?=$booking_details_id;?>)">
+                                    <div class="single_timeslot" style="cursor:pointer;background-color:<?=$style;?>;display: inline-block !important;padding: 2px 2px !important; width: max-content !important;text-align:center;margin: 5px 2px !important;" onclick="selectTimeslotRadioEdit('','<?= str_replace([' ', '-', ':'], '_', $slots[$i]['from']); ?>',<?=$booking_details_id;?>)">
                                         <input type="radio" style="cursor:pointer;" <?php if($booking_start != '' && $booking_start == date('H:i:s',strtotime($slots[$i]['from']))){ echo 'checked'; }?> class="booking_start_time_slot" name="booking_start_time_slot_<?=$booking_details_id;?>" id="booking_start_time_slot_<?=$booking_details_id;?>_<?= str_replace([' ', '-', ':'], '_', $slots[$i]['from']); ?>" value="<?=date('h:i A',strtotime($slots[$i]['from']));?>">
                                         <label style=" font-size: 11px;cursor:pointer;"><?=date('h:i A',strtotime($slots[$i]['from']));?></label>
                                     </div>
@@ -31617,7 +32241,7 @@ public function get_student_courses($id)
         </div>
         <?php }if(!empty($slots_evening)){ ?>
         <div id="Evening" class="slot-tabcontent" style="<?=$evening_content;?>">
-            <div class="row timeslot_row extra_service_timeslots" style="align-items: self-start;margin: 0px !important; display: flex !important;height: auto !important; max-height: 75px; overflow: hidden; overflow-y: auto;">
+            <div class="row timeslot_row extra_service_timeslots" style="align-items: self-start;margin: 0px !important; display: flex !important;height: auto !important; max-height: 100px; overflow: hidden; overflow-y: auto;">
                 <?php
                 $evening_allowed_slots = 0;
                 if(!empty($slots_evening)){
@@ -31646,7 +32270,7 @@ public function get_student_courses($id)
                                         $style = '#ff000061';
                                     }
                     ?>
-                                    <div class="single_timeslot" style="cursor:pointer;background-color:<?=$style;?>;display: inline-block !important;padding: 2px 2px !important; width: 13% !important;margin: 5px 2px !important;" onclick="selectTimeslotRadioEdit('','<?= str_replace([' ', '-', ':'], '_', $slots[$i]['from']); ?>',<?=$booking_details_id;?>)">
+                                    <div class="single_timeslot" style="cursor:pointer;background-color:<?=$style;?>;display: inline-block !important;padding: 2px 2px !important; width: max-content !important;text-align:center;margin: 5px 2px !important;" onclick="selectTimeslotRadioEdit('','<?= str_replace([' ', '-', ':'], '_', $slots[$i]['from']); ?>',<?=$booking_details_id;?>)">
                                         <input type="radio" style="cursor:pointer;" <?php if($booking_start != '' && $booking_start == date('H:i:s',strtotime($slots[$i]['from']))){ echo 'checked'; }?> class="booking_start_time_slot" name="booking_start_time_slot_<?=$booking_details_id;?>" id="booking_start_time_slot_<?=$booking_details_id;?>_<?= str_replace([' ', '-', ':'], '_', $slots[$i]['from']); ?>" value="<?=date('h:i A',strtotime($slots[$i]['from']));?>">
                                         <label style=" font-size: 11px;cursor:pointer;"><?=date('h:i A',strtotime($slots[$i]['from']));?></label>
                                     </div>
@@ -31974,8 +32598,8 @@ public function get_student_courses($id)
     }
     
     public function fetch_finance_report_data_ajx(){
-        $from_date = $this->input->post('from_date') != "" ? date('Y-m-d',strtotime($this->input->post('from_date'))) : '';
-        $to_date = $this->input->post('to_date') != "" ? date('Y-m-d',strtotime($this->input->post('to_date'))) : '';
+        $from_date = $this->input->post('from_date') != "" ? date('Y-m-d',strtotime($this->input->post('from_date'))) : date('Y-m-d');
+        $to_date = $this->input->post('to_date') != "" ? date('Y-m-d',strtotime($this->input->post('to_date'))) : date('Y-m-d');
 
         $total_cash_sales = (float)$this->get_total_payments('',['Cash'],$from_date,$to_date)['total_price'];
         $total_online_sales = (float)$this->get_total_payments('',['Online'],$from_date,$to_date)['total_price'];
@@ -32231,10 +32855,12 @@ public function get_student_courses($id)
             $this->db->where('tbl_salon_customer.is_deleted', '0');
             $this->db->where('tbl_salon_customer.branch_id', $this->session->userdata('branch_id'));
             $this->db->where('tbl_salon_customer.salon_id', $this->session->userdata('salon_id'));
-            if($type == '1'){
-                $this->db->where('DATE(tbl_salon_customer.dob)', date('Y-m-d'));
-            }elseif($type == '2'){
-                $this->db->where('DATE(tbl_salon_customer.doa)', date('Y-m-d'));
+            if ($type == '1') {
+                $this->db->where('MONTH(tbl_salon_customer.dob)', date('m'));
+                $this->db->where('DAY(tbl_salon_customer.dob)', date('d'));
+            } elseif ($type == '2') {
+                $this->db->where('MONTH(tbl_salon_customer.doa)', date('m'));
+                $this->db->where('DAY(tbl_salon_customer.doa)', date('d'));
             }
             $this->db->order_by('tbl_salon_customer.id', 'DESC');        
             $result = $this->db->get();
@@ -32244,10 +32870,10 @@ public function get_student_courses($id)
                     <table id="example" class="table" style="width:100%;">
                         <thead>
                             <tr>
-                                <th>Sr. No.</th>
+                                <!-- <th>Sr. No.</th> -->
                                 <th>Name</th>
                                 <th>Mobile</th>
-                                <th>Email</th>
+                                <!-- <th>Email</th> -->
                                 <th>Birthday</th>
                                 <th>Anniversary</th>
                             </tr>
@@ -32259,10 +32885,10 @@ public function get_student_courses($id)
                                     foreach($result as $data){
                             ?>  
                             <tr>
-                                <td><?=$i++;?></td>
+                                <!-- <td><?=$i++;?></td> -->
                                 <td><?=$data->full_name;?></td>
                                 <td><?=$data->customer_phone;?></td>
-                                <td><?=$data->email;?></td>
+                                <!-- <td><?=$data->email;?></td> -->
                                 <td><?=$data->dob != "" && $data->dob != '0000-00-00' && $data->dob != '1970-01-01' ? date('d-m-Y',strtotime($data->dob)) : '-';?></td>
                                 <td><?=$data->doa != "" && $data->doa != '0000-00-00' && $data->doa != '1970-01-01' ? date('d-m-Y',strtotime($data->doa)) : '-';?></td>
                             </tr>
@@ -32281,26 +32907,28 @@ public function get_student_courses($id)
                     }else if(type == '2'){
                         $('#dashboardModalLabel').text('Today Anniversary').css('color','black');
                     }
+                    // $('#dashboardModal_dialog').removeClass('modal-sm').addClass('modal-lg');
                     // $('#dashboardModal_dialog').css('width','auto');
                     // $('#dashboardModal_dialog').css('margin-top','150px');
-                    if ($.fn.DataTable.isDataTable('#example')) {
-                        $('#example').DataTable().destroy();
-                    }
-                    $('#example').DataTable({ 
-                        dom: 'Blfrtip',
-                        responsive: true,
-                        scrollX:300,
-                        lengthMenu: [ [10, 25, 50, -1], [10, 25, 50, "All"] ],                            
-                        buttons: [                                    
-                            {
-                                extend: 'excel',
-                                filename: 'product-list',
-                                exportOptions: {
-                                    columns: [0,1,2,3,4,5] 
-                                }
-                            }
-                        ], 
-                    });
+
+                    // if ($.fn.DataTable.isDataTable('#example')) {
+                    //     $('#example').DataTable().destroy();
+                    // }
+                    // $('#example').DataTable({ 
+                    //     dom: 'Blfrtip',
+                    //     responsive: true,
+                    //     scrollX:300,
+                    //     lengthMenu: [ [10, 25, 50, -1], [10, 25, 50, "All"] ],                            
+                    //     buttons: [                                    
+                    //         {
+                    //             extend: 'excel',
+                    //             filename: 'product-list',
+                    //             exportOptions: {
+                    //                 columns: [0,1,2,3,4,5] 
+                    //             }
+                    //         }
+                    //     ], 
+                    // });
                 </script>
             <?php
         }elseif($type == '3'){
@@ -32341,26 +32969,28 @@ public function get_student_courses($id)
             </div>
             <script>
                 $('#dashboardModalLabel').text('Low Stock Products').css('color','black');
+                // $('#dashboardModal_dialog').removeClass('modal-sm').addClass('modal-lg');
                 // $('#dashboardModal_dialog').css('width','1000px');
                 // $('#dashboardModal_dialog').css('margin-top','150px');
-                if ($.fn.DataTable.isDataTable('#example')) {
-                    $('#example').DataTable().destroy();
-                }
-                $('#example').DataTable({ 
-                    dom: 'Blfrtip',
-                    responsive: true,
-                    scrollX:300,
-                    lengthMenu: [ [10, 25, 50, -1], [10, 25, 50, "All"] ],                            
-                    buttons: [                                    
-                        {
-                            extend: 'excel',
-                            filename: 'product-list',
-                            exportOptions: {
-                                columns: [0,1,2,3,4] 
-                            }
-                        }
-                    ], 
-                });
+
+                // if ($.fn.DataTable.isDataTable('#example')) {
+                //     $('#example').DataTable().destroy();
+                // }
+                // $('#example').DataTable({ 
+                //     dom: 'Blfrtip',
+                //     responsive: true,
+                //     scrollX:300,
+                //     lengthMenu: [ [10, 25, 50, -1], [10, 25, 50, "All"] ],                            
+                //     buttons: [                                    
+                //         {
+                //             extend: 'excel',
+                //             filename: 'product-list',
+                //             exportOptions: {
+                //                 columns: [0,1,2,3,4] 
+                //             }
+                //         }
+                //     ], 
+                // });
             </script>
             <?php
         }elseif($type == '4'){            
@@ -32425,7 +33055,7 @@ public function get_student_courses($id)
                         <th style="text-align:center;">Available Amount</th>
                         <th>Rs. <?= number_format($final_amount, 2); ?></th>
                     </tr>
-                    <tr>
+                    <!-- <tr>
                         <th style="text-align:center;">Total Working Time</th>
                         <th><?=$this->formatTime($total_working_mins);?></th>
                     </tr>
@@ -32436,38 +33066,41 @@ public function get_student_courses($id)
                     <tr>
                         <th style="text-align:center;">Free Time</th>
                         <th><?=$this->formatTime($total_working_mins - $total_booked_mins);?></th>
-                    </tr>
+                    </tr> -->
                 </tbody>
             </table>
         </div>
         <script>
             $('#dashboardModalLabel').text('Today Account Report').css('color','black');
+            // $('#dashboardModal_dialog').removeClass('modal-sm').addClass('modal-lg');
             // $('#dashboardModal_dialog').css('width','500px');
             // $('#dashboardModal_dialog').css('margin-top','150px');
-            if ($.fn.DataTable.isDataTable('#example')) {
-                $('#example').DataTable().destroy();
-            }
-            $('#example').DataTable({ 
-                dom: 'Blfrtip',
-                responsive: true,
-                scrollX:300,
-                lengthMenu: [ [10, 25, 50, -1], [10, 25, 50, "All"] ],                            
-                buttons: [                                    
-                    {
-                        extend: 'excel',
-                        filename: 'product-list',
-                        exportOptions: {
-                            columns: [0,1,2,3,4] 
-                        }
-                    }
-                ], 
-            });
+
+            // if ($.fn.DataTable.isDataTable('#example')) {
+            //     $('#example').DataTable().destroy();
+            // }
+            // $('#example').DataTable({ 
+            //     dom: 'Blfrtip',
+            //     responsive: true,
+            //     scrollX:300,
+            //     lengthMenu: [ [10, 25, 50, -1], [10, 25, 50, "All"] ],                            
+            //     buttons: [                                    
+            //         {
+            //             extend: 'excel',
+            //             filename: 'product-list',
+            //             exportOptions: {
+            //                 columns: [0,1,2,3,4] 
+            //             }
+            //         }
+            //     ], 
+            // });
         </script>
         <?php
         }elseif($type == '0'){
             $today_service_reminders = $this->get_service_reminders_fixed(date('Y-m-d'));
             $yesterday_cancel_services = $this->get_yesterday_cancel_services();
             $reminders = $this->get_all_reminders(date('Y-m-d'),date('Y-m-d'));
+            // echo '<pre>'; print_r($today_service_reminders); exit;
         ?>  
         <div class="EnqBtns">
             <a id="inquiry_add_button" href="<?=base_url();?>add-reminder-form" class="<?php if(empty(array_intersect(['add-reminder-form'], $feature_slugs))) { echo 'blurred '; }?>btn btn-info">Add New</a>
@@ -32505,8 +33138,10 @@ public function get_student_courses($id)
                         <td>
                             <a style="margin-right:0px;background-color:transparent !important; border:none;outline:none; box-shadow:none;" class="btn btn-primary event-action-button" target="_blank" href="<?=base_url();?>booking-list?id=<?=$data->id;?>&status=&customer=<?=$data->customer_name;?>&from_date=<?=date('d-m-Y',strtotime($data->booking_date));?>&to_date=<?=date('d-m-Y',strtotime($data->booking_date));?>&service=&stylist=" title="Details">
                                 <i style="font-size: 15px;color: black;" class="fas fa-info-circle"></i>
-                            </a>                            
-                            <a style="margin-right:0px;background-color:transparent !important; border:none;outline:none; box-shadow:none;" class="btn btn-primary event-action-button" target="_blank" href="<?=base_url();?>booking-print/<?=base64_encode($data->id);?>/<?=base64_encode($data->booking_payment_id);?>" title="Receipt"><i style="font-size: 15px;color: black;" class="fas fa-receipt"></i></a>
+                            </a>     
+                            <?php if($data->payment_status == '1'){ ?>                       
+                                <a style="margin-right:0px;background-color:transparent !important; border:none;outline:none; box-shadow:none;" class="btn btn-primary event-action-button" target="_blank" href="<?=base_url();?>booking-print/<?=base64_encode($data->id);?>/<?=base64_encode($data->booking_payment_id);?>" title="Receipt"><i style="font-size: 15px;color: black;" class="fas fa-receipt"></i></a>
+                            <?php } ?>
                         </td>
                     </tr>
                     <?php }}else{ ?>
@@ -32651,7 +33286,11 @@ public function get_student_courses($id)
                 }else if(type == '5'){  
                     // $('#dashboardModal_dialog').css('margin-top','175px'); 
                     $('#dashboardModalLabel').text('Add Reminders').css('color','black');                    
+                }else if(type == '7'){  
+                    // $('#dashboardModal_dialog').css('margin-top','175px'); 
+                    $('#dashboardModalLabel').text('Service Reminders').css('color','black');                    
                 }
+                // $('#dashboardModal_dialog').removeClass('modal-sm').addClass('modal-lg');
                 $('.navtab').removeClass('active');
                 $('#navtab_' + type).addClass('active');
                 
@@ -32880,6 +33519,7 @@ public function get_student_courses($id)
                     // $('#dashboardModal_dialog').css('margin-top','175px');
                     $('#dashboardModalLabel').text('Add Enquiry').css('color','black');                    
                 }
+                // $('#dashboardModal_dialog').removeClass('modal-sm').addClass('modal-lg');
                 $('.navtab').removeClass('active');
                 $('#navtab_' + type).addClass('active');
                 
@@ -33063,6 +33703,7 @@ public function get_student_courses($id)
         <script>		
             $(document).ready(function() {
                 $('#dashboardModalLabel').text('Mark Attendance').css('color','black');
+                // $('#dashboardModal_dialog').removeClass('modal-sm').addClass('modal-lg');
                 // $('#dashboardModal_dialog').css('width','650px');         
                 $(".chosen-option").chosen();
                 $( ".custom_date" ).datepicker({
@@ -33217,6 +33858,7 @@ public function get_student_courses($id)
             });
             $(document).ready(function() {
                 $('#dashboardModalLabel').text('Emergency - Close Salon').css('color','red');
+                // $('#dashboardModal_dialog').removeClass('modal-lg').addClass('modal-sm');
                 // $('#dashboardModal_dialog').css('width','450px');         
                 $(".chosen-option").chosen();
                 var maxDate = '60';
@@ -33305,26 +33947,27 @@ public function get_student_courses($id)
             </div>
             <script>
                 $('#dashboardModalLabel').text('Active Subscription').css('color','black');
+                // $('#dashboardModal_dialog').removeClass('modal-sm').addClass('modal-lg');
                 // $('#dashboardModal_dialog').css('width','auto');
                 // $('#dashboardModal_dialog').css('margin-top','150px');
-                if ($.fn.DataTable.isDataTable('#example')) {
-                    $('#example').DataTable().destroy();
-                }
-                $('#example').DataTable({ 
-                    dom: 'Blfrtip',
-                    responsive: true,
-                    scrollX:300,
-                    lengthMenu: [ [10, 25, 50, -1], [10, 25, 50, "All"] ],                            
-                    buttons: [                                    
-                        {
-                            extend: 'excel',
-                            filename: 'Active Subscription',
-                            exportOptions: {
-                                columns: [0,1,2,3,4,5] 
-                            }
-                        }
-                    ], 
-                });
+                // if ($.fn.DataTable.isDataTable('#example')) {
+                //     $('#example').DataTable().destroy();
+                // }
+                // $('#example').DataTable({ 
+                //     dom: 'Blfrtip',
+                //     responsive: true,
+                //     scrollX:300,
+                //     lengthMenu: [ [10, 25, 50, -1], [10, 25, 50, "All"] ],                            
+                //     buttons: [                                    
+                //         {
+                //             extend: 'excel',
+                //             filename: 'Active Subscription',
+                //             exportOptions: {
+                //                 columns: [0,1,2,3,4,5] 
+                //             }
+                //         }
+                //     ], 
+                // });
             </script>
         <?php
         }elseif($type == '9'){
@@ -33335,6 +33978,8 @@ public function get_student_courses($id)
             $value = !empty($setup) ? (int)$setup->wp_low_qty_value : 25;
             $data['branch'] = $this->Admin_model->get_branch_details($this->session->userdata('branch_id'));
             if(!empty($data['branch']) && $data['branch']->include_wp == '1'){
+                $wp_coins_qty = $data['branch']->wp_coins_qty != "" ? (int)$data['branch']->wp_coins_qty : 0;
+                $value = ($value * $wp_coins_qty) / 100;
                 $data['add_ons'] = $this->Admin_model->get_subscription_whatsapp_addon_plans($data['branch']->subscription_id);
                 $data['payment_modes'] = $data['branch']->payment_options != "" ? explode(',', $data['branch']->payment_options) : [];
         ?>
@@ -33342,15 +33987,15 @@ public function get_student_courses($id)
                 <table id="active_report_table" class="table table-striped responsive-utilities jambo_table">
                     <tbody>
                         <tr>
-                            <th style="text-align:center;">Balance</th>
+                            <th style="text-align:center;"><strong>Coin Balance</strong></th>
                             <td style="text-align:left;"><?=!empty($profile) && $profile->current_wp_coins_balance != "" ? $profile->current_wp_coins_balance : '0';?></td>
                         </tr>
                         <?php if(!empty($active_addons)){ ?>
                         <tr>
-                            <th style="text-align:center;">Add On Plan</th>
+                            <th style="text-align:center;"><strong>Add On Plan</strong></th>
                             <td style="text-align:left;">
                                 <?=$active_addons->plan_name != "" ? $active_addons->plan_name . ' - Rs. ' . $active_addons->plan_price . ' (' . $active_addons->plan_qty . ' Coins)' : '-';?>
-                                <?='Purchased On: ' . date('d-m-Y h:i A',strrtotime($active_addons->created_on));?>
+                                <br><?='Purchased On: ' . date('d-m-Y h:i A',strtotime($active_addons->created_on));?>
                             </td>
                         </tr>
                         <?php } ?>
@@ -33376,7 +34021,7 @@ public function get_student_courses($id)
                             <select class="chosen-select form-control" id="add_on_plan" name="add_on_plan">
                                 <option value="">Select Plan</option>
                                 <?php if(!empty($data['add_ons'])){ foreach($data['add_ons'] as $row){?>
-                                    <option value="<?=$row->id;?>"><?=$row->plan_name;?> [Rs. <?=$row->price;?>]</option>
+                                    <option value="<?=$row->id;?>"><?=$row->plan_name;?> [Rs. <?=$row->price;?>] [Qty. <?=$row->qty;?> Coins]</option>
                                 <?php }} ?>
                             </select>
                             <input type="hidden" id="id" class="form-control" name="id" value="<?php if (!empty($data['branch'])) {
@@ -33417,24 +34062,25 @@ public function get_student_courses($id)
             <?php } ?>
             <script>
                 $('#dashboardModalLabel').text('Whatsapp Coins Status').css('color','black');
-                if ($.fn.DataTable.isDataTable('#example')) {
-                    $('#example').DataTable().destroy();
-                }
-                $('#example').DataTable({ 
-                    dom: 'Blfrtip',
-                    responsive: true,
-                    scrollX:300,
-                    lengthMenu: [ [10, 25, 50, -1], [10, 25, 50, "All"] ],                            
-                    buttons: [                                    
-                        {
-                            extend: 'excel',
-                            filename: 'Whatsapp Coin Status',
-                            exportOptions: {
-                                columns: [0,1,2,3,4,5] 
-                            }
-                        }
-                    ], 
-                });
+                // $('#dashboardModal_dialog').removeClass('modal-sm').addClass('modal-lg');
+                // if ($.fn.DataTable.isDataTable('#example')) {
+                //     $('#example').DataTable().destroy();
+                // }
+                // $('#example').DataTable({ 
+                //     dom: 'Blfrtip',
+                //     responsive: true,
+                //     scrollX:300,
+                //     lengthMenu: [ [10, 25, 50, -1], [10, 25, 50, "All"] ],                            
+                //     buttons: [                                    
+                //         {
+                //             extend: 'excel',
+                //             filename: 'Whatsapp Coin Status',
+                //             exportOptions: {
+                //                 columns: [0,1,2,3,4,5] 
+                //             }
+                //         }
+                //     ], 
+                // });
             </script>
             <?php
             }else{
@@ -33578,7 +34224,7 @@ public function get_student_courses($id)
                                     $visit_text = '';
                                     if(!empty($branch)){
                                         if($branch->branch_name != ""){
-                                            $visit_text .= $branch->branch_name.'%0a';
+                                            $visit_text .= $branch->branch_name;
                                         }
                                     }
 
@@ -33621,8 +34267,9 @@ public function get_student_courses($id)
                                     $giftcard_purchase_id = '';
                                     $trying_booking_id = '';
                                     $wp_template_data = [];
+                                    $cron_id = '';
 
-                                    $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                                    $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                                 }
                             }
                         }
@@ -33699,6 +34346,24 @@ public function get_student_courses($id)
         $this->db->where('tbl_salon_emergency_close.is_deleted','0');
 		$this->db->where('tbl_salon_emergency_close.branch_id', $this->session->userdata('branch_id'));
 		$this->db->where('tbl_salon_emergency_close.salon_id', $this->session->userdata('salon_id'));
+        $result = $this->db->get('tbl_salon_emergency_close')->row();
+        return $result;
+    }
+    public function check_is_salon_close_for_period_setup_datewise_entry($date,$branch_id,$salon_id){
+        $this->db->where('DATE(tbl_salon_emergency_close.from_date) <=', date('Y-m-d', strtotime($date)));
+        $this->db->where('DATE(tbl_salon_emergency_close.to_date) >=', date('Y-m-d', strtotime($date)));
+        $this->db->where('tbl_salon_emergency_close.is_close','1');
+        // $this->db->where('tbl_salon_emergency_close.from_date !=','');
+        $this->db->where('tbl_salon_emergency_close.from_date !=',null);
+        $this->db->where('tbl_salon_emergency_close.from_date !=','1970-00-00');
+        $this->db->where('tbl_salon_emergency_close.from_date !=','0000-00-00');
+        // $this->db->where('tbl_salon_emergency_close.to_date !=','');
+        $this->db->where('tbl_salon_emergency_close.to_date !=',null);
+        $this->db->where('tbl_salon_emergency_close.to_date !=','1970-00-00');
+        $this->db->where('tbl_salon_emergency_close.to_date !=','0000-00-00');
+        $this->db->where('tbl_salon_emergency_close.is_deleted','0');
+		$this->db->where('tbl_salon_emergency_close.branch_id', $branch_id);
+		$this->db->where('tbl_salon_emergency_close.salon_id', $salon_id);
         $result = $this->db->get('tbl_salon_emergency_close')->row();
         return $result;
     }
@@ -33889,7 +34554,8 @@ public function get_student_courses($id)
 		$this->db->where('tbl_booking_services_details.salon_id', $this->session->userdata('salon_id'));
         $this->db->group_by('tbl_booking_services_details.customer_name');
         $this->db->order_by('tbl_booking_services_details.id','desc');
-        $this->db->where('DATE(tbl_booking_services_details.cancelled_on)',date('Y-m-d', strtotime('-1 day')));
+        // $this->db->where('DATE(tbl_booking_services_details.cancelled_on)',date('Y-m-d', strtotime('-1 day')));
+        $this->db->where('DATE(tbl_booking_services_details.service_date)',date('Y-m-d', strtotime('-1 day')));
         $result = $this->db->get('tbl_booking_services_details')->result();
         return $result;
     }
@@ -33951,85 +34617,220 @@ public function get_student_courses($id)
         $all_entries = $this->db->get('tbl_back_end_setups')->row();
         return $all_entries;
     }
-    public function get_service_reminders_fixed($date){
+    public function get_service_reminders_fixed($date){      
         $backend_setups = $this->get_backend_setups();
-    
-        $this->db->select('tbl_new_booking.*, tbl_salon_customer.full_name, tbl_salon_customer.customer_phone, tbl_salon_customer.email');
-        $this->db->join('tbl_salon_customer', 'tbl_salon_customer.id = tbl_new_booking.customer_name');
-        $this->db->where('tbl_new_booking.is_deleted', '0');
-        $this->db->where('tbl_new_booking.payment_status', '1');
-        $this->db->where('tbl_new_booking.branch_id', $this->session->userdata('branch_id'));
-        $this->db->where('tbl_new_booking.salon_id', $this->session->userdata('salon_id'));
-        $this->db->order_by('tbl_new_booking.id', 'desc');
-        $all_entries = $this->db->get('tbl_new_booking')->result();
+        $reminder_duration = !empty($backend_setups) && !empty($backend_setups->service_repeat) ? (int)$backend_setups->service_repeat : 30;
+        $target_date = (new DateTime())->modify("-$reminder_duration days")->format('Y-m-d');
 
-        $dateObj = new DateTime($date);
-        $reminders = [];
-        if(!empty($all_entries)){
-            foreach ($all_entries as $entry) {
-                $booking_date = new DateTime($entry->service_start_date);
-                $reminder_duration = !empty($backend_setups) ? $backend_setups->service_repeat : '30';
-                if($reminder_duration != "" && $reminder_duration != null && $reminder_duration != "0"){
-                    $booking_date->modify("+$reminder_duration days");
-                    if ($booking_date == $dateObj) {
-                        $reminders[] = $entry;
-                    }
-                }
-            }
-        }
+        $this->db->select('b1.*, tbl_branch.subscription_id, tbl_salon_customer.full_name, tbl_salon_customer.customer_phone, tbl_salon_customer.email');
+        $this->db->from('tbl_new_booking b1');
+        $this->db->join('tbl_salon_customer', 'tbl_salon_customer.id = b1.customer_name');
+        $this->db->join('tbl_branch', 'tbl_branch.id = b1.branch_id');
+        $this->db->where('b1.is_deleted', '0');
+        $this->db->where_in('b1.booking_status', ['1','3','4','5']);
+        $this->db->where('b1.branch_id', $this->session->userdata('branch_id'));
+        $this->db->where('b1.salon_id', $this->session->userdata('salon_id'));
+        $this->db->where('DATE(b1.service_start_date)', $target_date);
+
+        // Manually write the NOT IN subquery as a string:
+        $subquery = "SELECT customer_name FROM tbl_new_booking WHERE is_deleted = '0' AND DATE(service_start_date) > '{$target_date}'";
+
+        // Use where NOT IN with manual subquery (note the third parameter false to avoid escaping)
+        $this->db->where("b1.customer_name NOT IN ($subquery)", null, false);
+
+        $this->db->order_by('b1.service_start_date', 'desc');
+        $this->db->group_by('b1.customer_name');
+
+        $lost_customers = $this->db->get()->result();
+
+        return $lost_customers;
+
     
-        return $reminders;
+        // $this->db->select('tbl_new_booking.*, tbl_salon_customer.full_name, tbl_salon_customer.customer_phone, tbl_salon_customer.email');
+        // $this->db->join('tbl_salon_customer', 'tbl_salon_customer.id = tbl_new_booking.customer_name');
+        // $this->db->where('tbl_new_booking.is_deleted', '0');
+        // // $this->db->where('tbl_new_booking.payment_status', '1');
+        // $this->db->where('tbl_new_booking.branch_id', $this->session->userdata('branch_id'));
+        // $this->db->where('tbl_new_booking.salon_id', $this->session->userdata('salon_id'));
+        // $this->db->order_by('tbl_new_booking.id', 'desc');
+        // $all_entries = $this->db->get('tbl_new_booking')->result();
+
+        // $dateObj = new DateTime($date);
+        // $reminders = [];
+        // if(!empty($all_entries)){
+        //     foreach ($all_entries as $entry) {
+        //         $booking_date = new DateTime($entry->service_start_date);
+        //         $reminder_duration = !empty($backend_setups) ? $backend_setups->service_repeat : '30';
+        //         if($reminder_duration != "" && $reminder_duration != null && $reminder_duration != "0"){
+        //             $booking_date->modify("+$reminder_duration days");
+        //             if ($booking_date == $dateObj) {
+        //                 $reminders[] = $entry;
+        //             }
+        //         }
+        //     }
+        // }
+    
+        // return $reminders;
     }
+    // public function get_service_reminders_fixed_all($date){
+    //     $backend_setups = $this->get_backend_setups();
+    
+    //     $this->db->select('tbl_new_booking.*, tbl_branch.subscription_id, tbl_salon_customer.full_name, tbl_salon_customer.customer_phone, tbl_salon_customer.email');
+    //     $this->db->join('tbl_salon_customer', 'tbl_salon_customer.id = tbl_new_booking.customer_name');
+    //     $this->db->join('tbl_branch', 'tbl_branch.id = tbl_new_booking.branch_id');
+    //     $this->db->where('tbl_new_booking.is_deleted', '0');
+    //     $this->db->where('tbl_new_booking.payment_status', '1');
+    //     $this->db->order_by('tbl_new_booking.id', 'desc');
+    //     // $this->db->limit(1);
+    //     $all_entries = $this->db->get('tbl_new_booking')->result();
+
+    //     $dateObj = new DateTime($date);
+    //     $reminders = [];
+    //     if(!empty($all_entries)){
+    //         foreach ($all_entries as $entry) {
+    //             $feature_slugs = $this->get_subscription_slugs($entry->subscription_id);
+    //             if(!empty(array_intersect(['service_repeat_marketing'], $feature_slugs))){
+    //                 $booking_date = new DateTime($entry->service_start_date);
+    //                 $reminder_duration = !empty($backend_setups) ? $backend_setups->service_repeat : '30';
+    //                 if($reminder_duration != "" && $reminder_duration != null && $reminder_duration != "0"){
+    //                     $booking_date->modify("+$reminder_duration days");
+    //                     if ($booking_date == $dateObj) {
+    //                         $reminders[] = $entry->id;
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+        
+    //     if(!empty($reminders)){
+    //         $this->db->select('tbl_new_booking.*, tbl_branch.subscription_id, tbl_salon_customer.full_name, tbl_salon_customer.customer_phone, tbl_salon_customer.email');
+    //         $this->db->join('tbl_salon_customer', 'tbl_salon_customer.id = tbl_new_booking.customer_name');
+    //         $this->db->join('tbl_branch', 'tbl_branch.id = tbl_new_booking.branch_id');
+    //         $this->db->where('tbl_new_booking.is_deleted', '0');
+    //         $this->db->where('tbl_new_booking.payment_status', '1');
+    //         $this->db->order_by('tbl_new_booking.id', 'desc');
+    //         $this->db->where_in('tbl_new_booking.id',$reminders);
+    //         $reminders = $this->db->get('tbl_new_booking')->result();
+    //     }
+
+    //     return $reminders;
+    // }
+
     public function get_service_reminders_fixed_all($date){
-        $backend_setups = $this->get_backend_setups();
-    
-        $this->db->select('tbl_new_booking.*, tbl_branch.subscription_id, tbl_salon_customer.full_name, tbl_salon_customer.customer_phone, tbl_salon_customer.email');
-        $this->db->join('tbl_salon_customer', 'tbl_salon_customer.id = tbl_new_booking.customer_name');
-        $this->db->join('tbl_branch', 'tbl_branch.id = tbl_new_booking.branch_id');
-        $this->db->where('tbl_new_booking.is_deleted', '0');
-        $this->db->where('tbl_new_booking.payment_status', '1');
-        $this->db->order_by('tbl_new_booking.id', 'desc');
-        $all_entries = $this->db->get('tbl_new_booking')->result();
+        $this->db->where('include_wp', '1');
+        $this->db->where('CAST(current_wp_coins_balance AS UNSIGNED) >', 0);
+        $this->db->where('is_deleted', '0');
+        $branches = $this->db->get('tbl_branch')->result();
 
-        $dateObj = new DateTime($date);
-        $reminders = [];
-        if(!empty($all_entries)){
-            foreach ($all_entries as $entry) {
-                $feature_slugs = $this->get_subscription_slugs($entry->subscription_id);
-                if(!empty(array_intersect(['service_repeat_marketing'], $feature_slugs))){
-                    $booking_date = new DateTime($entry->service_start_date);
-                    $reminder_duration = !empty($backend_setups) ? $backend_setups->service_repeat : '30';
-                    if($reminder_duration != "" && $reminder_duration != null && $reminder_duration != "0"){
-                        $booking_date->modify("+$reminder_duration days");
-                        if ($booking_date == $dateObj) {
-                            $reminders[] = $entry;
-                        }
-                    }
-                }
+        $valid_branch_ids = [];
+        foreach ($branches as $branch) {
+            $slugs = $this->Salon_model->get_subscription_slugs($branch->subscription_id);
+            if (in_array('lost_customer_marketing', $slugs)) {
+                $valid_branch_ids[] = $branch->id;
             }
         }
-    
-        return $reminders;
-    }
-    
-    public function get_lost_customers_all($date){
-        $backend_setups = $this->get_backend_setups();
-        $lost_customer_criteria_days  = !empty($backend_setups) ? $backend_setups->lost_customer_criteria : '120';
-        $lost_customer_cutoff_date = date('Y-m-d', strtotime("-$lost_customer_criteria_days days", strtotime($date)));
 
-        $this->db->select('tbl_new_booking.*, tbl_branch.subscription_id, tbl_salon_customer.full_name, tbl_salon_customer.customer_phone, tbl_salon_customer.email');
-        $this->db->join('tbl_salon_customer', 'tbl_salon_customer.id = tbl_new_booking.customer_name');
-        $this->db->join('tbl_branch', 'tbl_branch.id = tbl_new_booking.branch_id');
-        $this->db->where('tbl_new_booking.is_deleted', '0');
-        $this->db->where('tbl_new_booking.payment_status', '1');
-        $this->db->group_by('tbl_new_booking.customer_name');
-        $this->db->where('DATE(tbl_new_booking.service_start_date) <=', $lost_customer_cutoff_date);
-        $this->db->group_by('tbl_new_booking.customer_name');
-        $this->db->order_by('tbl_new_booking.booking_date', 'desc');
-        $lost_customers = $this->db->get('tbl_new_booking')->result();
-    
+        if (empty($valid_branch_ids)) return [];
+
+        $backend_setups = $this->get_backend_setups();
+        $reminder_duration = !empty($backend_setups) && !empty($backend_setups->service_repeat) ? (int)$backend_setups->service_repeat : 30;
+        $target_date = (new DateTime())->modify("-$reminder_duration days")->format('Y-m-d');
+
+        $this->db->select('b1.*, tbl_branch.subscription_id, tbl_salon_customer.full_name, tbl_salon_customer.customer_phone, tbl_salon_customer.email');
+        $this->db->from('tbl_new_booking b1');
+        $this->db->join('tbl_salon_customer', 'tbl_salon_customer.id = b1.customer_name');
+        $this->db->join('tbl_branch', 'tbl_branch.id = b1.branch_id');
+        $this->db->where('b1.is_deleted', '0');
+        $this->db->where_in('b1.booking_status', ['1','3','4','5']);
+        $this->db->where_in('b1.branch_id', $valid_branch_ids);
+        $this->db->where('DATE(b1.service_start_date)', $target_date);
+
+        // Manually write the NOT IN subquery as a string:
+        $subquery = "SELECT customer_name FROM tbl_new_booking WHERE is_deleted = '0' AND DATE(service_start_date) > '{$target_date}'";
+
+        // Use where NOT IN with manual subquery (note the third parameter false to avoid escaping)
+        $this->db->where("b1.customer_name NOT IN ($subquery)", null, false);
+
+        $this->db->order_by('b1.service_start_date', 'desc');
+        $this->db->group_by('b1.customer_name');
+
+        $lost_customers = $this->db->get()->result();
+
         return $lost_customers;
     }
+
+    
+    public function set_lost_customers_ajx(){
+        $this->db->where('is_deleted', '0');
+        $this->db->where('is_lost_customer', '0');
+        $this->db->where('branch_id', $this->session->userdata('branch_id'));
+        $this->db->where('salon_id', $this->session->userdata('salon_id'));
+        $result = $this->db->get('tbl_salon_customer');
+        $result = $result->result();
+        if(!empty($result)){
+            foreach($result as $row){
+                $criteria = $this->get_customer_criteria($row->id);
+                if($criteria == '2'){
+                    $data = array(
+                        'is_lost_customer'  =>  '1'
+                    );
+                    $this->db->where('id',$row->id);
+                    $this->db->update('tbl_salon_customer',$data);
+
+                    if($row->lost_customer_msg_sent != '0'){
+                        $data = array(
+                            'lost_customer_msg_sent'  =>  '0'
+                        );
+                        $this->db->where('id',$row->id);
+                        $this->db->update('tbl_salon_customer',$data);
+                    }
+                }
+            }
+            echo '1';
+        }else{
+            echo '0';
+        }
+    }
+
+    
+    public function get_lost_customers_all($date) {
+        $this->db->where('include_wp', '1');
+        $this->db->where('CAST(current_wp_coins_balance AS UNSIGNED) >', 0);
+        $this->db->where('is_deleted', '0');
+        $branches = $this->db->get('tbl_branch')->result();
+        $valid_branch_ids = [];
+
+        foreach ($branches as $branch) {
+            $slugs = $this->Salon_model->get_subscription_slugs($branch->subscription_id);
+            if (in_array('lost_customer_marketing', $slugs)) {
+                $valid_branch_ids[] = $branch->id;
+            }
+        }
+
+        if (empty($valid_branch_ids)) return [];
+
+        $backend_setups = $this->get_backend_setups();
+        $lost_days = !empty($backend_setups) ? $backend_setups->lost_customer_criteria : 120;
+        $cutoff_date = date('Y-m-d', strtotime("-$lost_days days"));
+        $stop_date = date('Y-m-d', strtotime("-" . ($lost_days + 30) . " days"));
+
+        $this->db->select('c.*, b.subscription_id, b.branch_name');
+        $this->db->from('tbl_salon_customer c');
+        $this->db->join('tbl_branch b', 'b.id = c.branch_id');
+        $this->db->join('tbl_new_booking nb', 'nb.customer_name = c.id');
+        $this->db->where('c.is_deleted', '0');
+        $this->db->where('nb.is_deleted', '0');
+        $this->db->where_in('c.branch_id', $valid_branch_ids);
+        // $this->db->group_by('c.id');
+        $this->db->group_by(['c.customer_phone', 'c.branch_id', 'c.ssalon_id']);
+        $this->db->having('MAX(nb.service_start_date) <=', $cutoff_date);
+        $this->db->having('MAX(nb.service_start_date) >', $stop_date);
+        
+        $lost_customers = $this->db->get()->result();
+
+        return $lost_customers;
+    }
+
     public function get_all_reminders($from,$to){
         $this->db->where('tbl_reminders.is_deleted','0');
         if($from != ""){
@@ -34096,13 +34897,13 @@ public function get_student_courses($id)
             }
         }
     }
-    public function send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data){
+    public function send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id){
+        // echo '<pre>'; print_r($cron_id); exit;
         $this->db->where('id',$customer);
         $this->db->where('salon_id',$salon_id);
         $this->db->where('branch_id',$branch_id);
 		$single = $this->db->get('tbl_salon_customer')->row();
-        // echo '<pre>'; print_r($message_send_on); exit();
-		if(!empty($single)){
+        if(!empty($single)){
             if($single->fcm_token != ""){
                 $notification_response = $this->Common_model->send_app_notification($single->fcm_token,$title,$app_message,$notification_data);		
                 if($type == '14'){
@@ -34124,6 +34925,7 @@ public function get_student_courses($id)
                         'membership_history_id'	=>	$membership_history_id,
                         'giftcard_purchase_id'	=>	$giftcard_purchase_id,
                         'package_allocation_id'	=>	$package_allocation_id,
+                        'cron_id'               =>  is_array($cron_id) && !empty($cron_id) ? implode(',',$cron_id) : $cron_id,
                         'created_on'	=>	date('Y-m-d H:i:s'),
                     );
                 }elseif($type == '15'){
@@ -34145,6 +34947,7 @@ public function get_student_courses($id)
                         'membership_history_id'	=>	$membership_history_id,
                         'giftcard_purchase_id'	=>	$giftcard_purchase_id,
                         'package_allocation_id'	=>	$package_allocation_id,
+                        'cron_id'               =>  is_array($cron_id) && !empty($cron_id) ? implode(',',$cron_id) : $cron_id,
                         'created_on'	=>	date('Y-m-d H:i:s'),
                     );
                 }else{
@@ -34166,6 +34969,7 @@ public function get_student_courses($id)
                         'membership_history_id'	=>	$membership_history_id,
                         'giftcard_purchase_id'	=>	$giftcard_purchase_id,
                         'package_allocation_id'	=>	$package_allocation_id,
+                        'cron_id'               =>  is_array($cron_id) && !empty($cron_id) ? implode(',',$cron_id) : $cron_id,
                         'created_on'	=>	date('Y-m-d H:i:s'),
                     );
                 }
@@ -34173,20 +34977,20 @@ public function get_student_courses($id)
             }
         
             if($message_send_on == '0'){
-                $this->send_sms($message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$template_id,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id);
+                $this->send_sms($message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$template_id,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$cron_id);
             }elseif($message_send_on == '1'){
-                // $this->send_whatsapp_message($message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id);
-                $this->send_whatsapp_message_new($message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                // $this->send_whatsapp_message($message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$cron_id);
+                $this->send_whatsapp_message_new($message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
             }elseif($message_send_on == '2'){
                 if($single->email != "" && $email_html != ""){
-                    $this->send_email($email_html,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$single->email,$email_subject,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id);
+                    $this->send_email($email_html,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$single->email,$email_subject,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$cron_id);
                 }
             }
 		}
 
 		return true;
     }
-    public function send_sms($message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$template_id,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id){
+    public function send_sms($message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$template_id,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$cron_id){
 		// $curl = curl_init();
         // $campaign_name = "testing";
         // $authKey = SMSKEY;
@@ -34230,7 +35034,7 @@ public function get_student_courses($id)
         // $response = curl_exec($curl);
         // $data = json_decode($response, true);
         // if($data['status'] == 'Success'){
-        //     $this->Salon_model->set_message_log($customer,'0',$type,$number,'',$message,$data['status'],$salon_id,$branch_id,$response,$for_order_id,$for_offer_id,$for_query_id,$template_id,'',$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,[]);
+        //     $this->Salon_model->set_message_log($customer,'0',$type,$number,'',$message,$data['status'],$salon_id,$branch_id,$response,$for_order_id,$for_offer_id,$for_query_id,$template_id,'',$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,[],$cron_id);
         //     return true;
         // }else{
         //     return false;
@@ -34238,7 +35042,7 @@ public function get_student_courses($id)
 
         return true;
 	}
-    public function send_whatsapp_message($message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id){			
+    public function send_whatsapp_message($message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$cron_id){			
         $username = WP_USERNAME;
 
         $mobile_nos = $number;
@@ -34259,21 +35063,24 @@ public function get_student_courses($id)
 
         if (is_array($response) && isset($response[0])) {
             $sending_status	= $response[0]->status;
-            $this->set_message_log($customer,'1',$type,$number,'',$message,$sending_status,$salon_id,$branch_id,$api_response,$for_order_id,$for_offer_id,$for_query_id,'','',$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_data);
+            $this->set_message_log($customer,'1',$type,$number,'',$message,$sending_status,$salon_id,$branch_id,$api_response,$for_order_id,$for_offer_id,$for_query_id,'','',$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_data,$cron_id);
         }else{
-            $this->set_message_log($customer,'1',$type,$number,'',$message,'failed',$salon_id,$branch_id,$api_response,$for_order_id,$for_offer_id,$for_query_id,'','',$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_data);
+            $this->set_message_log($customer,'1',$type,$number,'',$message,'failed',$salon_id,$branch_id,$api_response,$for_order_id,$for_offer_id,$for_query_id,'','',$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_data,$cron_id);
             return false;
         }
 
         return $sending_status;
     }
-    public function send_whatsapp_message_new($message,$mobile_nos,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data){		
+    public function send_whatsapp_message_new($message,$mobile_nos,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id){		
         if(!empty($wp_template_data)){
             $wp_data = [];
             $this->db->where('is_deleted','0');
             $this->db->where('salon_id',$salon_id);
             $this->db->where('id',$branch_id);
             $row = $this->db->get('tbl_branch')->row();
+            // if($customer == '248'){
+            //     echo '<pre>'; print_r($mobile_nos); exit();
+            // }
             if(!empty($row) && $row->include_wp == '1'){
                 if((int)$row->current_wp_coins_balance > 0){
                     $template_name = $wp_template_data['template_name'];
@@ -34316,14 +35123,22 @@ public function get_student_courses($id)
                 );
             }
 
-            $this->set_message_log($customer,'1',$type,$mobile_nos,'',$message,$sending_status,$salon_id,$branch_id,$api_response,$for_order_id,$for_offer_id,$for_query_id,'','',$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_data);
+            $this->set_message_log($customer,'1',$type,$mobile_nos,'',$message,$sending_status,$salon_id,$branch_id,$api_response,$for_order_id,$for_offer_id,$for_query_id,'','',$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_data,$cron_id);
             
             return $sending_status;
         }else{
             return false;
         }
     }
-
+    public function send_cron_confirmation($wp_template_data){
+        $template_name = !empty($wp_template_data) && isset($wp_template_data['template_name']) ? $wp_template_data['template_name'] : '';
+        $pay_load_components = !empty($wp_template_data) && isset($wp_template_data['pay_load_components']) ? $wp_template_data['pay_load_components'] : [];
+        if($template_name != "" && !empty($pay_load_components)){	
+            $mobile_nos = '91808727903,918999459806';
+            $response = $this->send_whatsapp_messages_newgateway($mobile_nos,$template_name,$pay_load_components);
+        }
+        return true;
+    }
     public function send_whatsapp_messages_newgateway($mobile_nos,$template_name,$pay_load_components){
         $url = "https://cloudapi.wbbox.in/api/v1.0/messages/send-template/" . NEW_WP_USERNAME;
 
@@ -34340,6 +35155,9 @@ public function get_student_courses($id)
                                         "components"    => $pay_load_components
                                     ]
         ];
+        // if($mobile_nos == '911591591591'){
+        //     echo '<pre>'; print_r($postData); exit();
+        // }
 
         $jsonData = json_encode($postData);
 
@@ -34381,7 +35199,7 @@ public function get_student_courses($id)
                     );
     }
     
-    public function send_email($email_html,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$to_email,$email_subject,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id){
+    public function send_email($email_html,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$for_query_id,$to_email,$email_subject,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$cron_id){
 		$config['protocol'] = 'smtp';
 		$config['smtp_host'] = smtp_host;
 		$config['smtp_port'] = 587;
@@ -34402,26 +35220,56 @@ public function get_student_courses($id)
         if ($this->email->send()) {
             $sending_status = 'success';
             $api_response = json_encode(['status' => 'success', 'message' => 'Email sent successfully']);
-            $this->set_message_log($customer, '2', $type, $number, $to_email, $email_html, $sending_status, $salon_id, $branch_id, $api_response, $for_order_id, $for_offer_id, $for_query_id, '', $email_subject,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,[]);
+            $this->set_message_log($customer, '2', $type, $number, $to_email, $email_html, $sending_status, $salon_id, $branch_id, $api_response, $for_order_id, $for_offer_id, $for_query_id, '', $email_subject,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,[],$cron_id);
         } else {
             return false;
         }
 
         return $sending_status;
 	}
-    public function get_yesterday_cancelled_bookings(){
+    // public function get_yesterday_cancelled_bookings(){
+    //     $this->db->select('tbl_new_booking.*, tbl_salon_customer.full_name, tbl_salon_customer.customer_phone');
+    //     $this->db->join('tbl_booking_services_details', 'tbl_booking_services_details.booking_id = tbl_new_booking.id');
+    //     $this->db->join('tbl_salon_customer', 'tbl_salon_customer.id = tbl_new_booking.customer_name');
+    //     $this->db->where('tbl_new_booking.is_deleted','0');
+    //     $this->db->where('tbl_booking_services_details.is_deleted','0');
+    //     $this->db->where('tbl_booking_services_details.service_status','2');
+    //     $this->db->where('DATE(tbl_booking_services_details.service_from)',date('Y-m-d', strtotime('-1 day')));
+    //     $this->db->group_by('tbl_new_booking.id');
+    //     $this->db->group_by('tbl_new_booking.customer_name');
+    //     $this->db->order_by('tbl_booking_services_details.service_from','desc');
+    //     $result = $this->db->get('tbl_new_booking')->result();
+    //     return $result;
+    // }
+    public function get_yesterday_cancelled_bookings() {
+        $yesterday = date('Y-m-d', strtotime('-1 day'));
+        $now = date('Y-m-d H:i:s');
+
+        // Subquery: get customer IDs who have future (non-cancelled) bookings
+        $this->db->select('DISTINCT tbl_new_booking.customer_name', false); // 👈 false disables backticks
+        $this->db->from('tbl_new_booking');
+        $this->db->join('tbl_booking_services_details', 'tbl_booking_services_details.booking_id = tbl_new_booking.id');
+        $this->db->where('tbl_new_booking.is_deleted', '0');
+        $this->db->where('tbl_booking_services_details.is_deleted', '0');
+        $this->db->where('tbl_booking_services_details.service_status !=', '2'); // Not cancelled
+        $this->db->where('tbl_booking_services_details.service_from >', $now);
+        $future_customers_subquery = $this->db->get_compiled_select();
+        $this->db->reset_query();
+
+        // Main query: yesterday cancelled bookings whose customers have NO future bookings
         $this->db->select('tbl_new_booking.*, tbl_salon_customer.full_name, tbl_salon_customer.customer_phone');
+        $this->db->from('tbl_new_booking');
         $this->db->join('tbl_booking_services_details', 'tbl_booking_services_details.booking_id = tbl_new_booking.id');
         $this->db->join('tbl_salon_customer', 'tbl_salon_customer.id = tbl_new_booking.customer_name');
-        $this->db->where('tbl_new_booking.is_deleted','0');
-        $this->db->where('tbl_booking_services_details.is_deleted','0');
-        $this->db->where('tbl_booking_services_details.service_status','2');
-        $this->db->where('DATE(tbl_booking_services_details.service_from)',date('Y-m-d', strtotime('-1 day')));
-        $this->db->group_by('tbl_new_booking.id');
-        $this->db->group_by('tbl_new_booking.customer_name');
-        $this->db->order_by('tbl_booking_services_details.service_from','desc');
-        $result = $this->db->get('tbl_new_booking')->result();
-        return $result;
+        $this->db->where('tbl_new_booking.is_deleted', '0');
+        $this->db->where('tbl_booking_services_details.is_deleted', '0');
+        $this->db->where('tbl_booking_services_details.service_status', '2'); // Cancelled
+        $this->db->where('DATE(tbl_booking_services_details.service_from)', $yesterday);
+        $this->db->where("tbl_new_booking.customer_name NOT IN ($future_customers_subquery)", null, false); // Raw subquery
+        $this->db->group_by(['tbl_new_booking.id', 'tbl_new_booking.customer_name']);
+        // $this->db->order_by('tbl_booking_services_details.service_from', 'desc');
+
+        return $this->db->get()->result();
     }
 	public function generate_qrcode_data($data) {
 		// Load the library
@@ -34451,7 +35299,7 @@ public function get_student_courses($id)
 		return $final_image_data;
 	}
 
-    public function set_message_log($customer,$sent_on,$type,$number,$email,$message,$sending_status,$salon_id,$branch_id,$api_response,$for_order_id,$for_offer_id,$for_query_id,$template_id,$email_subject,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_data = []){
+    public function set_message_log($customer,$sent_on,$type,$number,$email,$message,$sending_status,$salon_id,$branch_id,$api_response,$for_order_id,$for_offer_id,$for_query_id,$template_id,$email_subject,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_data = [],$cron_id = ''){
         if($type == '14'){
             $data = array(
                 'send_on'		=>	$sent_on,
@@ -34474,6 +35322,7 @@ public function get_student_courses($id)
                 'giftcard_purchase_id'	=>	$giftcard_purchase_id,
                 'package_allocation_id'	=>	$package_allocation_id,
                 'trying_for_booking_id' =>  $trying_booking_id,
+                'cron_id'               =>  $cron_id,
                 'created_on'	=>	date('Y-m-d H:i:s'),
             );
         }elseif($type == '15'){
@@ -34498,6 +35347,7 @@ public function get_student_courses($id)
                 'giftcard_purchase_id'	=>	$giftcard_purchase_id,
                 'package_allocation_id'	=>	$package_allocation_id,
                 'trying_for_booking_id' =>  $trying_booking_id,
+                'cron_id'               =>  $cron_id,
                 'created_on'	=>	date('Y-m-d H:i:s'),
             );
         }else{
@@ -34522,6 +35372,7 @@ public function get_student_courses($id)
                 'giftcard_purchase_id'	=>	$giftcard_purchase_id,
                 'package_allocation_id'	=>	$package_allocation_id,
                 'trying_for_booking_id' =>  $trying_booking_id,
+                'cron_id'               =>  $cron_id,
                 'created_on'	=>	date('Y-m-d H:i:s'),
             );
         }
@@ -34533,6 +35384,20 @@ public function get_student_courses($id)
         }
 
         $this->db->insert('tbl_messages_history',$data);
+        $message_id = $this->db->insert_id();
+
+        if($cron_id != ""){
+            $this->db->where('id',$cron_id);
+            $exist_cron = $this->db->get('tbl_cron_reports')->row();
+            if(!empty($exist_cron)){
+                $messages_ids = $exist_cron->messages_id != "" ? explode(',',$exist_cron->messages_id) : [];
+                $messages_ids[] = $message_id;
+                // $messages_ids = array_unique($messages_ids);
+                rsort($messages_ids);
+                $this->db->where('id',$exist_cron->id);
+                $this->db->update('tbl_cron_reports',array('messages_id'=>!empty($messages_id) ? implode(',',$messages_id) : null));
+            }
+        }
 
         return true;
     }
@@ -34791,18 +35656,18 @@ public function get_student_courses($id)
                 $this->Salon_model->insert_salon_coin_entry($coin_insert_data);
             }
         
-            if($exist_customer->is_registered_coins_generated != "1"){
-                $coin_amount = coin_earn_on_every_download;
-                $coin_insert_data = array(
-                    'branch_id'     =>  $branch_id,
-                    'salon_id'      =>  $salon_id,
-                    'entry_type'    =>  '0',
-                    'debit_type'    =>  '1',    // Deduct due amount balance
-                    'customer_id'   =>  $exist_customer->id,
-                    'coin_amount'   =>  $coin_amount,
-                );
-                $this->Salon_model->deduct_due_amount_from_salon_coin_entry($coin_insert_data);
-            }
+            // if($exist_customer->is_registered_coins_generated != "1"){
+            //     $coin_amount = coin_earn_on_every_download;
+            //     $coin_insert_data = array(
+            //         'branch_id'     =>  $branch_id,
+            //         'salon_id'      =>  $salon_id,
+            //         'entry_type'    =>  '0',
+            //         'debit_type'    =>  '1',    // Deduct due amount balance
+            //         'customer_id'   =>  $exist_customer->id,
+            //         'coin_amount'   =>  $coin_amount,
+            //     );
+            //     $this->Salon_model->deduct_due_amount_from_salon_coin_entry($coin_insert_data);
+            // }
             
             return true;
         }else{
@@ -35278,8 +36143,9 @@ public function get_student_courses($id)
                 $giftcard_purchase_id = '';
                 $trying_booking_id = '';
                 $wp_template_data = [];
+                $cron_id = '';
 
-                $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                 
                 return true;
             }else{
@@ -35373,8 +36239,9 @@ public function get_student_courses($id)
                     $giftcard_purchase_id = '';
                     $trying_booking_id = '';
                     $wp_template_data = [];
+                    $cron_id = '';
 
-                    $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                    $this->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                     
                     return true;
                 }else{
@@ -35570,6 +36437,8 @@ public function get_student_courses($id)
                 'created_on'        => date('Y-m-d H:i:s')
             );
         }
+
+        // echo '<pre>'; print_r($data); exit;
     
         $this->db->where('marketing_type', $marketing_type);
         $this->db->where('is_deleted', '0');
@@ -35622,10 +36491,17 @@ public function get_single_for_new() {
     $result = $this->db->get('tbl_automated_marketing');
     return $result->row();
 }
-public function get_single_for_lost() { 
+public function get_single_for_lost($salon_id = '',$branch_id = '') { 
+    if($salon_id == ''){
+        $salon_id = $this->session->userdata('salon_id');
+    }
+    if($branch_id == ''){
+        $branch_id = $this->session->userdata('branch_id');
+    }
+
     $this->db->where('is_deleted', '0');
-    $this->db->where('salon_id', $this->session->userdata('salon_id'));
-    $this->db->where('branch_id', $this->session->userdata('branch_id'));
+    $this->db->where('salon_id', $salon_id);
+    $this->db->where('branch_id', $branch_id);
     $this->db->where('marketing_type', '2');
     $result = $this->db->get('tbl_automated_marketing');
     return $result->row();
@@ -35640,18 +36516,32 @@ public function get_single_for_regular() {
     return $result->row();
 }
 
-public function get_single_for_birthday () { 
+public function get_single_for_birthday ($salon_id = '',$branch_id = '') { 
+    if($salon_id == ''){
+        $salon_id = $this->session->userdata('salon_id');
+    }
+    if($branch_id == ''){
+        $branch_id = $this->session->userdata('branch_id');
+    }
+
     $this->db->where('is_deleted', '0');
-    $this->db->where('salon_id', $this->session->userdata('salon_id'));
-    $this->db->where('branch_id', $this->session->userdata('branch_id'));
+    $this->db->where('salon_id', $salon_id);
+    $this->db->where('branch_id', $branch_id);
     $this->db->where('marketing_type', '3');
     $result = $this->db->get('tbl_automated_marketing');
     return $result->row();
 }
-public function get_single_for_anniversary () { 
+public function get_single_for_anniversary ($salon_id = '',$branch_id = '') { 
+    if($salon_id == ''){
+        $salon_id = $this->session->userdata('salon_id');
+    }
+    if($branch_id == ''){
+        $branch_id = $this->session->userdata('branch_id');
+    }
+
     $this->db->where('is_deleted', '0');
-    $this->db->where('salon_id', $this->session->userdata('salon_id'));
-    $this->db->where('branch_id', $this->session->userdata('branch_id'));
+    $this->db->where('salon_id', $salon_id);
+    $this->db->where('branch_id', $branch_id);
     $this->db->where('marketing_type', '4');
     $result = $this->db->get('tbl_automated_marketing');
     return $result->row();

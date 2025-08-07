@@ -46,6 +46,8 @@ if (!empty($profile) && $profile->subscription_name != "") {
         } else {
             $wp_low_qty_value = 25;
         }
+        $wp_coins_qty = $profile->wp_coins_qty != "" ? (int)$profile->wp_coins_qty : 0;
+        $wp_low_qty_value = ($wp_low_qty_value * $wp_coins_qty) / 100;
         $wp_ticker = $wp_low_qty_value >= $current_wp_coins_balance ? '1' : '0';
     }
     if (!empty(array_intersect(['money-back-1000'], $feature_slugs))) {
@@ -375,7 +377,7 @@ if ($next_status_index !== false) {
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tippy.js/6.3.1/tippy.css">
     <link rel="stylesheet" href="<?= base_url("salon_assets/css/responsive.css") ?>">
-
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
 
 
     <style>
@@ -673,35 +675,27 @@ if ($next_status_index !== false) {
                                             <li><a class="<?php if (empty(array_intersect(['store-images'], $feature_slugs))) {
                                                                 echo 'blurred ';
                                                             } ?>store-images" href="<?= base_url(); ?>store-images">Store Gallary</a></li>
-                                            <li><a class="<?php if (empty(array_intersect(['add-catlogue-salon'], $feature_slugs))) {
-                                                                echo 'blurred ';
-                                                            } ?>add-catlogue-salon" href="<?= base_url(); ?>add-catlogue-salon">Mobile App Catlogue</a></li>
                                             <li><a class="<?php if (empty(array_intersect(['salon-mobile-banner'], $feature_slugs))) {
                                                                 echo 'blurred ';
                                                             } ?>app-banner" href="<?= base_url(); ?>salon-mobile-banner">Mobile App Banner</a></li>
+                                            <li><a class="<?php if (empty(array_intersect(['add-catlogue-salon'], $feature_slugs))) {
+                                                                echo 'blurred ';
+                                                            } ?>add-catlogue-salon" href="<?= base_url(); ?>add-catlogue-salon">Mobile App Catlogue</a></li>
                                             <li><a class="<?php if (empty(array_intersect(['coin_history'], $feature_slugs))) {
                                                                 echo 'blurred ';
                                                             } ?>coin_history" href="<?= base_url(); ?>coin_history">Store Coins</a></li>
 
                                             <h4>Client <i style="float:right;cursor:pointer;" class="fas fa-angle-left"></i></h4>
-                                            <li><a class="<?php if (empty(array_intersect(['lost_customer'], $feature_slugs))) {
-                                                                echo 'blurred ';
-                                                            } ?>lost-customer-setup" href="<?= base_url(); ?>lost_customer">Lost Customer</a></li>
+                                            <h4>Automated</h4>
                                             <li><a class="<?php if (empty(array_intersect(['birthday'], $feature_slugs))) {
                                                                 echo 'blurred ';
                                                             } ?>birthday-setup" href="<?= base_url(); ?>birthday">Birthday</a></li>
                                             <li><a class="<?php if (empty(array_intersect(['anniversary'], $feature_slugs))) {
                                                                 echo 'blurred ';
                                                             } ?>anniversary-setup" href="<?= base_url(); ?>anniversary">Anniversary</a></li>
-                                            <li><a class="<?php if (empty(array_intersect(['offer'], $feature_slugs))) {
+                                            <li><a class="<?php if (empty(array_intersect(['lost_customer'], $feature_slugs))) {
                                                                 echo 'blurred ';
-                                                            } ?>offer-setup" href="<?= base_url(); ?>offer">Offer</a></li>
-                                            <li><a class="<?php if (empty(array_intersect(['giftcards'], $feature_slugs))) {
-                                                                echo 'blurred ';
-                                                            } ?>giftcards-setup" href="<?= base_url(); ?>giftcards">Gift Cards</a></li>
-                                            <li><a class="<?php if (empty(array_intersect(['coupons'], $feature_slugs))) {
-                                                                echo 'blurred ';
-                                                            } ?>coupons-setup" href="<?= base_url(); ?>coupons">Coupons</a></li>
+                                                            } ?>lost-customer-setup" href="<?= base_url(); ?>lost_customer">Lost Customer</a></li>
                                             <li><a class="<?php if (empty(array_intersect(['service_repeat'], $feature_slugs))) {
                                                                 echo 'blurred ';
                                                             } ?>service-repeat-setup" href="<?= base_url(); ?>service_repeat">Service Repeat</a></li>
@@ -711,6 +705,16 @@ if ($next_status_index !== false) {
                                             <li><a class="<?php if (empty(array_intersect(['trying-booking'], $feature_slugs))) {
                                                                 echo 'blurred ';
                                                             } ?>trying-booking" href="<?= base_url(); ?>trying-booking">Trying For Booking</a></li>
+                                            <h4>Manual</h4>
+                                            <li><a class="<?php if (empty(array_intersect(['coupons'], $feature_slugs))) {
+                                                                echo 'blurred ';
+                                                            } ?>coupons-setup" href="<?= base_url(); ?>coupons">Coupons</a></li>
+                                            <li><a class="<?php if (empty(array_intersect(['giftcards'], $feature_slugs))) {
+                                                                echo 'blurred ';
+                                                            } ?>giftcards-setup" href="<?= base_url(); ?>giftcards">Gift Cards</a></li>
+                                            <li><a class="<?php if (empty(array_intersect(['offer'], $feature_slugs))) {
+                                                                echo 'blurred ';
+                                                            } ?>offer-setup" href="<?= base_url(); ?>offer">Offer</a></li>
                                             <li><a class="<?php if (empty(array_intersect(['booking-promotion'], $feature_slugs))) {
                                                                 echo 'blurred ';
                                                             } ?>booking-promotion" href="<?= base_url(); ?>booking-promotion">Easy Booking Promotion</a></li>
@@ -1069,7 +1073,7 @@ if ($next_status_index !== false) {
                         }
                     }
                     if ($wp_ticker == '1') {
-                        $marquee_elements[] = 'Whatsapp Coin balance is low. Please raise Add On Request. <a style="font-size:12px;color:#0000ff;text-decoration:underline;" href="' . base_url() . 'add-on-request">Click Here</a>';
+                        $marquee_elements[] = 'Whatsapp Coin balance is low. Please raise Add On Request. <a style="font-size:12px;color:#0000ff;text-decoration:underline;" onclick="showDashboardDataPopup(\'9\')">Click Here</a>';
                     }
                     ?>
                     <?php if (!empty($marquee_elements)) { ?>

@@ -148,7 +148,7 @@ class Api_model extends CI_Model {
         $response = curl_exec($curl);
         $data = json_decode($response, true);
         if($data['status'] == 'Success'){
-            $this->Salon_model->set_message_log($customer,'0',$type,$number,'',$message,$data['status'],$salon_id,$branch_id,$response,$for_order_id,$for_offer_id,$for_query_id,$template_id,'',$consent_form_id,'','','','',[]);
+            $this->Salon_model->set_message_log($customer,'0',$type,$number,'',$message,$data['status'],$salon_id,$branch_id,$response,$for_order_id,$for_offer_id,$for_query_id,$template_id,'',$consent_form_id,'','','','',[],'');
             return true;
         }else{
             return false;
@@ -198,6 +198,8 @@ class Api_model extends CI_Model {
                             'fcm_token'         =>  isset($request['fcm_token']) ? $request['fcm_token'] : null, 
                         );
                         $this->db->where('id',$exist_customer->id);
+
+
                         $this->db->update('tbl_salon_customer',$user_data);
                         $customer_id = $exist_customer->id;
                     }                        
@@ -1711,337 +1713,348 @@ class Api_model extends CI_Model {
             if($request['branch_id']){
                 $customer_id = $request['customer_id'];
                 $salon_id = $request['salon_id'];
-                $branch_id = $request['branch_id'];   
+                $branch_id = $request['branch_id'];  
 
+                $this->db->where('active_for_mobile_apps','1');
                 $this->db->where('is_deleted','0');
-                $this->db->where('status','1');
-                $this->db->where('id',$customer_id);
-                $this->db->where('branch_id', $branch_id);
-                $this->db->where('salon_id', $salon_id);
-                $single = $this->db->get('tbl_salon_customer')->row();
-                $data = array();
-                if(!empty($single)){                 
-                    $this->db->where('is_deleted', '0');
-                    if($single->gender != ""){
-                        $this->db->where('gender',$single->gender);
-                    }
-                    $this->db->order_by('CAST(`order` AS UNSIGNED)', 'asc');
-                    $categories = $this->db->get('tbl_admin_service_category');
-                    $categories = $categories->result();
-                    if(!empty($categories)){
-                        foreach($categories as $categories_result){       
-                            $subcat_data = array(); 
-                            $this->db->where('is_deleted', '0');
-                            $this->db->where('sup_category', $categories_result->id);
-                            if($single->gender != ""){
-                                $this->db->where('gender',$single->gender);
-                            }
-                            $this->db->order_by('CAST(`order` AS UNSIGNED)', 'asc');
-                            $subcategories = $this->db->get('tbl_admin_sub_category');
-                            $subcategories = $subcategories->result();
-                            if(!empty($subcategories)){
-                                foreach($subcategories as $subcategories_result){
-                                    $this->db->where('tbl_salon_emp_service.category', $categories_result->id);
-                                    $this->db->where('tbl_salon_emp_service.sub_category', $subcategories_result->id);
-                                    $this->db->where('tbl_salon_emp_service.status', '1');
-                                    $this->db->where('tbl_salon_emp_service.is_deleted', '0');
-                                    $this->db->where('tbl_admin_service_category.is_deleted', '0');
-                                    $this->db->where('tbl_salon_emp_service.branch_id', $branch_id);
-                                    $this->db->where('tbl_salon_emp_service.salon_id', $salon_id);
-                                    if($single->gender != ""){
-                                        $this->db->where('tbl_salon_emp_service.gender',$single->gender);
-                                    }
-                                    $this->db->select('tbl_salon_emp_service.*, tbl_admin_sub_category.sub_category as subcategory,tbl_admin_sub_category.sub_category_marathi,tbl_admin_service_category.sup_category,tbl_admin_service_category.sup_category_marathi');
-                                    $this->db->from('tbl_salon_emp_service');
-                                    $this->db->join('tbl_admin_sub_category', 'tbl_admin_sub_category.id = tbl_salon_emp_service.sub_category', 'left');
-                                    $this->db->join('tbl_admin_service_category', 'tbl_admin_service_category.id = tbl_salon_emp_service.category', 'left');                  
-                                    $this->db->order_by('CAST(tbl_salon_emp_service.order AS UNSIGNED)', 'asc');
-                                
-                                    $result = $this->db->get();
-                                    $services = $result->result();
-                                    
-                                    $services_array = [];
-                                    if(!empty($services)){ 
-                                        foreach($services as $services_result){
-                                            $service_products = $this->Salon_model->get_selected_service_in_stock_products($services_result->product);
-                                            $products = [];
-                                            if(!empty($service_products)){
-                                                foreach($service_products as $service_products_result){
-                                                    $discount_in = $service_products_result->discount_in;
-                                                    $discount = $service_products_result->discount != "" ? (float)$service_products_result->discount : 0;
-                                                    $selling_price = $service_products_result->selling_price != "" ? (float)$service_products_result->selling_price : 0.00;
-                                                    if($discount_in == '0'){
-                                                        $selling_price = $selling_price - ($selling_price * $discount) / 100;
-                                                        $discount_text = $discount . '% Off';
-                                                    }elseif($discount_in == '1'){
-                                                        $selling_price = $selling_price - $discount;
-                                                        $discount_text = 'Flat Rs. '. $discount . ' Off';
-                                                    }else{
-                                                        $selling_price = $selling_price;
-                                                        $discount_text = '';
-                                                    }
-
-                                                    $product_discount_in = '';
-                                                    $product_discount_type = '';
-                                                    $product_discount_amount_value = '';
-                                                    $product_discount_row_id = '';
-                                                    $is_product_discount_applied = '0';
-
-                                                    $product_discount_text = '';
-                                                    $product_discount_amount = 0;
-                                                    $product_slab_increment = '5';
-                                                    $product_slab_consider = '';
-                                                    $product_min_slab = '';
-                                                    $product_max_slab = '';
-
-                                                    $product_applied_discount = $this->Salon_model->get_customer_product_applied_discount($single->id,$service_products_result->id);
-                                                    if($product_applied_discount['is_discount_applied'] == '1'){
-                                                        $is_product_discount_applied = '1';
-                                                        $product_discount_row_id = $product_applied_discount['discount_row_id'];
-                                                        $product_discount_type = $product_applied_discount['discount_type'];
-                                                        $product_discount_in = $product_applied_discount['discount_in'];
-                                                        $product_discount_amount_value = (float)$product_applied_discount['discount_amount'];
-                                                        $product_min_slab = $product_applied_discount['min_flexible'];
-                                                        $product_max_slab = $product_applied_discount['max_flexible'];
-                                                        if($product_discount_type == '1'){    //Flexible
-                                                            $customer_last_service_product_booking = $this->Salon_model->get_customer_last_service_product_booking($single->id,$service_products_result->id);
-                                                            if(!empty($customer_last_service_product_booking)){      
-                                                                $prev_Applied_product_slab = $customer_last_service_product_booking->product_applied_flexible_slab;
-
-                                                                if($prev_Applied_product_slab != ""){
-                                                                    $next_product_slab = $prev_Applied_product_slab + $product_slab_increment;
-                                                                }else{
-                                                                    $next_product_slab = $product_min_slab + $product_slab_increment;
-                                                                }
-
-                                                                if($next_product_slab > $product_max_slab){
-                                                                    $product_slab_consider = $product_min_slab;
-                                                                }else{
-                                                                    $product_slab_consider = $next_product_slab;
-                                                                }
-                                                            }else{
-                                                                $product_slab_consider = $product_min_slab;
-                                                            }
-
-                                                            if($product_discount_in == '0'){  //percentage
-                                                                $product_discount_amount = ((float)$product_slab_consider * (float)$selling_price) / 100;
-                                                                $product_discount_text = $product_slab_consider . '% Off';
-                                                            }elseif($product_discount_in == '1'){ //flat
-                                                                $product_discount_amount = (float)$product_slab_consider;
-                                                                $product_discount_text = 'Flat Rs. ' . $product_slab_consider . ' Off';
-                                                            }
-                                                        }elseif($product_discount_type == '0'){   //Fixed
-                                                            if($product_discount_in == '0'){  //percentage
-                                                                $product_discount_amount = ((float)$product_discount_amount_value * (float)$selling_price) / 100;
-                                                                $product_discount_text = $product_discount_amount_value . '% Off';
-                                                            }elseif($product_discount_in == '1'){ //flat
-                                                                $product_discount_amount = (float)$product_discount_amount_value;
-                                                                $product_discount_text = 'Flat Rs. ' . $product_discount_amount_value . ' Off';
-                                                            }
-                                                        }
-                                                    }
-
-                                                    $service_product_price_consider = $selling_price - $product_discount_amount;
-                                                    $original_product_price = $selling_price;
-
-                                                    $products[] = array(
-                                                        'service_id'    =>  $services_result->id,
-                                                        'product_id'    =>  $service_products_result->id,
-                                                        'price'         =>  $service_product_price_consider,
-                                                        'original_price'=>  $original_product_price,
-                                                        'discount_text' =>  $product_discount_text,
-                                                        'product_name'  =>  $service_products_result->product_name,
-                                                        'product_added_from'=>  '0',
-                                                        'image'         =>  $service_products_result->product_photo != "" ? base_url('admin_assets/images/product_image/' . explode(',',$service_products_result->product_photo)[0]) : '',
-                                                    );
-                                                }
-                                            }
-                                            
-                                            $active_offers = $this->Salon_model->get_all_active_offers_all($branch_id,$salon_id);
-                                            if(!empty($active_offers)){
-                                                $count = count($active_offers);
-                                                $count = 0;
-                                            }else{
-                                                $count = 0;
-                                            }
-                                            $service_offer_discount = 0;
-                                            $single_offer_discount_type = '';
-                                            $single_offer_discount = '';
-                                            $applied_offer_id = '';
-                                            $rewards = '';
-                                            $is_offer_applied = '0';
-                                            $discount_text = '';
-                                            for ($i = 0; $i < $count; $i++) {
-                                                $single_offer_services = explode(',',$active_offers[$i]->service_name);
-                                                if (in_array($services_result->id,$single_offer_services)) {
-                                                    $single_offer_discount_type = $active_offers[$i]->discount_in;
-                                                    if($single_offer_discount_type == '0'){
-                                                        $service_offer_discount = ($services_result->final_price * $active_offers[$i]->discount) / 100;
-                                                    }else{
-                                                        $service_offer_discount = $active_offers[$i]->discount;
-                                                    }
-                                                    $single_offer_discount = $active_offers[$i]->discount;
-                                                    $rewards = $active_offers[$i]->reward_point;
-                                                    $applied_offer_id = $active_offers[$i]->id;
-                                                    break;
-                                                }
-                                            }
-
-                                            // new discount flow start
-                                            $discount_in = '';
-                                            $discount_type = '';
-                                            $discount_amount_value = '';
-                                            $customer_criteria = '';
-                                            $discount_type_criteria = '';
-                                            $is_discount_applied = '0';
-
-                                            $discount_text = '';
-                                            $discount_amount = 0;
-                                            $slab_increment = '5';
-                                            $slab_consider = '';
-                                            $min_slab = '';
-                                            $max_slab = '';
-
-                                            $rewards_text = '';
-
-                                            $service_applied_discount = $this->Salon_model->get_customer_service_applied_discount($single->id,$services_result->id);
-                                            if($service_applied_discount['is_discount_applied'] == '1'){
-                                                $is_discount_applied = '1';
-                                                $customer_criteria = $service_applied_discount['customer_criteria'];
-                                                $discount_type = $service_applied_discount['discount_type'];
-                                                $discount_in = $service_applied_discount['discount_in'];
-                                                $discount_amount_value = (float)$service_applied_discount['discount_amount'];
-                                                $min_slab = $service_applied_discount['min_flexible'];
-                                                $max_slab = $service_applied_discount['max_flexible'];
-                                                if($discount_type == '1'){    //Flexible
-                                                    $customer_last_service_booking = $this->Salon_model->get_customer_last_service_booking($single->id,$services_result->id);
-                                                    if(!empty($customer_last_service_booking)){            
-                                                        if($customer_criteria == '1'){                             
-                                                            $prev_Applied_slab = $customer_last_service_booking->rewards_applied_flexible_slab;
-                                                        }else{
-                                                            $prev_Applied_slab = $customer_last_service_booking->applied_flexible_slab;
-                                                        }                                      
-
-                                                        if($prev_Applied_slab != ""){
-                                                            $next_slab = $prev_Applied_slab + $slab_increment;
-                                                        }else{
-                                                            $next_slab = $min_slab + $slab_increment;
-                                                        }
-
-                                                        if($next_slab > $max_slab){
-                                                            $slab_consider = $min_slab;
-                                                        }else{
-                                                            $slab_consider = $next_slab;
-                                                        }
-                                                    }else{
-                                                        $slab_consider = $min_slab;
-                                                    }
-
-                                                    if($discount_in == '0'){  //percentage
-                                                        $discount_amount = ((float)$slab_consider * (float)$services_result->final_price) / 100;
-                                                        $discount_text = $slab_consider . '% Off';
-                                                    }elseif($discount_in == '1'){ //flat
-                                                        $discount_amount = (float)$slab_consider;
-                                                        $discount_text = 'Flat Rs. ' . $slab_consider . ' Off';
-                                                    }
-                                                }elseif($discount_type == '0'){   //Fixed
-                                                    if($discount_in == '0'){  //percentage
-                                                        $discount_amount = ((float)$discount_amount_value * (float)$services_result->final_price) / 100;
-                                                        $discount_text = $discount_amount_value . '% Off';
-                                                    }elseif($discount_in == '1'){ //flat
-                                                        $discount_amount = (float)$discount_amount_value;
-                                                        $discount_text = 'Flat Rs. ' . $discount_amount_value . ' Off';
-                                                    }
-                                                }
-
-                                                $rewards_text = 'To Be Earned ' . $discount_amount . ' Reward Points';
-                                            }
-
-                                            if($is_discount_applied == '1'){
-                                                if($customer_criteria == '1'){  //for regular customer rewards are given
-                                                    $discount_text = $rewards_text;
-                                                    $discount_amount = 0;
-                                                }
-                                            }
-                                            //new discount flow end
-
-                                            $service_price_consider = $services_result->final_price - $discount_amount;
-                                            $original_price = $services_result->final_price;
-
-                                            
-                                            if($customer_criteria == '0'){
-                                                $discount_type_criteria = 'New Client Benefits';
-                                            }elseif($customer_criteria == '1'){
-                                                $discount_type_criteria = 'Regular Client Benefits';
-                                            }elseif($customer_criteria == '2'){
-                                                $discount_type_criteria = 'Lost Client Benefits';
-                                            }elseif($customer_criteria == '3'){
-                                                $discount_type_criteria = 'Birthday Benefits';
-                                            }elseif($customer_criteria == '4'){
-                                                $discount_type_criteria = 'Anniversary Benefits';
-                                            }elseif($customer_criteria == '5'){
-                                                $discount_type_criteria = 'Products Marketing Benefits';
-                                            }
-
-                                            $services_array[] = array(
-                                                'is_special'        =>  $services_result->is_special,
-                                                'service_id'        =>  $services_result->id,
-                                                'category_id'       =>  $services_result->category,
-                                                'sub_category_id'   =>  $services_result->sub_category,                                        
-                                                'service_name'      =>  $services_result->service_name,
-                                                'service_marathi_name'    =>  $services_result->service_name_marathi,
-                                                'image'             =>  $services_result->category_image != "" ? base_url('admin_assets/images/service_image/' . $services_result->category_image) : '',
-                                                'category_name'     =>  $services_result->sup_category,
-                                                'sub_category_name' =>  $services_result->subcategory,
-                                                'category_marathi_name'     =>  $services_result->sup_category_marathi,
-                                                'sub_category_marathi_name' =>  $services_result->sub_category_marathi,
-                                                'products'          =>  $products,
-                                                'service_description'           =>  strip_tags($services_result->service_description),
-                                                'service_short_description'     =>  strip_tags($services_result->short_description),
-                                                'service_duration'  =>  $services_result->service_duration,
-                                                'reward_points'     =>  $rewards != "" ? $rewards : $services_result->reward_point,
-
-                                                'original_price'    =>  $original_price,
-                                                'discount_amount'   =>  $discount_amount,
-                                                'discount_type'     =>  $discount_type_criteria,
-                                                'discount_text'     =>  $discount_text,
-                                                'price'             =>  $service_price_consider,
-                                                'is_offer_applied'  =>  $is_offer_applied,
-                                                'applied_offer_id'  =>  $applied_offer_id,
-                                                'service_added_from'=>  '0',
-                                            );
-                                        }    
-                                        $subcat_data[] = array(
-                                            'sub_category_id'       =>  $subcategories_result->id,
-                                            'sub_category_name'     =>  $subcategories_result->sub_category,
-                                            'sub_category_marathi_name'         =>  $subcategories_result->sub_category_marathi,
-                                            'sub_category_image'                =>  $subcategories_result->image != "" ? base_url('admin_assets/images/service_category_image/' . $subcategories_result->image) : '',
-                                            'services'              =>  $services_array,
-                                        );   
-                                    }   
-                                }     
-                                $data[] = array(
-                                    'category_id'       =>  $categories_result->id,
-                                    'category_name'     =>  $categories_result->sup_category,
-                                    'category_marathi_name'     =>  $categories_result->sup_category_marathi,
-                                    'image'             =>  $categories_result->category_image != "" ? base_url('admin_assets/images/service_category_image/' . $categories_result->category_image) : '',
-                                    'sub_categories'    =>  $subcat_data,
-                                );         
-                            }   
+                $this->db->where('id',$branch_id);
+                $this->db->where('salon_id',$salon_id);
+                $branch = $this->db->get('tbl_branch')->row();
+                if(!empty($branch)){
+                    $this->db->where('is_deleted','0');
+                    $this->db->where('status','1');
+                    $this->db->where('id',$customer_id);
+                    $this->db->where('branch_id', $branch_id);
+                    $this->db->where('salon_id', $salon_id);
+                    $single = $this->db->get('tbl_salon_customer')->row();
+                    $data = array();
+                    if(!empty($single)){                 
+                        $this->db->where('is_deleted', '0');
+                        if($single->gender != ""){
+                            $this->db->where('gender',$single->gender);
                         }
-                        $json_arr['status'] = 'true';
-                        $json_arr['message'] = 'success';
-                        $json_arr['data'] = $data;
+                        $this->db->order_by('CAST(`order` AS UNSIGNED)', 'asc');
+                        $categories = $this->db->get('tbl_admin_service_category');
+                        $categories = $categories->result();
+                        if(!empty($categories)){
+                            foreach($categories as $categories_result){       
+                                $subcat_data = array(); 
+                                $this->db->where('is_deleted', '0');
+                                $this->db->where('sup_category', $categories_result->id);
+                                if($single->gender != ""){
+                                    $this->db->where('gender',$single->gender);
+                                }
+                                $this->db->order_by('CAST(`order` AS UNSIGNED)', 'asc');
+                                $subcategories = $this->db->get('tbl_admin_sub_category');
+                                $subcategories = $subcategories->result();
+                                if(!empty($subcategories)){
+                                    foreach($subcategories as $subcategories_result){
+                                        $this->db->where('tbl_salon_emp_service.category', $categories_result->id);
+                                        $this->db->where('tbl_salon_emp_service.sub_category', $subcategories_result->id);
+                                        $this->db->where('tbl_salon_emp_service.status', '1');
+                                        $this->db->where('tbl_salon_emp_service.is_deleted', '0');
+                                        $this->db->where('tbl_admin_service_category.is_deleted', '0');
+                                        $this->db->where('tbl_salon_emp_service.branch_id', $branch_id);
+                                        $this->db->where('tbl_salon_emp_service.salon_id', $salon_id);
+                                        if($single->gender != ""){
+                                            $this->db->where('tbl_salon_emp_service.gender',$single->gender);
+                                        }
+                                        $this->db->select('tbl_salon_emp_service.*, tbl_admin_sub_category.sub_category as subcategory,tbl_admin_sub_category.sub_category_marathi,tbl_admin_service_category.sup_category,tbl_admin_service_category.sup_category_marathi');
+                                        $this->db->from('tbl_salon_emp_service');
+                                        $this->db->join('tbl_admin_sub_category', 'tbl_admin_sub_category.id = tbl_salon_emp_service.sub_category', 'left');
+                                        $this->db->join('tbl_admin_service_category', 'tbl_admin_service_category.id = tbl_salon_emp_service.category', 'left');                  
+                                        $this->db->order_by('CAST(tbl_salon_emp_service.order AS UNSIGNED)', 'asc');
+                                    
+                                        $result = $this->db->get();
+                                        $services = $result->result();
+                                        
+                                        $services_array = [];
+                                        if(!empty($services)){ 
+                                            foreach($services as $services_result){
+                                                $service_products = $this->Salon_model->get_selected_service_in_stock_products($services_result->product);
+                                                $products = [];
+                                                if(!empty($service_products)){
+                                                    foreach($service_products as $service_products_result){
+                                                        $discount_in = $service_products_result->discount_in;
+                                                        $discount = $service_products_result->discount != "" ? (float)$service_products_result->discount : 0;
+                                                        $selling_price = $service_products_result->selling_price != "" ? (float)$service_products_result->selling_price : 0.00;
+                                                        if($discount_in == '0'){
+                                                            $selling_price = $selling_price - ($selling_price * $discount) / 100;
+                                                            $discount_text = $discount . '% Off';
+                                                        }elseif($discount_in == '1'){
+                                                            $selling_price = $selling_price - $discount;
+                                                            $discount_text = 'Flat Rs. '. $discount . ' Off';
+                                                        }else{
+                                                            $selling_price = $selling_price;
+                                                            $discount_text = '';
+                                                        }
+
+                                                        $product_discount_in = '';
+                                                        $product_discount_type = '';
+                                                        $product_discount_amount_value = '';
+                                                        $product_discount_row_id = '';
+                                                        $is_product_discount_applied = '0';
+
+                                                        $product_discount_text = '';
+                                                        $product_discount_amount = 0;
+                                                        $product_slab_increment = '5';
+                                                        $product_slab_consider = '';
+                                                        $product_min_slab = '';
+                                                        $product_max_slab = '';
+
+                                                        $product_applied_discount = $this->Salon_model->get_customer_product_applied_discount($single->id,$service_products_result->id);
+                                                        if($product_applied_discount['is_discount_applied'] == '1'){
+                                                            $is_product_discount_applied = '1';
+                                                            $product_discount_row_id = $product_applied_discount['discount_row_id'];
+                                                            $product_discount_type = $product_applied_discount['discount_type'];
+                                                            $product_discount_in = $product_applied_discount['discount_in'];
+                                                            $product_discount_amount_value = (float)$product_applied_discount['discount_amount'];
+                                                            $product_min_slab = $product_applied_discount['min_flexible'];
+                                                            $product_max_slab = $product_applied_discount['max_flexible'];
+                                                            if($product_discount_type == '1'){    //Flexible
+                                                                $customer_last_service_product_booking = $this->Salon_model->get_customer_last_service_product_booking($single->id,$service_products_result->id);
+                                                                if(!empty($customer_last_service_product_booking)){      
+                                                                    $prev_Applied_product_slab = $customer_last_service_product_booking->product_applied_flexible_slab;
+
+                                                                    if($prev_Applied_product_slab != ""){
+                                                                        $next_product_slab = $prev_Applied_product_slab + $product_slab_increment;
+                                                                    }else{
+                                                                        $next_product_slab = $product_min_slab + $product_slab_increment;
+                                                                    }
+
+                                                                    if($next_product_slab > $product_max_slab){
+                                                                        $product_slab_consider = $product_min_slab;
+                                                                    }else{
+                                                                        $product_slab_consider = $next_product_slab;
+                                                                    }
+                                                                }else{
+                                                                    $product_slab_consider = $product_min_slab;
+                                                                }
+
+                                                                if($product_discount_in == '0'){  //percentage
+                                                                    $product_discount_amount = ((float)$product_slab_consider * (float)$selling_price) / 100;
+                                                                    $product_discount_text = $product_slab_consider . '% Off';
+                                                                }elseif($product_discount_in == '1'){ //flat
+                                                                    $product_discount_amount = (float)$product_slab_consider;
+                                                                    $product_discount_text = 'Flat Rs. ' . $product_slab_consider . ' Off';
+                                                                }
+                                                            }elseif($product_discount_type == '0'){   //Fixed
+                                                                if($product_discount_in == '0'){  //percentage
+                                                                    $product_discount_amount = ((float)$product_discount_amount_value * (float)$selling_price) / 100;
+                                                                    $product_discount_text = $product_discount_amount_value . '% Off';
+                                                                }elseif($product_discount_in == '1'){ //flat
+                                                                    $product_discount_amount = (float)$product_discount_amount_value;
+                                                                    $product_discount_text = 'Flat Rs. ' . $product_discount_amount_value . ' Off';
+                                                                }
+                                                            }
+                                                        }
+
+                                                        $service_product_price_consider = $selling_price - $product_discount_amount;
+                                                        $original_product_price = $selling_price;
+
+                                                        $products[] = array(
+                                                            'service_id'    =>  $services_result->id,
+                                                            'product_id'    =>  $service_products_result->id,
+                                                            'price'         =>  $service_product_price_consider,
+                                                            'original_price'=>  $original_product_price,
+                                                            'discount_text' =>  $product_discount_text,
+                                                            'product_name'  =>  $service_products_result->product_name,
+                                                            'product_added_from'=>  '0',
+                                                            'image'         =>  $service_products_result->product_photo != "" ? base_url('admin_assets/images/product_image/' . explode(',',$service_products_result->product_photo)[0]) : '',
+                                                        );
+                                                    }
+                                                }
+                                                
+                                                $active_offers = $this->Salon_model->get_all_active_offers_all($branch_id,$salon_id);
+                                                if(!empty($active_offers)){
+                                                    $count = count($active_offers);
+                                                    $count = 0;
+                                                }else{
+                                                    $count = 0;
+                                                }
+                                                $service_offer_discount = 0;
+                                                $single_offer_discount_type = '';
+                                                $single_offer_discount = '';
+                                                $applied_offer_id = '';
+                                                $rewards = '';
+                                                $is_offer_applied = '0';
+                                                $discount_text = '';
+                                                for ($i = 0; $i < $count; $i++) {
+                                                    $single_offer_services = explode(',',$active_offers[$i]->service_name);
+                                                    if (in_array($services_result->id,$single_offer_services)) {
+                                                        $single_offer_discount_type = $active_offers[$i]->discount_in;
+                                                        if($single_offer_discount_type == '0'){
+                                                            $service_offer_discount = ($services_result->final_price * $active_offers[$i]->discount) / 100;
+                                                        }else{
+                                                            $service_offer_discount = $active_offers[$i]->discount;
+                                                        }
+                                                        $single_offer_discount = $active_offers[$i]->discount;
+                                                        $rewards = $active_offers[$i]->reward_point;
+                                                        $applied_offer_id = $active_offers[$i]->id;
+                                                        break;
+                                                    }
+                                                }
+
+                                                // new discount flow start
+                                                $discount_in = '';
+                                                $discount_type = '';
+                                                $discount_amount_value = '';
+                                                $customer_criteria = '';
+                                                $discount_type_criteria = '';
+                                                $is_discount_applied = '0';
+
+                                                $discount_text = '';
+                                                $discount_amount = 0;
+                                                $slab_increment = '5';
+                                                $slab_consider = '';
+                                                $min_slab = '';
+                                                $max_slab = '';
+
+                                                $rewards_text = '';
+
+                                                $service_applied_discount = $this->Salon_model->get_customer_service_applied_discount($single->id,$services_result->id);
+                                                if($service_applied_discount['is_discount_applied'] == '1'){
+                                                    $is_discount_applied = '1';
+                                                    $customer_criteria = $service_applied_discount['customer_criteria'];
+                                                    $discount_type = $service_applied_discount['discount_type'];
+                                                    $discount_in = $service_applied_discount['discount_in'];
+                                                    $discount_amount_value = (float)$service_applied_discount['discount_amount'];
+                                                    $min_slab = $service_applied_discount['min_flexible'];
+                                                    $max_slab = $service_applied_discount['max_flexible'];
+                                                    if($discount_type == '1'){    //Flexible
+                                                        $customer_last_service_booking = $this->Salon_model->get_customer_last_service_booking($single->id,$services_result->id);
+                                                        if(!empty($customer_last_service_booking)){            
+                                                            if($customer_criteria == '1'){                             
+                                                                $prev_Applied_slab = $customer_last_service_booking->rewards_applied_flexible_slab;
+                                                            }else{
+                                                                $prev_Applied_slab = $customer_last_service_booking->applied_flexible_slab;
+                                                            }                                      
+
+                                                            if($prev_Applied_slab != ""){
+                                                                $next_slab = $prev_Applied_slab + $slab_increment;
+                                                            }else{
+                                                                $next_slab = $min_slab + $slab_increment;
+                                                            }
+
+                                                            if($next_slab > $max_slab){
+                                                                $slab_consider = $min_slab;
+                                                            }else{
+                                                                $slab_consider = $next_slab;
+                                                            }
+                                                        }else{
+                                                            $slab_consider = $min_slab;
+                                                        }
+
+                                                        if($discount_in == '0'){  //percentage
+                                                            $discount_amount = ((float)$slab_consider * (float)$services_result->final_price) / 100;
+                                                            $discount_text = $slab_consider . '% Off';
+                                                        }elseif($discount_in == '1'){ //flat
+                                                            $discount_amount = (float)$slab_consider;
+                                                            $discount_text = 'Flat Rs. ' . $slab_consider . ' Off';
+                                                        }
+                                                    }elseif($discount_type == '0'){   //Fixed
+                                                        if($discount_in == '0'){  //percentage
+                                                            $discount_amount = ((float)$discount_amount_value * (float)$services_result->final_price) / 100;
+                                                            $discount_text = $discount_amount_value . '% Off';
+                                                        }elseif($discount_in == '1'){ //flat
+                                                            $discount_amount = (float)$discount_amount_value;
+                                                            $discount_text = 'Flat Rs. ' . $discount_amount_value . ' Off';
+                                                        }
+                                                    }
+
+                                                    $rewards_text = 'To Be Earned ' . $discount_amount . ' Reward Points';
+                                                }
+
+                                                if($is_discount_applied == '1'){
+                                                    if($customer_criteria == '1'){  //for regular customer rewards are given
+                                                        $discount_text = $rewards_text;
+                                                        $discount_amount = 0;
+                                                    }
+                                                }
+                                                //new discount flow end
+
+                                                $service_price_consider = $services_result->final_price - $discount_amount;
+                                                $original_price = $services_result->final_price;
+
+                                                
+                                                if($customer_criteria == '0'){
+                                                    $discount_type_criteria = 'New Client Benefits';
+                                                }elseif($customer_criteria == '1'){
+                                                    $discount_type_criteria = 'Regular Client Benefits';
+                                                }elseif($customer_criteria == '2'){
+                                                    $discount_type_criteria = 'Lost Client Benefits';
+                                                }elseif($customer_criteria == '3'){
+                                                    $discount_type_criteria = 'Birthday Benefits';
+                                                }elseif($customer_criteria == '4'){
+                                                    $discount_type_criteria = 'Anniversary Benefits';
+                                                }elseif($customer_criteria == '5'){
+                                                    $discount_type_criteria = 'Products Marketing Benefits';
+                                                }
+
+                                                $services_array[] = array(
+                                                    'is_special'        =>  $services_result->is_special,
+                                                    'service_id'        =>  $services_result->id,
+                                                    'category_id'       =>  $services_result->category,
+                                                    'sub_category_id'   =>  $services_result->sub_category,                                        
+                                                    'service_name'      =>  $services_result->service_name,
+                                                    'service_marathi_name'    =>  $services_result->service_name_marathi,
+                                                    'image'             =>  $services_result->category_image != "" ? base_url('admin_assets/images/service_image/' . $services_result->category_image) : '',
+                                                    'category_name'     =>  $services_result->sup_category,
+                                                    'sub_category_name' =>  $services_result->subcategory,
+                                                    'category_marathi_name'     =>  $services_result->sup_category_marathi,
+                                                    'sub_category_marathi_name' =>  $services_result->sub_category_marathi,
+                                                    'products'          =>  $products,
+                                                    'service_description'           =>  strip_tags($services_result->service_description),
+                                                    'service_short_description'     =>  strip_tags($services_result->short_description),
+                                                    'service_duration'  =>  $services_result->service_duration,
+                                                    'reward_points'     =>  $rewards != "" ? $rewards : $services_result->reward_point,
+
+                                                    'original_price'    =>  $original_price,
+                                                    'discount_amount'   =>  $discount_amount,
+                                                    'discount_type'     =>  $discount_type_criteria,
+                                                    'discount_text'     =>  $discount_text,
+                                                    'price'             =>  $service_price_consider,
+                                                    'is_offer_applied'  =>  $is_offer_applied,
+                                                    'applied_offer_id'  =>  $applied_offer_id,
+                                                    'service_added_from'=>  '0',
+                                                );
+                                            }    
+                                            $subcat_data[] = array(
+                                                'sub_category_id'       =>  $subcategories_result->id,
+                                                'sub_category_name'     =>  $subcategories_result->sub_category,
+                                                'sub_category_marathi_name'         =>  $subcategories_result->sub_category_marathi,
+                                                'sub_category_image'                =>  $subcategories_result->image != "" ? base_url('admin_assets/images/service_category_image/' . $subcategories_result->image) : '',
+                                                'services'              =>  $services_array,
+                                            );   
+                                        }   
+                                    }     
+                                    $data[] = array(
+                                        'category_id'       =>  $categories_result->id,
+                                        'category_name'     =>  $categories_result->sup_category,
+                                        'category_marathi_name'     =>  $categories_result->sup_category_marathi,
+                                        'image'             =>  $categories_result->category_image != "" ? base_url('admin_assets/images/service_category_image/' . $categories_result->category_image) : '',
+                                        'sub_categories'    =>  $subcat_data,
+                                    );         
+                                }   
+                            }
+                            $json_arr['status'] = 'true';
+                            $json_arr['message'] = 'success';
+                            $json_arr['data'] = $data;
+                        }else{
+                            $json_arr['status'] = 'false';
+                            $json_arr['message'] = 'Services not available';
+                            $json_arr['data'] = [];
+                        }
                     }else{
                         $json_arr['status'] = 'false';
-                        $json_arr['message'] = 'Services not available';
+                        $json_arr['message'] = 'Customer not found';
                         $json_arr['data'] = [];
-                    }
+                    }       
                 }else{
                     $json_arr['status'] = 'false';
-                    $json_arr['message'] = 'Customer not found';
+                    $json_arr['message'] = 'Napito services are no longer available for this salon. Please contact the salon directly.';
                     $json_arr['data'] = [];
-                }          
+                }        
             }else{
                 $json_arr['status'] = 'false';
                 $json_arr['message'] = 'Branch ID not available.';
@@ -2238,12 +2251,22 @@ class Api_model extends CI_Model {
     } 
     public function get_available_timeslots(){
         $request = json_decode(file_get_contents('php://input'), true);
+        $is_show_tabs = '0';
         if($request){
             if(isset($request['branch_id'])){
                 $customer_id = $request['customer_id'];
+
+                $slot_type = isset($request['slot_type']) ? $request['slot_type'] : '';
+                $slot_thresholds = [
+                    'morning'   => ['start' => '05:00:00', 'end' => '12:00:00', 'label' => 'morning_slots'],
+                    'afternoon' => ['start' => '12:00:00', 'end' => '17:00:00', 'label' => 'afternoon_slots'],
+                    'evening'   => ['start' => '17:00:00', 'end' => '23:00:00', 'label' => 'evening_slots'],
+                ];
+
                 $salon_id = $request['salon_id'];
                 $branch_id = $request['branch_id'];   
                 $stylist_id = isset($request['stylist_id']) ? $request['stylist_id'] : '';   
+                $reservation_id = isset($request['reservation_id']) ? $request['reservation_id'] : '';   
 
                 $this->db->where('is_deleted','0');
                 $this->db->where('status','1');
@@ -2261,13 +2284,16 @@ class Api_model extends CI_Model {
                     if(!empty($branch)){
                         $rules = $this->Salon_model->get_booking_rules_all($branch_id,$salon_id);  
                         if(!empty($rules)){
-                            $selected_services = $request['selected_services'];
+                            $selected_services = $request['selected_services'];                            
+
+                            $offset = $request['offset'];   
+                            $limit = $request['limit']; 
 
                             $booking_date = $request['booking_date'];   
 
-                            $is_emergency = $this->Salon_model->check_is_salon_close_for_period_setup_datewise_all($booking_date,$branch_id,$salon_id);
+                            $is_emergency = $this->Salon_model->check_is_salon_close_for_period_setup_datewise_entry($booking_date,$branch_id,$salon_id);
                             
-                            if(!$is_emergency){
+                            if(empty($is_emergency)){
                                 $working_hrs = $this->Salon_model->get_saloon_working_hrs_all($booking_date,$branch_id,$salon_id);
                                 if($working_hrs['is_allowed'] == 1){
                                     $duration = $rules->slot_time;
@@ -2275,178 +2301,297 @@ class Api_model extends CI_Model {
 
                                     $store_start = date('Y-m-d H:i:s',strtotime($booking_date.' '.$working_hrs['start']));
                                     $store_end = date('Y-m-d H:i:s',strtotime($booking_date.' '.$working_hrs['end']));
-                                    $slots = $this->Salon_model->generateCommonTimePairs($booking_date,$store_start,$store_end,$duration);
-                
-                                    $slots_morning = [];
-                                    $slots_afternoon = [];
-                                    $slots_evening = [];
 
-                                    for($i=0;$i<count($slots);$i++){
-                                        $slot_time = date('H:i:s', strtotime($slots[$i]['from']));
-                                        if ($slot_time >= '05:00:00' && $slot_time < '12:00:00') {
-                                            $slots_morning[] = $slots[$i];
-                                        } elseif ($slot_time >= '12:00:00' && $slot_time < '17:00:00') {
-                                            $slots_afternoon[] = $slots[$i];
-                                        } else {
-                                            $slots_evening[] = $slots[$i];
+                                    $slot_start_time = $store_start;
+                                    $slot_end_time = $store_end;
+
+                                    if (!empty($slot_type) && isset($slot_thresholds[$slot_type])) {
+                                        $threshold = $slot_thresholds[$slot_type];
+
+                                        $threshold_start = date('Y-m-d H:i:s', strtotime($booking_date . ' ' . $threshold['start']));
+                                        $threshold_end   = date('Y-m-d H:i:s', strtotime($booking_date . ' ' . $threshold['end']));
+
+                                        $slot_start_time = max($store_start, $threshold_start);
+                                        $slot_end_time   = min($store_end, $threshold_end);
+
+                                        $slots = $this->Salon_model->generateCommonTimePairs($booking_date, $slot_start_time, $slot_end_time, $duration);
+
+                                        if($limit != ""){
+                                            $slots = array_slice($slots, $offset, $limit);
                                         }
-                                    }
-
-                                    $offset = $request['offset'];   
-                                    $limit = $request['limit']; 
-                                    
-                                    $slots_morning_array = array();
-                                    if(!empty($slots_morning)){
-                                        foreach ($slots_morning as &$slot) {
-                                            $allowed_booking_datetime = date('Y-m-d H:i:s', strtotime($slot['from'] . ' - ' . $minutes_early_booking . ' minutes'));
-                                            $current_date = date('Y-m-d H:i:s');
-                                            if ($current_date <= $allowed_booking_datetime) {
-                                                $selected_start = date('Y-m-d H:i:s', strtotime($slot['from']));
-                                                if (date('Y-m-d H:i:s', strtotime($slot['from'])) >= $selected_start) {
-                                                    // $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_services_all($slot['from'], $selected_services, $branch_id, $salon_id);
-                                                    $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_services_all_stylist($slot['from'], $selected_services, $branch_id, $salon_id,$stylist_id);
-                                                    if($is_vacent){
-                                                        $is_vacent_flag = '1';
-                                                    }else{
-                                                        $is_vacent_flag = '0';
-                                                    }
-                                                    if($is_vacent_flag == '1'){
-                                                        $slots_morning_array[] = array(
-                                                            'from'      =>  date('h:i A', strtotime($slot['from'])),
-                                                            'to'        =>  date('h:i A', strtotime($slot['to'])),
-                                                            'is_vacent' =>  $is_vacent_flag
-                                                        );
+                                        
+                                        $final_slots = array();
+                                        if(!empty($slots)){
+                                            foreach ($slots as $slot) {
+                                                $allowed_booking_datetime = date('Y-m-d H:i:s', strtotime($slot['from'] . ' - ' . $minutes_early_booking . ' minutes'));
+                                                $current_date = date('Y-m-d H:i:s');
+                                                if ($current_date <= $allowed_booking_datetime) {
+                                                    $selected_start = date('Y-m-d H:i:s', strtotime($slot['from']));
+                                                    if (date('Y-m-d H:i:s', strtotime($slot['from'])) >= $selected_start) {
+                                                        $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_services_all_stylist($slot['from'], $selected_services, $branch_id, $salon_id,$stylist_id, $reservation_id);
+                                                        if($is_vacent){
+                                                            $is_vacent_flag = '1';
+                                                        }else{
+                                                            $is_vacent_flag = '0';
+                                                        }
+                                                        if($is_vacent_flag == '1'){
+                                                            $final_slots[] = array(
+                                                                'from'      =>  date('h:i A', strtotime($slot['from'])),
+                                                                'to'        =>  date('h:i A', strtotime($slot['to'])),
+                                                                'is_vacent' =>  $is_vacent_flag
+                                                            );
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
-                                    }
-                                    
-                                    $slots_afternoon_array = array();
-                                    if(!empty($slots_afternoon)){
-                                        foreach ($slots_afternoon as &$slot) {
-                                            $allowed_booking_datetime = date('Y-m-d H:i:s', strtotime($slot['from'] . ' - ' . $minutes_early_booking . ' minutes'));
-                                            $current_date = date('Y-m-d H:i:s');
-                                            if ($current_date <= $allowed_booking_datetime) {
-                                                $selected_start = date('Y-m-d H:i:s', strtotime($slot['from']));
-                                                if (date('Y-m-d H:i:s', strtotime($slot['from'])) >= $selected_start) {
-                                                    // $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_services_all($slot['from'], $selected_services, $branch_id, $salon_id);
-                                                    $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_services_all_stylist($slot['from'], $selected_services, $branch_id, $salon_id,$stylist_id);
-                                                    if($is_vacent){
-                                                        $is_vacent_flag = '1';
-                                                    }else{
-                                                        $is_vacent_flag = '0';
-                                                    }
-                                                    if($is_vacent_flag == '1'){
-                                                        $slots_afternoon_array[] = array(
-                                                            'from'      =>  date('h:i A', strtotime($slot['from'])),
-                                                            'to'        =>  date('h:i A', strtotime($slot['to'])),
-                                                            'is_vacent' =>  $is_vacent_flag
-                                                        );
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    
-                                    $slots_evening_array = array();
-                                    if(!empty($slots_evening)){
-                                        foreach ($slots_evening as &$slot) {
-                                            $allowed_booking_datetime = date('Y-m-d H:i:s', strtotime($slot['from'] . ' - ' . $minutes_early_booking . ' minutes'));
-                                            $current_date = date('Y-m-d H:i:s');
-                                            if ($current_date <= $allowed_booking_datetime) {
-                                                $selected_start = date('Y-m-d H:i:s', strtotime($slot['from']));
-                                                if (date('Y-m-d H:i:s', strtotime($slot['from'])) >= $selected_start) {
-                                                    // $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_services_all($slot['from'], $selected_services, $branch_id, $salon_id);
-                                                    $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_services_all_stylist($slot['from'], $selected_services, $branch_id, $salon_id,$stylist_id);
-                                                    if($is_vacent){
-                                                        $is_vacent_flag = '1';
-                                                    }else{
-                                                        $is_vacent_flag = '0';
-                                                    }
-                                                    if($is_vacent_flag == '1'){
-                                                        $slots_evening_array[] = array(
-                                                            'from'      =>  date('h:i A', strtotime($slot['from'])),
-                                                            'to'        =>  date('h:i A', strtotime($slot['to'])),
-                                                            'is_vacent' =>  $is_vacent_flag
-                                                        );
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    $morning_slots = array_slice($slots_morning_array, $offset, $limit);
-                                    $afternoon_slots = array_slice($slots_afternoon_array, $offset, $limit);
-                                    $evening_slots = array_slice($slots_evening_array, $offset, $limit);
-
-                                    if (empty($morning_slots) && empty($afternoon_slots) && empty($evening_slots)) {
+                                        
                                         if(date('Y-m-d') == date('Y-m-d',strtotime($booking_date))){
                                             if(date('H:i:s') > date('H:i:s',strtotime($working_hrs['end']))){
                                                 $json_arr['status'] = 'false';
-                                                $json_arr['message'] = 'Sorry, all time slots for today are closed. Please book for another day.';
+                                                $json_arr['message'] = 'Booking time for today is over. Try another day.';
+                                                $json_arr['is_show_tabs'] = $is_show_tabs;
                                                 $json_arr['data'] = [];
                                             }else{
-                                                $json_arr['status'] = 'false';
-                                                $json_arr['message'] = 'Sorry, todays slots are full. Please book for another day.';
-                                                $json_arr['data'] = [];
+                                                $is_show_tabs = '1';
+                                                if (empty($final_slots)) {
+                                                    $json_arr['status'] = 'false';
+                                                    $json_arr['message'] = ucfirst($slot_type) . ' slots not available';
+                                                    $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                    $json_arr['data'] = [];
+                                                } else {
+                                                    $data = array(
+                                                        $threshold['label'] => $final_slots,
+                                                        'limit'             => $limit,
+                                                        'offset'            => $limit != "" ? $offset + $limit : '',
+                                                    );
+                                                    $json_arr['status'] = 'true';
+                                                    $json_arr['message'] = 'success';
+                                                    $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                    $json_arr['data'] = $data;
+                                                }
                                             }
                                         }else{
-                                            $json_arr['status'] = 'false';
-                                            $json_arr['message'] = 'Sorry, slots for selected date are full. Please book for another day.';
-                                            $json_arr['data'] = [];
+                                            $is_show_tabs = '1';
+                                            if (empty($final_slots)) {
+                                                $json_arr['status'] = 'false';
+                                                $json_arr['message'] = ucfirst($slot_type) . ' slots not available';
+                                                $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                $json_arr['data'] = [];
+                                            } else {
+                                                $data = array(
+                                                    $threshold['label'] => $final_slots,
+                                                    'limit'             => $limit,
+                                                    'offset'            => $limit != "" ? $offset + $limit : '',
+                                                );
+                                                $json_arr['status'] = 'true';
+                                                $json_arr['message'] = 'success';
+                                                $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                $json_arr['data'] = $data;
+                                            }
                                         }
-                                    } else {
-                                        $data = array(
-                                            'morning_slots'   => $morning_slots,
-                                            'afternoon_slots' => $afternoon_slots,
-                                            'evening_slots'   => $evening_slots,
-                                            'limit'           => $limit,
-                                            'offset'          => $offset + $limit,
-                                        );
-                                        $json_arr['status'] = 'true';
-                                        $json_arr['message'] = 'success';
-                                        $json_arr['data'] = $data;
+                                    }else{
+                                        $slots = $this->Salon_model->generateCommonTimePairs($booking_date,$store_start,$store_end,$duration);                                        
+                
+                                        $slots_morning = [];
+                                        $slots_afternoon = [];
+                                        $slots_evening = [];
+
+                                        for($i=0;$i<count($slots);$i++){
+                                            $slot_time = date('H:i:s', strtotime($slots[$i]['from']));
+                                            if ($slot_time >= '05:00:00' && $slot_time < '12:00:00') {
+                                                $slots_morning[] = $slots[$i];
+                                            } elseif ($slot_time >= '12:00:00' && $slot_time < '17:00:00') {
+                                                $slots_afternoon[] = $slots[$i];
+                                            } else {
+                                                $slots_evening[] = $slots[$i];
+                                            }
+                                        }
+                                        
+                                        // $sliced_morning_slots = array_slice($slots_morning, $offset, $limit);
+                                        // $sliced_afternoon_slots = array_slice($slots_afternoon, $offset, $limit);
+                                        // $sliced_evening_slots = array_slice($slots_evening, $offset, $limit);
+
+                                        $sliced_morning_slots = $slots_morning;
+                                        $sliced_afternoon_slots = $slots_afternoon;
+                                        $sliced_evening_slots = $slots_evening;
+
+                                        $morning_slots = array();
+                                        if(!empty($sliced_morning_slots)){
+                                            foreach ($sliced_morning_slots as $slot) {
+                                                $allowed_booking_datetime = date('Y-m-d H:i:s', strtotime($slot['from'] . ' - ' . $minutes_early_booking . ' minutes'));
+                                                $current_date = date('Y-m-d H:i:s');
+                                                if ($current_date <= $allowed_booking_datetime) {
+                                                    $selected_start = date('Y-m-d H:i:s', strtotime($slot['from']));
+                                                    if (date('Y-m-d H:i:s', strtotime($slot['from'])) >= $selected_start) {
+                                                        $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_services_all_stylist($slot['from'], $selected_services, $branch_id, $salon_id,$stylist_id, $reservation_id);
+                                                        if($is_vacent){
+                                                            $is_vacent_flag = '1';
+                                                        }else{
+                                                            $is_vacent_flag = '0';
+                                                        }
+                                                        if($is_vacent_flag == '1'){
+                                                            $morning_slots[] = array(
+                                                                'from'      =>  date('h:i A', strtotime($slot['from'])),
+                                                                'to'        =>  date('h:i A', strtotime($slot['to'])),
+                                                                'is_vacent' =>  $is_vacent_flag
+                                                            );
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        
+                                        $afternoon_slots = array();
+                                        if(!empty($sliced_afternoon_slots)){
+                                            foreach ($sliced_afternoon_slots as $slot) {
+                                                $allowed_booking_datetime = date('Y-m-d H:i:s', strtotime($slot['from'] . ' - ' . $minutes_early_booking . ' minutes'));
+                                                $current_date = date('Y-m-d H:i:s');
+                                                if ($current_date <= $allowed_booking_datetime) {
+                                                    $selected_start = date('Y-m-d H:i:s', strtotime($slot['from']));
+                                                    if (date('Y-m-d H:i:s', strtotime($slot['from'])) >= $selected_start) {
+                                                        $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_services_all_stylist($slot['from'], $selected_services, $branch_id, $salon_id,$stylist_id, $reservation_id);
+                                                        if($is_vacent){
+                                                            $is_vacent_flag = '1';
+                                                        }else{
+                                                            $is_vacent_flag = '0';
+                                                        }
+                                                        if($is_vacent_flag == '1'){
+                                                            $afternoon_slots[] = array(
+                                                                'from'      =>  date('h:i A', strtotime($slot['from'])),
+                                                                'to'        =>  date('h:i A', strtotime($slot['to'])),
+                                                                'is_vacent' =>  $is_vacent_flag
+                                                            );
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        
+                                        $evening_slots = array();
+                                        if(!empty($sliced_evening_slots)){
+                                            foreach ($sliced_evening_slots as $slot) {
+                                                $allowed_booking_datetime = date('Y-m-d H:i:s', strtotime($slot['from'] . ' - ' . $minutes_early_booking . ' minutes'));
+                                                $current_date = date('Y-m-d H:i:s');
+                                                if ($current_date <= $allowed_booking_datetime) {
+                                                    $selected_start = date('Y-m-d H:i:s', strtotime($slot['from']));
+                                                    if (date('Y-m-d H:i:s', strtotime($slot['from'])) >= $selected_start) {
+                                                        $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_services_all_stylist($slot['from'], $selected_services, $branch_id, $salon_id,$stylist_id, $reservation_id);
+                                                        if($is_vacent){
+                                                            $is_vacent_flag = '1';
+                                                        }else{
+                                                            $is_vacent_flag = '0';
+                                                        }
+                                                        if($is_vacent_flag == '1'){
+                                                            $evening_slots[] = array(
+                                                                'from'      =>  date('h:i A', strtotime($slot['from'])),
+                                                                'to'        =>  date('h:i A', strtotime($slot['to'])),
+                                                                'is_vacent' =>  $is_vacent_flag
+                                                            );
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        
+                                        // if($branch_id == 1){
+                                        //     echo '<pre>'; print_r($morning_slots); 
+                                        //     echo '<pre>'; print_r($afternoon_slots); 
+                                        //     echo '<pre>'; print_r($evening_slots); exit;
+                                        // }
+                                        
+                                        $morning_slots = array_slice($morning_slots, $offset, $limit);
+                                        $afternoon_slots = array_slice($afternoon_slots, $offset, $limit);
+                                        $evening_slots = array_slice($evening_slots, $offset, $limit);
+
+                                        if (empty($morning_slots) && empty($afternoon_slots) && empty($evening_slots)) {
+                                            if(date('Y-m-d') == date('Y-m-d',strtotime($booking_date))){
+                                                if(date('H:i:s') > date('H:i:s',strtotime($working_hrs['end']))){
+                                                    $json_arr['status'] = 'false';
+                                                    $json_arr['message'] = 'Sorry, all time slots for today are closed. Please book for another day.';
+                                                    $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                    $json_arr['data'] = [];
+                                                }else{
+                                                    $json_arr['status'] = 'false';
+                                                    $json_arr['message'] = 'Sorry, todays slots are full. Please book for another day.';
+                                                    $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                    $json_arr['data'] = [];
+                                                }
+                                            }else{
+                                                $json_arr['status'] = 'false';
+                                                $json_arr['message'] = 'Sorry, slots for selected date are full. Please book for another day.';
+                                                $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                $json_arr['data'] = [];
+                                            }
+                                        } else {
+                                            $is_show_tabs = '1';
+                                            $data = array(
+                                                'morning_slots'   => $morning_slots,
+                                                'afternoon_slots' => $afternoon_slots,
+                                                'evening_slots'   => $evening_slots,
+                                                'limit'           => $limit,
+                                                'offset'          => $offset + $limit,
+                                            );
+                                            $json_arr['status'] = 'true';
+                                            $json_arr['message'] = 'success';
+                                            $json_arr['is_show_tabs'] = $is_show_tabs;
+                                            $json_arr['data'] = $data;
+                                        }
                                     }
                                 }else{
                                     if(date('Y-m-d') == date('Y-m-d',strtotime($booking_date))){
                                         $json_arr['status'] = 'false';
-                                        $json_arr['message'] = 'Sorry, the salon is closed today. Please book for another day.';
+                                        $json_arr['message'] = 'Salon is closed today. Book for another day.';
+                                        $json_arr['is_show_tabs'] = $is_show_tabs;
                                         $json_arr['data'] = [];
                                     }else{
                                         $json_arr['status'] = 'false';
-                                        $json_arr['message'] = 'Sorry, the salon is closed for selected date. Please book for another day.';
+                                        $json_arr['message'] = 'Salon is closed on ' . date('d M, Y',strtotime($booking_date)) . '. Book for another day.';
+                                        $json_arr['is_show_tabs'] = $is_show_tabs;
                                         $json_arr['data'] = [];
                                     }
                                 }
                             }else{
-                                $json_arr['status'] = 'false';
-                                $json_arr['message'] = 'Booking currently not available as salon is closed because of emergency, Please contact salon';
-                                $json_arr['data'] = [];
+                                if(date('Y-m-d') == date('Y-m-d',strtotime($booking_date))){
+                                    $json_arr['status'] = 'false';
+                                    $json_arr['message'] = $is_emergency->reason != "" ? 'Salon is closed today. Reason: ' . $is_emergency->reason : 'Salon is closed today. Please conact salon.';
+                                    $json_arr['is_show_tabs'] = $is_show_tabs;
+                                    $json_arr['data'] = [];
+                                }else{
+                                    $json_arr['status'] = 'false';
+                                    $json_arr['message'] = $is_emergency->reason != "" ? 'Salon is closed on ' . date('d M, Y',strtotime($booking_date)) . '. Reason: ' . $is_emergency->reason : 'Salon is closed on' . date('d M, Y',strtotime($booking_date)) . '. Please conact salon.';
+                                    $json_arr['is_show_tabs'] = $is_show_tabs;
+                                    $json_arr['data'] = [];
+                                }
                             }
                         }else{
                             $json_arr['status'] = 'false';
                             $json_arr['message'] = 'Booking not available now, Please contact salon';
+                            $json_arr['is_show_tabs'] = $is_show_tabs;
                             $json_arr['data'] = [];
                         }
                     }else{
                         $json_arr['status'] = 'false';
                         $json_arr['message'] = 'Branch not available';
+                        $json_arr['is_show_tabs'] = $is_show_tabs;
                         $json_arr['data'] = [];
                     }
                 }else{
                     $json_arr['status'] = 'false';
                     $json_arr['message'] = 'Customer not found';
+                    $json_arr['is_show_tabs'] = $is_show_tabs;
                     $json_arr['data'] = [];
                 }          
             }else{
                 $json_arr['status'] = 'false';
                 $json_arr['message'] = 'Branch ID required.';
+                $json_arr['is_show_tabs'] = $is_show_tabs;
                 $json_arr['data'] = [];
             }
         }else{
             $json_arr['status'] = 'false';
             $json_arr['message'] = 'Request not found.';
+            $json_arr['is_show_tabs'] = $is_show_tabs;
             $json_arr['data'] = [];
         }
         echo json_encode($json_arr, JSON_UNESCAPED_UNICODE);
@@ -3254,36 +3399,51 @@ class Api_model extends CI_Model {
                                     }
                                 }
                             }
-
+                              
                             $total_offer_discount = 0;
-                            if($is_offer_applied == '1'){                                                   
+                            $is_final_offer_applied = '0';
+                            if($is_offer_applied == '1'){ 
                                 $this->db->where('is_deleted','0');
                                 $this->db->where('status','1');
+                                $this->db->where('validity_status','1');
                                 $this->db->where('id',$applied_offer_id);
                                 $this->db->where('branch_id', $branch_id);
                                 $this->db->where('salon_id', $salon_id);
                                 $offer_data = $this->db->get('tbl_offers')->row();
-                                if(!empty($services)){
-                                    if(!empty($offer_data)){
-                                        for($i=0;$i<count($services);$i++){
-                                            $service_offer_discount_amount = 0;
-                                            if($services[$i]['service_id'] != ""){
-                                                if(in_array($services[$i]['service_id'],explode(',',$offer_data->service_name))){
-                                                    $service_offer_discount = $offer_data->discount;
-                                                    $service_offer_discount_type = $offer_data->discount_in;
-                                                    if($service_offer_discount_type == '0'){
-                                                        $service_offer_discount_amount = ($services[$i]['price'] * $service_offer_discount) / 100;
-                                                    }elseif($service_offer_discount_type == '1'){
-                                                        $service_offer_discount_amount = $service_offer_discount;
-                                                    }
+                                if(!empty($offer_data)){   
+                                    $input_service_ids = [];
 
-                                                }
-                                            }
-                                            $total_offer_discount += $service_offer_discount_amount;
+                                    $service_offer_discount = $offer_data->discount;
+                                    $service_offer_discount_type = $offer_data->discount_in;
+
+                                    $offer_services = $offer_data->service_name != "" ? explode(',',$offer_data->service_name) : [];
+                                    foreach ($services as $srv) {
+                                        if (!empty($srv['service_id'])) {
+                                            $input_service_ids[] = $srv['service_id'];
                                         }
                                     }
+
+                                    $diff = array_diff($offer_services, $input_service_ids);
+                                    if (empty($diff)) {
+                                        $is_final_offer_applied = '1';
+                                    }
+                                    
+                                    for($i=0;$i<count($services);$i++){
+                                        $service_offer_discount_amount = 0;
+                                        if($services[$i]['service_id'] != ""){
+                                            if ($is_final_offer_applied == '1' && in_array($services[$i]['service_id'], $offer_services)) {
+                                                if($service_offer_discount_type == '0'){
+                                                    $service_offer_discount_amount = ($services[$i]['price'] * $service_offer_discount) / 100;
+                                                }elseif($service_offer_discount_type == '1'){
+                                                    $service_offer_discount_amount = $service_offer_discount;
+                                                }
+                                            }
+                                        }
+                                        $total_offer_discount += ($is_final_offer_applied == '1' ? $service_offer_discount_amount : 0);
+                                    } 
                                 }
                             }
+                            $is_offer_applied = $is_final_offer_applied;
 
                             $used_rewards = 0;
                             $reward_discount = 0;
@@ -3348,7 +3508,7 @@ class Api_model extends CI_Model {
                                 'is_new_giftcard_applied'   => ($is_giftcard_applied == '1') ? $is_new : '',
                                 'giftcard_redemption_id'    => ($is_giftcard_applied == '1') ? $giftcard_redemption_id : '',
                                 
-                                'is_offer_booking' 	    => $is_offer_applied,
+                                'is_offer_booking' 	    =>  $is_offer_applied,
                                 'applied_offer_id'      => ($is_offer_applied == '1') ? $applied_offer_id : '',
                                 'offer_discount_amount' => ($is_offer_applied == '1') ? $total_offer_discount : '',
                                 
@@ -3385,699 +3545,823 @@ class Api_model extends CI_Model {
                                 'products' 		        => $all_products != "" && is_array($all_products) && !empty($all_products) ? implode(',',$all_products) : '',
                             );
                             // echo '<pre>'; print_r($booking_data); exit();
-                            $valid_booking = $this->Salon_model->validate_booking($services,$branch_id,$salon_id);
-                            // $valid_booking = 1 ;
-                            if($valid_booking == 1){
-                                $this->db->insert('tbl_new_booking', $booking_data);
-                                $booking_id = $this->db->insert_id();
-                        
-                                $order_counts = $this->Salon_model->get_saloon_branch_total_orders($salon_id,$branch_id);
-                                $branch_formatted = sprintf('%03d', $branch_id);
-                                $salon_formatted = sprintf('%03d', $salon_id);
-                                $count_formatted = sprintf('%04d', ($order_counts + 1));
-                                $invoice_no = $branch_formatted.$salon_formatted.$count_formatted;
-                        
-                                $update_data = array(
-                                    'receipt_no'    =>  $invoice_no,
-                                );
-                                $this->db->where('id',$booking_id);
-                                $this->db->update('tbl_new_booking',$update_data);                        
-                                
-                                //insert giftcard redemption data
-                                // if($is_giftcard_applied == '1'){
-                                //     $redemption_history = array(
-                                //         'booking_id'        =>  $booking_id,
-                                //         'redeemed_amount'   =>  $giftcard_discount,
-                                //         'redeemed_on'       =>  date('d-m-Y H:i:s')
-                                //     );
-                                //     if($is_new == '1'){
-                                //         $this->db->where('branch_id',$branch_id);
-                                //         $this->db->where('salon_id',$salon_id);
-                                //         $this->db->where('id',$applied_giftcard_id);
-                                //         $this->db->where('is_deleted','0');
-                                //         $single_giftcard = $this->db->get('tbl_gift_card')->row();
-                                //         if(!empty($single_giftcard)){
-                                //             $gift_card_balance = $single_giftcard->gift_price - $giftcard_discount;
-                                //             if($gift_card_balance > 0){
-                                //                 $gift_card_status = '0';
-                                //             }elseif($gift_card_balance == 0){
-                                //                 $gift_card_status = '1';
-                                //                 $gift_card_balance = '0';
-                                //             }else{
-                                //                 $gift_card_status = '1';
-                                //                 $gift_card_balance = '0';
-                                //             }
-                                //             $giftcard_gst = ((float)$single_giftcard->regular_price * (float)$gst_rate)/100;
-                                //             $giftcard_data = array(
-                                //                 'branch_id' 			=> $branch_id,
-                                //                 'salon_id' 				=> $salon_id,
-                                //                 'booking_id' 		    => $booking_id,
-                                //                 'payment_from'          => '1', 
-                                //                 'type'                  => '3',
-                                //                 'customer_id' 		    => $customer_id,
-                                                
-                                //                 'giftcard_id' 	        => $single_giftcard->id,
-                                //                 'gift_card_name' 	    => $single_giftcard->gift_name,
-                                //                 'gift_card_code' 	        => $single_giftcard->gift_card_code,
-                                //                 'giftcard_min_amount' 	    => $single_giftcard->min_booking_amt,
-                                //                 'gift_card_regular_price' 	=> $single_giftcard->regular_price,
-                                //                 'gift_card_price' 	        => $single_giftcard->gift_price,
-                                //                 'gift_card_balance' 	    => $gift_card_balance,
-                                //                 'gift_card_status' 	        => $gift_card_status,
-                                //                 'redemption_history'        => !empty($redemption_history) ? json_encode($redemption_history) : '',
-                                //                 'created_on'                => date("Y-m-d H:i:s"),                                            
-                                        
-                                //                 'paid_amount' 	            => $single_giftcard->regular_price + $giftcard_gst,
-                                                
-                                //                 'is_gst_applicable'         => $is_gst_applicable == '1' ? $is_gst_applicable : '0', 
-                                //                 'salon_gst_no' 	            => $gst_no, 
-                                //                 'salon_gst_rate' 	        => $gst_rate, 
-                                //                 'gst_amount' 	            => $giftcard_gst, 
-    
-                                //                 'payment_date'              => date("Y-m-d H:i:s"),
-                                //             );
-                                //             $this->db->insert('tbl_booking_payment_entry', $giftcard_data);
-                                //             $giftcard_payment_id = $this->db->insert_id();
-                
-                                //             $giftcard_customer_uid = $single_giftcard->gift_card_code . '' . $giftcard_payment_id . '' . date("YmdHis"); 
-                                //             $this->db->where('id',$giftcard_payment_id);
-                                //             $this->db->update('tbl_booking_payment_entry',array('giftcard_customer_uid'=>$giftcard_customer_uid));
-                                //         }
-                                //     }else{
-                                //         $this->db->where('branch_id',$branch_id);
-                                //         $this->db->where('salon_id',$salon_id);
-                                //         $this->db->where('customer_id',$customer_id);
-                                //         $this->db->where('type','3');
-                                //         $this->db->where('is_deleted','0');
-                                //         $this->db->where('id',$giftcard_redemption_id);
-                                //         $single_giftcard_redemption = $this->db->get('tbl_booking_payment_entry')->row();
-                                //         if(!empty($single_giftcard_redemption)){
-                                //             $current_redemption_history = json_decode($single_giftcard_redemption->redemption_history);
-                                //             $current_redemption_history[] = $redemption_history;
-                
-                                //             $gift_card_balance = $single_giftcard_redemption->gift_card_balance - $giftcard_discount;
-                                //             if($gift_card_balance > 0){
-                                //                 $gift_card_status = '0';
-                                //             }elseif($gift_card_balance == 0){
-                                //                 $gift_card_status = '1';
-                                //                 $gift_card_balance = '0';
-                                //             }else{
-                                //                 $gift_card_status = '1';
-                                //                 $gift_card_balance = '0';
-                                //             }
+                            $valid_booking_short_breakwise = $this->Salon_model->validate_booking_short_breakwise($services,$branch_id,$salon_id);
+                            if($valid_booking_short_breakwise == 1){
+                                $valid_booking = $this->Salon_model->validate_booking($services,$branch_id,$salon_id);
+                                // $valid_booking = 1 ;
+                                if($valid_booking == 1){
+                                    $this->db->insert('tbl_new_booking', $booking_data);
+                                    $booking_id = $this->db->insert_id();
+                            
+                                    $order_counts = $this->Salon_model->get_saloon_branch_total_orders($salon_id,$branch_id);
+                                    $branch_formatted = sprintf('%03d', $branch_id);
+                                    $salon_formatted = sprintf('%03d', $salon_id);
+                                    $count_formatted = sprintf('%04d', ($order_counts + 1));
+                                    $invoice_no = $branch_formatted.$salon_formatted.$count_formatted;
+                            
+                                    $update_data = array(
+                                        'receipt_no'    =>  $invoice_no,
+                                    );
+                                    $this->db->where('id',$booking_id);
+                                    $this->db->update('tbl_new_booking',$update_data);                        
+                                    
+                                    //insert giftcard redemption data
+                                    // if($is_giftcard_applied == '1'){
+                                    //     $redemption_history = array(
+                                    //         'booking_id'        =>  $booking_id,
+                                    //         'redeemed_amount'   =>  $giftcard_discount,
+                                    //         'redeemed_on'       =>  date('d-m-Y H:i:s')
+                                    //     );
+                                    //     if($is_new == '1'){
+                                    //         $this->db->where('branch_id',$branch_id);
+                                    //         $this->db->where('salon_id',$salon_id);
+                                    //         $this->db->where('id',$applied_giftcard_id);
+                                    //         $this->db->where('is_deleted','0');
+                                    //         $single_giftcard = $this->db->get('tbl_gift_card')->row();
+                                    //         if(!empty($single_giftcard)){
+                                    //             $gift_card_balance = $single_giftcard->gift_price - $giftcard_discount;
+                                    //             if($gift_card_balance > 0){
+                                    //                 $gift_card_status = '0';
+                                    //             }elseif($gift_card_balance == 0){
+                                    //                 $gift_card_status = '1';
+                                    //                 $gift_card_balance = '0';
+                                    //             }else{
+                                    //                 $gift_card_status = '1';
+                                    //                 $gift_card_balance = '0';
+                                    //             }
+                                    //             $giftcard_gst = ((float)$single_giftcard->regular_price * (float)$gst_rate)/100;
+                                    //             $giftcard_data = array(
+                                    //                 'branch_id' 			=> $branch_id,
+                                    //                 'salon_id' 				=> $salon_id,
+                                    //                 'booking_id' 		    => $booking_id,
+                                    //                 'payment_from'          => '1', 
+                                    //                 'type'                  => '3',
+                                    //                 'customer_id' 		    => $customer_id,
+                                                    
+                                    //                 'giftcard_id' 	        => $single_giftcard->id,
+                                    //                 'gift_card_name' 	    => $single_giftcard->gift_name,
+                                    //                 'gift_card_code' 	        => $single_giftcard->gift_card_code,
+                                    //                 'giftcard_min_amount' 	    => $single_giftcard->min_booking_amt,
+                                    //                 'gift_card_regular_price' 	=> $single_giftcard->regular_price,
+                                    //                 'gift_card_price' 	        => $single_giftcard->gift_price,
+                                    //                 'gift_card_balance' 	    => $gift_card_balance,
+                                    //                 'gift_card_status' 	        => $gift_card_status,
+                                    //                 'redemption_history'        => !empty($redemption_history) ? json_encode($redemption_history) : '',
+                                    //                 'created_on'                => date("Y-m-d H:i:s"),                                            
                                             
-                                //             $giftcard_data = array(
-                                //                 'gift_card_balance' 	        => $gift_card_balance,
-                                //                 'gift_card_status' 	        => $gift_card_status,
-                                //                 'redemption_history'        => !empty($current_redemption_history) ? json_encode($current_redemption_history) : ''
-                                //             );
-                                //             $this->db->where('id',$single_giftcard_redemption->id);
-                                //             $this->db->update('tbl_booking_payment_entry', $giftcard_data);
-                                //         }
-                                //     }
-                                // }
-    
-                                // insert new membership details
-                                if($is_membership_booking == '1' && $is_old_member == "0"){
-                                    $this->db->where('is_deleted','0');
-                                    $this->db->where('status','1');
-                                    $this->db->where('id',$membership_id);
-                                    $this->db->where('branch_id', $branch_id);
-                                    $this->db->where('salon_id', $salon_id);
-                                    $membership_data = $this->db->get('tbl_memebership')->row();
-                                    if(!empty($membership_data)){ 
-                                        $duration_months = $membership_data->duration;
-                                        $membership_start = date("Y-m-d");
-                                        $membership_end = date("Y-m-d", strtotime("+" . $duration_months . " months", strtotime($membership_start)));
-    
-                                        $data1 = array(
-                                            'buy_from' 		    => '1',
-                                            'branch_id' 		=> $branch_id,
-                                            'salon_id' 			=> $salon_id,
-                                            'customer_id' 		=> $customer_id,
-                                            'membership_id' 	=> $membership_data->id, 
-                                            'employee_id' 	    => '', 
-                                            'membership_price' 	=> $membership_data->membership_price, 
-                                            'service_discount' 	=> $membership_data->service_discount, 
-                                            'product_discount' 	=> $membership_data->product_discount, 
-                                            'discount_in' 		=> $membership_data->discount_in, 
-                                            'duration' 			=> $membership_data->duration, 
-                                            'duration_end' 		=> $membership_data->duration_end, 
-                                            'bg_color_input' 	=> $membership_data->bg_color_input, 
-                                            'bg_color' 			=> $membership_data->bg_color, 
-                                            'text_color_input' 	=> $membership_data->text_color_input, 
-                                            'text_color' 		=> $membership_data->text_color, 
-                                            'membership_start'  => $membership_start, 
-                                            'membership_end' 	=> $membership_end, 
-                                            'payment_mode' 	    => 'Online', 
-                                            'payment_status'    => '1',
-                                            'payment_in_booking_id'  =>  $booking_id,
-                                            'payment_on'        => date("Y-m-d H:i:s"),
-                                            'payment_date'      => date("Y-m-d H:i:s"),
-                                            'created_on' 		=> date("Y-m-d H:i:s")
-                                        ); 
-                                        $this->db->insert('tbl_customer_membership_history',$data1);
-                                        $membership_pkey = $this->db->insert_id();
-                                
-                                        $update_pkey = array(                    
-                                            'membership_pkey'           => $membership_pkey,
-                                            'membership_id'             => $membership_id,
-                                        );
-                                        $this->db->where('id',$customer_id);
-                                        $this->db->update('tbl_salon_customer',$update_pkey); 
+                                    //                 'paid_amount' 	            => $single_giftcard->regular_price + $giftcard_gst,
+                                                    
+                                    //                 'is_gst_applicable'         => $is_gst_applicable == '1' ? $is_gst_applicable : '0', 
+                                    //                 'salon_gst_no' 	            => $gst_no, 
+                                    //                 'salon_gst_rate' 	        => $gst_rate, 
+                                    //                 'gst_amount' 	            => $giftcard_gst, 
+        
+                                    //                 'payment_date'              => date("Y-m-d H:i:s"),
+                                    //             );
+                                    //             $this->db->insert('tbl_booking_payment_entry', $giftcard_data);
+                                    //             $giftcard_payment_id = $this->db->insert_id();
+                    
+                                    //             $giftcard_customer_uid = $single_giftcard->gift_card_code . '' . $giftcard_payment_id . '' . date("YmdHis"); 
+                                    //             $this->db->where('id',$giftcard_payment_id);
+                                    //             $this->db->update('tbl_booking_payment_entry',array('giftcard_customer_uid'=>$giftcard_customer_uid));
+                                    //         }
+                                    //     }else{
+                                    //         $this->db->where('branch_id',$branch_id);
+                                    //         $this->db->where('salon_id',$salon_id);
+                                    //         $this->db->where('customer_id',$customer_id);
+                                    //         $this->db->where('type','3');
+                                    //         $this->db->where('is_deleted','0');
+                                    //         $this->db->where('id',$giftcard_redemption_id);
+                                    //         $single_giftcard_redemption = $this->db->get('tbl_booking_payment_entry')->row();
+                                    //         if(!empty($single_giftcard_redemption)){
+                                    //             $current_redemption_history = json_decode($single_giftcard_redemption->redemption_history);
+                                    //             $current_redemption_history[] = $redemption_history;
+                    
+                                    //             $gift_card_balance = $single_giftcard_redemption->gift_card_balance - $giftcard_discount;
+                                    //             if($gift_card_balance > 0){
+                                    //                 $gift_card_status = '0';
+                                    //             }elseif($gift_card_balance == 0){
+                                    //                 $gift_card_status = '1';
+                                    //                 $gift_card_balance = '0';
+                                    //             }else{
+                                    //                 $gift_card_status = '1';
+                                    //                 $gift_card_balance = '0';
+                                    //             }
+                                                
+                                    //             $giftcard_data = array(
+                                    //                 'gift_card_balance' 	        => $gift_card_balance,
+                                    //                 'gift_card_status' 	        => $gift_card_status,
+                                    //                 'redemption_history'        => !empty($current_redemption_history) ? json_encode($current_redemption_history) : ''
+                                    //             );
+                                    //             $this->db->where('id',$single_giftcard_redemption->id);
+                                    //             $this->db->update('tbl_booking_payment_entry', $giftcard_data);
+                                    //         }
+                                    //     }
+                                    // }
+        
+                                    // insert new membership details
+                                    if($is_membership_booking == '1' && $is_old_member == "0"){
+                                        $this->db->where('is_deleted','0');
+                                        $this->db->where('status','1');
+                                        $this->db->where('id',$membership_id);
+                                        $this->db->where('branch_id', $branch_id);
+                                        $this->db->where('salon_id', $salon_id);
+                                        $membership_data = $this->db->get('tbl_memebership')->row();
+                                        if(!empty($membership_data)){ 
+                                            $duration_months = $membership_data->duration;
+                                            $membership_start = date("Y-m-d");
+                                            $membership_end = date("Y-m-d", strtotime("+" . $duration_months . " months", strtotime($membership_start)));
+        
+                                            $data1 = array(
+                                                'buy_from' 		    => '1',
+                                                'branch_id' 		=> $branch_id,
+                                                'salon_id' 			=> $salon_id,
+                                                'customer_id' 		=> $customer_id,
+                                                'membership_id' 	=> $membership_data->id, 
+                                                'employee_id' 	    => '', 
+                                                'membership_price' 	=> $membership_data->membership_price, 
+                                                'service_discount' 	=> $membership_data->service_discount, 
+                                                'product_discount' 	=> $membership_data->product_discount, 
+                                                'discount_in' 		=> $membership_data->discount_in, 
+                                                'duration' 			=> $membership_data->duration, 
+                                                'duration_end' 		=> $membership_data->duration_end, 
+                                                'bg_color_input' 	=> $membership_data->bg_color_input, 
+                                                'bg_color' 			=> $membership_data->bg_color, 
+                                                'text_color_input' 	=> $membership_data->text_color_input, 
+                                                'text_color' 		=> $membership_data->text_color, 
+                                                'membership_start'  => $membership_start, 
+                                                'membership_end' 	=> $membership_end, 
+                                                'payment_mode' 	    => 'Online', 
+                                                'payment_status'    => '1',
+                                                'payment_in_booking_id'  =>  $booking_id,
+                                                'payment_on'        => date("Y-m-d H:i:s"),
+                                                'payment_date'      => date("Y-m-d H:i:s"),
+                                                'created_on' 		=> date("Y-m-d H:i:s")
+                                            ); 
+                                            $this->db->insert('tbl_customer_membership_history',$data1);
+                                            $membership_pkey = $this->db->insert_id();
+                                    
+                                            $update_pkey = array(                    
+                                                'membership_pkey'           => $membership_pkey,
+                                                'membership_id'             => $membership_id,
+                                            );
+                                            $this->db->where('id',$customer_id);
+                                            $this->db->update('tbl_salon_customer',$update_pkey); 
+                                        }
                                     }
-                                }
-                                
-                                // rewards used
-                                // if($used_rewards > 0){
-                                //     $this->db->where('id',$customer_id);
-                                //     $customer_rewards = $this->db->get('tbl_salon_customer')->row();
-                                //     if(!empty($customer_rewards)){
-                                //         $pre_balance = $customer_rewards->rewards_balance;
-                                //         $rewards = $used_rewards;
-                                //         $new_balance = $pre_balance - $rewards;
-    
-                                //         $reward_data = array(
-                                //             'customer_id'                   =>  $customer_id,
-                                //             'branch_id' 		            => $branch_id,
-                                //             'salon_id' 			            => $salon_id,
-                                //             'booking_id'                    =>  $booking_id,
-                                //             'transaction_type'              =>  '3',
-                                //             'remark'                        =>  'Reward points used for booking payment',
-                                //             'previous_reward_balance'       =>  $customer_rewards->rewards_balance,
-                                //             'reward_value'                  =>  $rewards,
-                                //             'new_reward_balance'            =>  $new_balance,
-                                //             'created_on'                    =>  date("Y-m-d H:i:s")
-                                //         );
-                                //         $this->db->insert('tbl_customer_rewards_history',$reward_data);
-    
-                                //         $this->db->where('id',$customer_id);
-                                //         $this->db->update('tbl_salon_customer',array('rewards_balance'=>$new_balance));
-                                //     }
-                                // }
-    
-                                if($services != "" && is_array($services) && !empty($services)){
-                                    for($i=0;$i<count($services);$i++){
-                                        $service_id = $services[$i]['service_id'];
-                                        $this->db->where('tbl_salon_emp_service.branch_id',$branch_id);
-                                        $this->db->where('tbl_salon_emp_service.salon_id',$salon_id);
-                                        $this->db->where('tbl_salon_emp_service.id',$service_id);
-                                        $this->db->where('tbl_salon_emp_service.is_deleted','0');
-                                        $single_service = $this->db->get('tbl_salon_emp_service');
-                                        $single_service = $single_service->row();
-                                        if(!empty($single_service)){
-                                            $service_duration = $services[$i]['service_duration'];
-                                            $service_added_from = $services[$i]['service_added_from'];
-                                            $service_from = $services[$i]['service_from'];
-                                            $service_to = $services[$i]['service_to'];
-                                            $selected_stylist = $services[$i]['selected_stylist'];
-                                            $selected_stylist_shift_id = $services[$i]['selected_stylist_shift_id'];
-                                            $selected_stylist_shift_type = $services[$i]['selected_stylist_shift_type'];
-                                            $products_single = $services[$i]['products'];
-                                            if($service_added_from == '0'){
-                                                $original_service_price = $single_service->final_price;
-                                                                                        
-                                                // service regular discount related start
-                                                $service_discount_rewards_type = '';
-                                                $discount_in = '';
-                                                $discount_type = '';
-                                                $discount_amount_value = '';
-                                                $discount_row_id = '';
-                                                $service_discount_customer_criteria = '';
-                                                $is_discount_applied = '0';
-
-                                                $discount_amount = 0;
-                                                $slab_increment = '5';
-                                                $slab_consider = '';
-                                                $min_slab = '';
-                                                $max_slab = '';
-
-                                                $rewards_discount_amount = 0;
-                                                $rewards_slab_increment = '5';
-                                                $rewards_slab_consider = '';
-                                                $rewards_min_slab = '';
-                                                $rewards_max_slab = '';
-
-                                                $service_applied_discount = $this->Salon_model->get_customer_service_applied_discount($customer_id,$service_id);
-                                                if($service_applied_discount['is_discount_applied'] == '1'){
-                                                    $is_discount_applied = '1';
-                                                    $discount_row_id = $service_applied_discount['discount_row_id'];
-                                                    $service_discount_customer_criteria = $service_applied_discount['customer_criteria'];
-                                                    $discount_type = $service_applied_discount['discount_type'];
-                                                    $discount_in = $service_applied_discount['discount_in'];
-                                                    $discount_amount_value = (float)$service_applied_discount['discount_amount'];
-                                                    $min_slab = $service_applied_discount['min_flexible'];
-                                                    $max_slab = $service_applied_discount['max_flexible'];
-                                                    if($discount_type == '1'){    //Flexible
-                                                        $customer_last_service_booking = $this->Salon_model->get_customer_last_service_booking($customer_id,$service_id);
-                                                        if(!empty($customer_last_service_booking)){                                        
-                                                            if($service_discount_customer_criteria == '1'){                             
-                                                                $prev_Applied_slab = $customer_last_service_booking->rewards_applied_flexible_slab;
-                                                            }else{
-                                                                $prev_Applied_slab = $customer_last_service_booking->applied_flexible_slab;
-                                                            }   
-
-                                                            if($prev_Applied_slab != ""){
-                                                                $next_slab = $prev_Applied_slab + $slab_increment;
-                                                            }else{
-                                                                $next_slab = $min_slab + $slab_increment;
-                                                            }
-
-                                                            if($next_slab > $max_slab){
-                                                                $slab_consider = $min_slab;
-                                                            }else{
-                                                                $slab_consider = $next_slab;
-                                                            }
-                                                        }else{
-                                                            $slab_consider = $min_slab;
-                                                        }
-
-                                                        if($discount_in == '0'){  //percentage
-                                                            $discount_amount = ((float)$slab_consider * (float)$original_service_price) / 100;
-                                                        }elseif($discount_in == '1'){ //flat
-                                                            $discount_amount = (float)$slab_consider;
-                                                        }
-                                                    }elseif($discount_type == '0'){   //Fixed
-                                                        if($discount_in == '0'){  //percentage
-                                                            $discount_amount = ((float)$discount_amount_value * (float)$original_service_price) / 100;
-                                                        }elseif($discount_in == '1'){ //flat
-                                                            $discount_amount = (float)$discount_amount_value;
-                                                        }
-                                                    }
-                                                }
-
-                                                if($is_discount_applied == '1'){
-                                                    if($service_discount_customer_criteria == '1'){  //for regular customer rewards are given
-                                                        $rewards_discount_amount = $discount_amount;
-                                                        $rewards_slab_increment = $slab_increment;
-                                                        $rewards_slab_consider = $slab_consider;
-                                                        $rewards_min_slab = $min_slab;
-                                                        $rewards_max_slab = $max_slab;
-
-                                                        $discount_amount = 0;
-                                                        $slab_increment = '5';
-                                                        $slab_consider = '';
-                                                        $min_slab = '';
-                                                        $max_slab = '';
-
-                                                        $service_discount_rewards_type = '1';   // rewards
-                                                    }else{                                    
-                                                        $service_discount_rewards_type = '0';   // discount
-                                                    }
-                                                }
-                                                
-                                                $service_price = $original_service_price - $discount_amount;
-                                                // $service_price = $services[$i]['price'];
-    
-                                                // service regular discount related end
-                                                
-                                                $is_service_offer_applied = '0';
-                                                $service_offer_discount = 0;
-                                                $service_offer_discount_type = '';
-                                                $service_offer_discount_amount = 0;
-                                                if($is_offer_applied == '1'){
-                                                    $this->db->where('is_deleted','0');
-                                                    $this->db->where('status','1');
-                                                    $this->db->where('id',$applied_offer_id);
-                                                    $this->db->where('branch_id', $branch_id);
-                                                    $this->db->where('salon_id', $salon_id);
-                                                    $offer_data = $this->db->get('tbl_offers')->row();
-                                                    if(!empty($offer_data) && in_array($service_id,explode(',',$offer_data->service_name))){
-                                                        $service_offer_discount = $offer_data->discount;
-                                                        $service_offer_discount_type = $offer_data->discount_in;
-                                                        if($service_offer_discount_type == '0'){
-                                                            $service_offer_discount_amount = ($services[$i]['price'] * $service_offer_discount) / 100;
-                                                        }elseif($service_offer_discount_type == '1'){
-                                                            $service_offer_discount_amount = $service_offer_discount;
-                                                        }
-                                                    }
-                                                }
-    
-                                                $received_total_service = $total_service_amount;
-                                                if($received_total_service != "" && $received_total_service != "0.00" && $received_total_service != null && $received_total_service != 0){
-                                                    $price_share_in_total_service = (float)(($service_price/$received_total_service) * 100);
-                                                    $discount_share_membership_amount = (float)(($mem_service_discount_amt * $price_share_in_total_service) / 100);
-                                                }else{
-                                                    $discount_share_membership_amount = 0;
-                                                }
-    
-                                                $received_total = $total_product_amount + $total_service_amount;
-                                                if($received_total != "" && $received_total != "0.00" && $received_total != null && $received_total != 0){
-                                                    $price_share_in_total = (float)(($service_price/$received_total) * 100);
-                                                    $discount_share_coupon_amount = (float)(($coupon_discount_amount * $price_share_in_total) / 100);
-                                                    $discount_share_reward_amount = (float)(($reward_discount * $price_share_in_total) / 100);
-                                                }else{
-                                                    $discount_share_coupon_amount = 0;
-                                                    $discount_share_reward_amount = 0;
-                                                }
-    
-                                                $discount_share_giftcard_amount = 0 ;
-                                                $received_total = $total_product_amount + $total_service_amount;
-                                                if($is_giftcard_applied == '1'){
-                                                    if($received_total != "" && $received_total != "0.00" && $received_total != null && $received_total != 0){
-                                                        $price_share_in_total_giftcard_service_amount = (float)(($service_price/$received_total) * 100);
-                                                        $discount_share_giftcard_amount = (float)(($giftcard_discount * $price_share_in_total_giftcard_service_amount) / 100);
-                                                    }else{
-                                                        $discount_share_giftcard_amount = 0;
-                                                    }
-                                                }
-                                
-                                                $total_single_service_discount = $discount_share_membership_amount + $discount_share_reward_amount + $discount_share_coupon_amount + $discount_share_giftcard_amount + $service_offer_discount_amount;
-                                                $single_service_discounted_amount = $service_price - $total_single_service_discount;
-                                
-                                                $stylist_data = array(
-                                                    'booking_id' 		    => $booking_id,
-                                                    'branch_id' 			=> $branch_id,
-                                                    'salon_id' 				=> $salon_id,
-                                                    'customer_name' 		=> $customer_id,
-                                                    'booking_generated_from'=> '1',
-                                                    'service_added_from'	=> '0', //single
-                                                    'service_id'     		=> $service_id,
-                                                    'service_price'     	=> $service_price,
-                                                    'original_service_price'=> $original_service_price,
-                                                    
-                                                    'service_reward_points' => $single_service->reward_point,
-                                                    'stylist_id'      		=> $selected_stylist != "" ? $selected_stylist : '',
-                                                    'booking_shift_id'      => $selected_stylist != "" ? $selected_stylist_shift_id : '',
-                                                    'booking_shift_type'    => $selected_stylist != "" ? $selected_stylist_shift_type : '',
-                                                    'service_date'     		=> date('Y-m-d',strtotime($booking_date)),
-                                                    'service_from'    	    => $service_from != "" ? date('Y-m-d H:i:s',strtotime($service_from)) : null,
-                                                    'service_to'      	    => $service_to != "" ? date('Y-m-d H:i:s',strtotime($service_to)) : null,
-                                                    'created_on'            => date("Y-m-d H:i:s"),
-                                                    
-                                                    'received_discount_amount_while_booking'     	=> $total_single_service_discount,
-                                                    'received_coupon_discount_while_booking'     	=> $discount_share_coupon_amount,
-                                                    'received_reward_discount_while_booking'     	=> $discount_share_reward_amount,
-                                                    'received_membership_discount_while_booking'    => $discount_share_membership_amount,
-                                                    'received_giftcard_discount_while_booking'     	=> $discount_share_giftcard_amount,
-                                                    'service_discounted_price_while_booking'     	=> $single_service_discounted_amount,     
-    
-                                                    'is_service_offer_applied'     	                => $is_service_offer_applied,
-                                                    'applied_offer_id'     	                        => $is_service_offer_applied == '1' ? $applied_offer_id : '',
-                                                    'service_offer_discount'                        => $is_service_offer_applied == '1' ? $service_offer_discount : '',
-                                                    'service_offer_discount_type'     	            => $is_service_offer_applied == '1' ? $service_offer_discount_type : '',
-                                                    'service_offer_discount_amount'     	        => $is_service_offer_applied == '1' ? $service_offer_discount_amount : '0.00',                                            
-    
-                                                    'is_service_discount_applied'                   => $is_discount_applied,
-                                                    'service_marketing_discount_type'               => $service_discount_rewards_type,
-                                                    'service_discount_customer_criteria'            => $service_discount_customer_criteria,
-                                                    'service_discount_row_id'                       => $discount_row_id,
-                                                    'discount_in'     	                            => $single_service->discount_in,
-                                                    'discount_type'     	                        => $single_service->discount_type,
-                                                    'discount_value'     	                        => $single_service->service_discount,
-
-                                                    'discount_slab_min'     	                    => $min_slab,
-                                                    'discount_slab_max'     	                    => $max_slab,
-                                                    'slab_increment'     	                        => $slab_increment,
-                                                    'applied_flexible_slab'     	                => $slab_consider,
-                                                    'received_discount'     	                    => $discount_amount,
-
-                                                    'rewards_discount_slab_min'     	            => $rewards_min_slab,
-                                                    'rewards_discount_slab_max'     	            => $rewards_max_slab,
-                                                    'rewards_slab_increment'     	                => $rewards_slab_increment,
-                                                    'rewards_applied_flexible_slab'     	        => $rewards_slab_consider,
-                                                    'rewards_received_discount'     	            => $rewards_discount_amount,
-
-                                                    'service_duration'                              => $service_duration
-                                                );
-                                                $this->db->insert('tbl_booking_services_details', $stylist_data);
-                                                $booking_service_details_id = $this->db->insert_id();
-                                
-                                                $single_service_all_products = [];
-                                                if($products_single != "" && is_array($products_single) && !empty($products_single)){
-                                                    for($j=0;$j<count($products_single);$j++){
-                                                        $product_id = $products_single[$j]['productId'];
-                                                        $this->db->where('tbl_product.branch_id',$branch_id);
-                                                        $this->db->where('tbl_product.salon_id',$salon_id);
-                                                        $this->db->where('tbl_product.id',$product_id);
-                                                        $this->db->where('tbl_product.is_deleted','0');
-                                                        $this->db->where('tbl_product.status','1');
-                                                        $single_product = $this->db->get('tbl_product');
-                                                        $single_product = $single_product->row();
-                                                        if(!empty($single_product)){
-                                                            $single_service_all_products[] = $single_product->id;
-                                                            $product_price = $single_product->selling_price; 
-
-                                                            $product_discount_in = '';
-                                                            $product_discount_type = '';
-                                                            $product_discount_amount_value = '';
-                                                            $product_discount_row_id = '';
-                                                            $is_product_discount_applied = '0';
-
-                                                            $product_discount_amount = 0;
-                                                            $product_slab_increment = '5';
-                                                            $product_slab_consider = '';
-                                                            $product_min_slab = '';
-                                                            $product_max_slab = '';
-
-                                                            $product_applied_discount = $this->Salon_model->get_customer_product_applied_discount($customer_id,$single_product->id);
-                                                            if($product_applied_discount['is_discount_applied'] == '1'){
-                                                                $is_product_discount_applied = '1';
-                                                                $product_discount_row_id = $product_applied_discount['discount_row_id'];
-                                                                $product_discount_type = $product_applied_discount['discount_type'];
-                                                                $product_discount_in = $product_applied_discount['discount_in'];
-                                                                $product_discount_amount_value = (float)$product_applied_discount['discount_amount'];
-                                                                $product_min_slab = $product_applied_discount['min_flexible'];
-                                                                $product_max_slab = $product_applied_discount['max_flexible'];
-                                                                if($product_discount_type == '1'){    //Flexible
-                                                                    $customer_last_service_product_booking = $this->Salon_model->get_customer_last_service_product_booking($customer_id,$single_product->id);
-                                                                    if(!empty($customer_last_service_product_booking)){      
-                                                                        $prev_Applied_product_slab = $customer_last_service_product_booking->product_applied_flexible_slab;
-
-                                                                        if($prev_Applied_product_slab != ""){
-                                                                            $next_product_slab = $prev_Applied_product_slab + $product_slab_increment;
-                                                                        }else{
-                                                                            $next_product_slab = $product_min_slab + $product_slab_increment;
-                                                                        }
-
-                                                                        if($next_product_slab > $product_max_slab){
-                                                                            $product_slab_consider = $product_min_slab;
-                                                                        }else{
-                                                                            $product_slab_consider = $next_product_slab;
-                                                                        }
-                                                                    }else{
-                                                                        $product_slab_consider = $product_min_slab;
-                                                                    }
-
-                                                                    if($product_discount_in == '0'){  //percentage
-                                                                        $product_discount_amount = ((float)$product_slab_consider * (float)$product_price) / 100;
-                                                                    }elseif($product_discount_in == '1'){ //flat
-                                                                        $product_discount_amount = (float)$product_slab_consider;
-                                                                    }
-                                                                }elseif($product_discount_type == '0'){   //Fixed
-                                                                    if($product_discount_in == '0'){  //percentage
-                                                                        $product_discount_amount = ((float)$product_discount_amount_value * (float)$product_price) / 100;
-                                                                    }elseif($product_discount_in == '1'){ //flat
-                                                                        $product_discount_amount = (float)$product_discount_amount_value;
-                                                                    }
-                                                                }
-                                                            }
-
-                                                            $product_price = $product_price - $product_discount_amount;
-                                                            $original_product_price = $single_product->selling_price;                       
                                     
-                                                            $received_total_product = $total_product_amount;
-                                                            if($received_total_product != "" && $received_total_product != "0.00" && $received_total_product != null && $received_total_product != 0){
-                                                                $price_share_in_total_product = (float)(($product_price/$received_total_product) * 100);
-                                                                $discount_share_membership_amount = (float)(($mem_product_discount_amt * $price_share_in_total_product) / 100);
-                                                            }else{
-                                                                $discount_share_membership_amount = 0;
+                                    // rewards used
+                                    // if($used_rewards > 0){
+                                    //     $this->db->where('id',$customer_id);
+                                    //     $customer_rewards = $this->db->get('tbl_salon_customer')->row();
+                                    //     if(!empty($customer_rewards)){
+                                    //         $pre_balance = $customer_rewards->rewards_balance;
+                                    //         $rewards = $used_rewards;
+                                    //         $new_balance = $pre_balance - $rewards;
+        
+                                    //         $reward_data = array(
+                                    //             'customer_id'                   =>  $customer_id,
+                                    //             'branch_id' 		            => $branch_id,
+                                    //             'salon_id' 			            => $salon_id,
+                                    //             'booking_id'                    =>  $booking_id,
+                                    //             'transaction_type'              =>  '3',
+                                    //             'remark'                        =>  'Reward points used for booking payment',
+                                    //             'previous_reward_balance'       =>  $customer_rewards->rewards_balance,
+                                    //             'reward_value'                  =>  $rewards,
+                                    //             'new_reward_balance'            =>  $new_balance,
+                                    //             'created_on'                    =>  date("Y-m-d H:i:s")
+                                    //         );
+                                    //         $this->db->insert('tbl_customer_rewards_history',$reward_data);
+        
+                                    //         $this->db->where('id',$customer_id);
+                                    //         $this->db->update('tbl_salon_customer',array('rewards_balance'=>$new_balance));
+                                    //     }
+                                    // }
+        
+                                    if($services != "" && is_array($services) && !empty($services)){
+                                        for($i=0;$i<count($services);$i++){
+                                            $service_id = $services[$i]['service_id'];
+                                            $this->db->where('tbl_salon_emp_service.branch_id',$branch_id);
+                                            $this->db->where('tbl_salon_emp_service.salon_id',$salon_id);
+                                            $this->db->where('tbl_salon_emp_service.id',$service_id);
+                                            $this->db->where('tbl_salon_emp_service.is_deleted','0');
+                                            $single_service = $this->db->get('tbl_salon_emp_service');
+                                            $single_service = $single_service->row();
+                                            if(!empty($single_service)){
+                                                $service_duration = $services[$i]['service_duration'];
+                                                $service_added_from = $services[$i]['service_added_from'];
+                                                $service_from = $services[$i]['service_from'];
+                                                $service_to = $services[$i]['service_to'];
+                                                $selected_stylist = $services[$i]['selected_stylist'];
+                                                $selected_stylist_shift_id = $services[$i]['selected_stylist_shift_id'];
+                                                $selected_stylist_shift_type = $services[$i]['selected_stylist_shift_type'];
+                                                $products_single = $services[$i]['products'];
+                                                if($service_added_from == '0'){
+                                                    $original_service_price = $single_service->final_price;
+                                                    
+                                                    $is_service_offer_applied = '0';
+                                                    $service_offer_discount = 0;
+                                                    $service_offer_discount_type = '';
+                                                    $service_offer_discount_amount = 0;
+                                                    if($is_offer_applied == '1'){
+                                                        $this->db->where('is_deleted','0');
+                                                        $this->db->where('status','1');
+                                                        $this->db->where('id',$applied_offer_id);
+                                                        $this->db->where('branch_id', $branch_id);
+                                                        $this->db->where('salon_id', $salon_id);
+                                                        $offer_data = $this->db->get('tbl_offers')->row();
+                                                        if(!empty($offer_data) && in_array($service_id,explode(',',$offer_data->service_name))){
+                                                            $service_offer_discount = $offer_data->discount;
+                                                            $service_offer_discount_type = $offer_data->discount_in;
+                                                            if($service_offer_discount_type == '0'){
+                                                                $service_offer_discount_amount = ($services[$i]['price'] * $service_offer_discount) / 100;
+                                                            }elseif($service_offer_discount_type == '1'){
+                                                                $service_offer_discount_amount = $service_offer_discount;
                                                             }
-                                                            
-                                                            $received_total = $total_product_amount + $total_service_amount;
-                                                            if($received_total != "" && $received_total != "0.00" && $received_total != null && $received_total != 0){
-                                                                $price_share_in_total = (float)(($product_price/$received_total) * 100);
-                                                                $discount_share_coupon_amount = (float)(($coupon_discount_amount * $price_share_in_total) / 100);
-                                                                $discount_share_reward_amount = (float)(($reward_discount * $price_share_in_total) / 100);
-                                                            }else{
-                                                                $discount_share_coupon_amount = 0;
-                                                                $discount_share_reward_amount = 0;
-                                                            }
-                                                            
-                                                            $discount_share_giftcard_amount = 0 ;
-                                                            $received_total = $total_product_amount + $total_service_amount;
-                                                            if($is_giftcard_applied == '1'){
-                                                                if($received_total != "" && $received_total != "0.00" && $received_total != null && $received_total != 0){
-                                                                    $price_share_in_total_giftcard_service_amount = (float)(($product_price/$received_total) * 100);
-                                                                    $discount_share_giftcard_amount = (float)(($giftcard_discount * $price_share_in_total_giftcard_service_amount) / 100);
+                                                        }
+                                                    }
+                                                                                            
+                                                    // service regular discount related start
+                                                    $service_discount_rewards_type = '';
+                                                    $discount_in = '';
+                                                    $discount_type = '';
+                                                    $discount_amount_value = '';
+                                                    $discount_row_id = '';
+                                                    $service_discount_customer_criteria = '';
+                                                    $is_discount_applied = '0';
+
+                                                    $discount_amount = 0;
+                                                    $slab_increment = '5';
+                                                    $slab_consider = '';
+                                                    $min_slab = '';
+                                                    $max_slab = '';
+
+                                                    $rewards_discount_amount = 0;
+                                                    $rewards_slab_increment = '5';
+                                                    $rewards_slab_consider = '';
+                                                    $rewards_min_slab = '';
+                                                    $rewards_max_slab = '';
+
+                                                    $service_applied_discount = $this->Salon_model->get_customer_service_applied_discount($customer_id,$service_id);
+                                                    if($service_applied_discount['is_discount_applied'] == '1'){
+                                                        $is_discount_applied = '1';
+                                                        $discount_row_id = $service_applied_discount['discount_row_id'];
+                                                        $service_discount_customer_criteria = $service_applied_discount['customer_criteria'];
+                                                        $discount_type = $service_applied_discount['discount_type'];
+                                                        $discount_in = $service_applied_discount['discount_in'];
+                                                        $discount_amount_value = (float)$service_applied_discount['discount_amount'];
+                                                        $min_slab = $service_applied_discount['min_flexible'];
+                                                        $max_slab = $service_applied_discount['max_flexible'];
+                                                        if($discount_type == '1'){    //Flexible
+                                                            $customer_last_service_booking = $this->Salon_model->get_customer_last_service_booking($customer_id,$service_id);
+                                                            if(!empty($customer_last_service_booking)){                                        
+                                                                if($service_discount_customer_criteria == '1'){                             
+                                                                    $prev_Applied_slab = $customer_last_service_booking->rewards_applied_flexible_slab;
                                                                 }else{
-                                                                    $discount_share_giftcard_amount = 0;
+                                                                    $prev_Applied_slab = $customer_last_service_booking->applied_flexible_slab;
+                                                                }   
+
+                                                                if($prev_Applied_slab != ""){
+                                                                    $next_slab = $prev_Applied_slab + $slab_increment;
+                                                                }else{
+                                                                    $next_slab = $min_slab + $slab_increment;
                                                                 }
+
+                                                                if($next_slab > $max_slab){
+                                                                    $slab_consider = $min_slab;
+                                                                }else{
+                                                                    $slab_consider = $next_slab;
+                                                                }
+                                                            }else{
+                                                                $slab_consider = $min_slab;
                                                             }
+
+                                                            if($discount_in == '0'){  //percentage
+                                                                $discount_amount = ((float)$slab_consider * (float)$original_service_price) / 100;
+                                                            }elseif($discount_in == '1'){ //flat
+                                                                $discount_amount = (float)$slab_consider;
+                                                            }
+                                                        }elseif($discount_type == '0'){   //Fixed
+                                                            if($discount_in == '0'){  //percentage
+                                                                $discount_amount = ((float)$discount_amount_value * (float)$original_service_price) / 100;
+                                                            }elseif($discount_in == '1'){ //flat
+                                                                $discount_amount = (float)$discount_amount_value;
+                                                            }
+                                                        }
+                                                    }
+
+                                                    if($is_discount_applied == '1'){
+                                                        if($service_discount_customer_criteria == '1'){  //for regular customer rewards are given
+                                                            $rewards_discount_amount = $discount_amount;
+                                                            $rewards_slab_increment = $slab_increment;
+                                                            $rewards_slab_consider = $slab_consider;
+                                                            $rewards_min_slab = $min_slab;
+                                                            $rewards_max_slab = $max_slab;
+
+                                                            $discount_amount = 0;
+                                                            $slab_increment = '5';
+                                                            $slab_consider = '';
+                                                            $min_slab = '';
+                                                            $max_slab = '';
+
+                                                            $service_discount_rewards_type = $is_offer_applied == '0' ? '1' : null;   // rewards
+                                                        }else{                                    
+                                                            $service_discount_rewards_type = $is_offer_applied == '0' ? '0' : null;   // discount
+                                                        }
+                                                    }
+                                                    
+                                                    $service_price = $original_service_price - $discount_amount;
+                                                    // $service_price = $services[$i]['price'];
+        
+                                                    // service regular discount related end
+        
+                                                    $received_total_service = $total_service_amount;
+                                                    if($received_total_service != "" && $received_total_service != "0.00" && $received_total_service != null && $received_total_service != 0){
+                                                        $price_share_in_total_service = (float)(($service_price/$received_total_service) * 100);
+                                                        $discount_share_membership_amount = (float)(($mem_service_discount_amt * $price_share_in_total_service) / 100);
+                                                    }else{
+                                                        $discount_share_membership_amount = 0;
+                                                    }
+        
+                                                    $received_total = $total_product_amount + $total_service_amount;
+                                                    if($received_total != "" && $received_total != "0.00" && $received_total != null && $received_total != 0){
+                                                        $price_share_in_total = (float)(($service_price/$received_total) * 100);
+                                                        $discount_share_coupon_amount = (float)(($coupon_discount_amount * $price_share_in_total) / 100);
+                                                        $discount_share_reward_amount = (float)(($reward_discount * $price_share_in_total) / 100);
+                                                    }else{
+                                                        $discount_share_coupon_amount = 0;
+                                                        $discount_share_reward_amount = 0;
+                                                    }
+        
+                                                    $discount_share_giftcard_amount = 0 ;
+                                                    $received_total = $total_product_amount + $total_service_amount;
+                                                    if($is_giftcard_applied == '1'){
+                                                        if($received_total != "" && $received_total != "0.00" && $received_total != null && $received_total != 0){
+                                                            $price_share_in_total_giftcard_service_amount = (float)(($service_price/$received_total) * 100);
+                                                            $discount_share_giftcard_amount = (float)(($giftcard_discount * $price_share_in_total_giftcard_service_amount) / 100);
+                                                        }else{
+                                                            $discount_share_giftcard_amount = 0;
+                                                        }
+                                                    }
+
+                                                    $discount_share_reward_amount = $is_offer_applied == '1' ? 0.00 : $discount_share_reward_amount;
                                     
-                                                            $total_single_product_discount = $discount_share_membership_amount + $discount_share_giftcard_amount + $discount_share_reward_amount + $discount_share_coupon_amount;
-                                                            $single_product_discounted_amount = $product_price - $total_single_product_discount;
+                                                    $total_single_service_discount = $discount_share_membership_amount + $discount_share_reward_amount + $discount_share_coupon_amount + $discount_share_giftcard_amount + $service_offer_discount_amount;
+                                                    $single_service_discounted_amount = $service_price - $total_single_service_discount;
                                     
-                                                            $service_product_data = array(
-                                                                'booking_service_details_id'  => $booking_service_details_id,
-                                                                'booking_id' 		    => $booking_id,
-                                                                'branch_id' 			=> $branch_id,
-                                                                'salon_id' 				=> $salon_id,
-                                                                'customer_name' 		=> $customer_id,
-                                                                'booking_generated_from'=> '1',
-                                                                'product_added_from'	=> '0', //single
-                                                                'service_id'     		=> $service_id,
-                                                                'product_id'     		=> $product_id,
-                                                                'product_price'     	=> $product_price,
-                                                                'original_product_price'=> $original_product_price,
-                                                                'created_on'            => date("Y-m-d H:i:s"),
+                                                    $stylist_data = array(
+                                                        'booking_id' 		    => $booking_id,
+                                                        'branch_id' 			=> $branch_id,
+                                                        'salon_id' 				=> $salon_id,
+                                                        'customer_name' 		=> $customer_id,
+                                                        'booking_generated_from'=> '1',
+                                                        'service_added_from'	=> '0', //single
+                                                        'service_id'     		=> $service_id,
+                                                        'service_price'     	=> $service_price,
+                                                        'original_service_price'=> $original_service_price,
                                                         
-                                                                'received_discount_amount_while_booking'     	=> $total_single_product_discount,
-                                                                'received_coupon_discount_while_booking'     	=> $discount_share_coupon_amount,
-                                                                'received_reward_discount_while_booking'     	=> $discount_share_reward_amount,
-                                                                'received_membership_discount_while_booking'    => $discount_share_membership_amount,
-                                                                'product_discounted_price_while_booking'     	=> $single_product_discounted_amount,
-                                                                'received_giftcard_discount_while_booking'     	=> $discount_share_giftcard_amount,                                                                                            
+                                                        'service_reward_points' => $single_service->reward_point,
+                                                        'stylist_id'      		=> $selected_stylist != "" ? $selected_stylist : '',
+                                                        'booking_shift_id'      => $selected_stylist != "" ? $selected_stylist_shift_id : '',
+                                                        'booking_shift_type'    => $selected_stylist != "" ? $selected_stylist_shift_type : '',
+                                                        'service_date'     		=> date('Y-m-d',strtotime($booking_date)),
+                                                        'service_from'    	    => $service_from != "" ? date('Y-m-d H:i:s',strtotime($service_from)) : null,
+                                                        'service_to'      	    => $service_to != "" ? date('Y-m-d H:i:s',strtotime($service_to)) : null,
+                                                        'created_on'            => date("Y-m-d H:i:s"),
+                                                        
+                                                        'received_discount_amount_while_booking'     	=> $total_single_service_discount,
+                                                        'received_coupon_discount_while_booking'     	=> $discount_share_coupon_amount,
+                                                        'received_reward_discount_while_booking'     	=> $discount_share_reward_amount,
+                                                        'received_membership_discount_while_booking'    => $discount_share_membership_amount,
+                                                        'received_giftcard_discount_while_booking'     	=> $discount_share_giftcard_amount,
+                                                        'service_discounted_price_while_booking'     	=> $single_service_discounted_amount,     
+        
+                                                        'is_service_offer_applied'     	                => $is_offer_applied,
+                                                        'applied_offer_id'     	                        => $is_offer_applied == '1' ? $applied_offer_id : '',
+                                                        'service_offer_discount'                        => $is_offer_applied == '1' ? $service_offer_discount : '',
+                                                        'service_offer_discount_type'     	            => $is_offer_applied == '1' ? $service_offer_discount_type : '',
+                                                        'service_offer_discount_amount'     	        => $is_offer_applied == '1' ? $service_offer_discount_amount : '0.00',                                            
+        
+                                                        'is_service_discount_applied'                   => $is_discount_applied,
+                                                        'service_marketing_discount_type'               => $service_discount_rewards_type,
+                                                        'service_discount_customer_criteria'            => $service_discount_customer_criteria,
+                                                        'service_discount_row_id'                       => $discount_row_id,
+                                                        'discount_in'     	                            => $single_service->discount_in,
+                                                        'discount_type'     	                        => $single_service->discount_type,
+                                                        'discount_value'     	                        => $single_service->service_discount,
 
-                                                                'is_product_discount_applied'                   => $is_product_discount_applied,
-                                                                'product_discount_row_id'                       => $product_discount_row_id,
+                                                        'discount_slab_min'     	                    => $min_slab,
+                                                        'discount_slab_max'     	                    => $max_slab,
+                                                        'slab_increment'     	                        => $slab_increment,
+                                                        'applied_flexible_slab'     	                => $slab_consider,
+                                                        'received_discount'     	                    => $discount_amount,
 
-                                                                'product_discount_in'     	                    => $product_discount_in,
-                                                                'product_discount_type'     	                => $product_discount_type,
-                                                                'product_discount_value'     	                => $product_discount_amount_value,
+                                                        'rewards_discount_slab_min'     	            => $rewards_min_slab,
+                                                        'rewards_discount_slab_max'     	            => $rewards_max_slab,
+                                                        'rewards_slab_increment'     	                => $rewards_slab_increment,
+                                                        'rewards_applied_flexible_slab'     	        => $rewards_slab_consider,
+                                                        'rewards_received_discount'     	            => $is_offer_applied == "0" ? $rewards_discount_amount : null,
+
+                                                        'service_duration'                              => $service_duration
+                                                    );
+                                                    $this->db->insert('tbl_booking_services_details', $stylist_data);
+                                                    $booking_service_details_id = $this->db->insert_id();
+                                    
+                                                    $single_service_all_products = [];
+                                                    if($products_single != "" && is_array($products_single) && !empty($products_single)){
+                                                        for($j=0;$j<count($products_single);$j++){
+                                                            $product_id = $products_single[$j]['productId'];
+                                                            $this->db->where('tbl_product.branch_id',$branch_id);
+                                                            $this->db->where('tbl_product.salon_id',$salon_id);
+                                                            $this->db->where('tbl_product.id',$product_id);
+                                                            $this->db->where('tbl_product.is_deleted','0');
+                                                            $this->db->where('tbl_product.status','1');
+                                                            $single_product = $this->db->get('tbl_product');
+                                                            $single_product = $single_product->row();
+                                                            if(!empty($single_product)){
+                                                                $single_service_all_products[] = $single_product->id;
+                                                                $product_price = $single_product->selling_price; 
+
+                                                                $product_discount_in = '';
+                                                                $product_discount_type = '';
+                                                                $product_discount_amount_value = '';
+                                                                $product_discount_row_id = '';
+                                                                $is_product_discount_applied = '0';
+
+                                                                $product_discount_amount = 0;
+                                                                $product_slab_increment = '5';
+                                                                $product_slab_consider = '';
+                                                                $product_min_slab = '';
+                                                                $product_max_slab = '';
+
+                                                                $product_applied_discount = $this->Salon_model->get_customer_product_applied_discount($customer_id,$single_product->id);
+                                                                if($product_applied_discount['is_discount_applied'] == '1'){
+                                                                    $is_product_discount_applied = '1';
+                                                                    $product_discount_row_id = $product_applied_discount['discount_row_id'];
+                                                                    $product_discount_type = $product_applied_discount['discount_type'];
+                                                                    $product_discount_in = $product_applied_discount['discount_in'];
+                                                                    $product_discount_amount_value = (float)$product_applied_discount['discount_amount'];
+                                                                    $product_min_slab = $product_applied_discount['min_flexible'];
+                                                                    $product_max_slab = $product_applied_discount['max_flexible'];
+                                                                    if($product_discount_type == '1'){    //Flexible
+                                                                        $customer_last_service_product_booking = $this->Salon_model->get_customer_last_service_product_booking($customer_id,$single_product->id);
+                                                                        if(!empty($customer_last_service_product_booking)){      
+                                                                            $prev_Applied_product_slab = $customer_last_service_product_booking->product_applied_flexible_slab;
+
+                                                                            if($prev_Applied_product_slab != ""){
+                                                                                $next_product_slab = $prev_Applied_product_slab + $product_slab_increment;
+                                                                            }else{
+                                                                                $next_product_slab = $product_min_slab + $product_slab_increment;
+                                                                            }
+
+                                                                            if($next_product_slab > $product_max_slab){
+                                                                                $product_slab_consider = $product_min_slab;
+                                                                            }else{
+                                                                                $product_slab_consider = $next_product_slab;
+                                                                            }
+                                                                        }else{
+                                                                            $product_slab_consider = $product_min_slab;
+                                                                        }
+
+                                                                        if($product_discount_in == '0'){  //percentage
+                                                                            $product_discount_amount = ((float)$product_slab_consider * (float)$product_price) / 100;
+                                                                        }elseif($product_discount_in == '1'){ //flat
+                                                                            $product_discount_amount = (float)$product_slab_consider;
+                                                                        }
+                                                                    }elseif($product_discount_type == '0'){   //Fixed
+                                                                        if($product_discount_in == '0'){  //percentage
+                                                                            $product_discount_amount = ((float)$product_discount_amount_value * (float)$product_price) / 100;
+                                                                        }elseif($product_discount_in == '1'){ //flat
+                                                                            $product_discount_amount = (float)$product_discount_amount_value;
+                                                                        }
+                                                                    }
+                                                                }
+
+                                                                $product_price = $product_price - $product_discount_amount;
+                                                                $original_product_price = $single_product->selling_price;                       
+                                        
+                                                                $received_total_product = $total_product_amount;
+                                                                if($received_total_product != "" && $received_total_product != "0.00" && $received_total_product != null && $received_total_product != 0){
+                                                                    $price_share_in_total_product = (float)(($product_price/$received_total_product) * 100);
+                                                                    $discount_share_membership_amount = (float)(($mem_product_discount_amt * $price_share_in_total_product) / 100);
+                                                                }else{
+                                                                    $discount_share_membership_amount = 0;
+                                                                }
                                                                 
-                                                                'product_discount_slab_min'     	            => $product_min_slab,
-                                                                'product_discount_slab_max'     	            => $product_max_slab,
-                                                                'product_slab_increment'     	                => $product_slab_increment,
-                                                                'product_applied_flexible_slab'     	        => $product_slab_consider,
-                                                                'product_received_discount'     	            => $product_discount_amount,
-                                                            );
-                                                            $this->db->insert('tbl_booking_services_products_details', $service_product_data);
+                                                                $received_total = $total_product_amount + $total_service_amount;
+                                                                if($received_total != "" && $received_total != "0.00" && $received_total != null && $received_total != 0){
+                                                                    $price_share_in_total = (float)(($product_price/$received_total) * 100);
+                                                                    $discount_share_coupon_amount = (float)(($coupon_discount_amount * $price_share_in_total) / 100);
+                                                                    $discount_share_reward_amount = (float)(($reward_discount * $price_share_in_total) / 100);
+                                                                }else{
+                                                                    $discount_share_coupon_amount = 0;
+                                                                    $discount_share_reward_amount = 0;
+                                                                }
+                                                                
+                                                                $discount_share_giftcard_amount = 0 ;
+                                                                $received_total = $total_product_amount + $total_service_amount;
+                                                                if($is_giftcard_applied == '1'){
+                                                                    if($received_total != "" && $received_total != "0.00" && $received_total != null && $received_total != 0){
+                                                                        $price_share_in_total_giftcard_service_amount = (float)(($product_price/$received_total) * 100);
+                                                                        $discount_share_giftcard_amount = (float)(($giftcard_discount * $price_share_in_total_giftcard_service_amount) / 100);
+                                                                    }else{
+                                                                        $discount_share_giftcard_amount = 0;
+                                                                    }
+                                                                }
+                                        
+                                                                $total_single_product_discount = $discount_share_membership_amount + $discount_share_giftcard_amount + $discount_share_reward_amount + $discount_share_coupon_amount;
+                                                                $single_product_discounted_amount = $product_price - $total_single_product_discount;
+                                        
+                                                                $service_product_data = array(
+                                                                    'booking_service_details_id'  => $booking_service_details_id,
+                                                                    'booking_id' 		    => $booking_id,
+                                                                    'branch_id' 			=> $branch_id,
+                                                                    'salon_id' 				=> $salon_id,
+                                                                    'customer_name' 		=> $customer_id,
+                                                                    'booking_generated_from'=> '1',
+                                                                    'product_added_from'	=> '0', //single
+                                                                    'service_id'     		=> $service_id,
+                                                                    'product_id'     		=> $product_id,
+                                                                    'product_price'     	=> $product_price,
+                                                                    'product_original_price'=> $original_product_price,
+                                                                    'created_on'            => date("Y-m-d H:i:s"),
+                                                            
+                                                                    'received_discount_amount_while_booking'     	=> $total_single_product_discount,
+                                                                    'received_coupon_discount_while_booking'     	=> $discount_share_coupon_amount,
+                                                                    'received_reward_discount_while_booking'     	=> $discount_share_reward_amount,
+                                                                    'received_membership_discount_while_booking'    => $discount_share_membership_amount,
+                                                                    'product_discounted_price_while_booking'     	=> $single_product_discounted_amount,
+                                                                    'received_giftcard_discount_while_booking'     	=> $discount_share_giftcard_amount,                                                                                            
+
+                                                                    'is_product_discount_applied'                   => $is_product_discount_applied,
+                                                                    'product_discount_row_id'                       => $product_discount_row_id,
+
+                                                                    'product_discount_in'     	                    => $product_discount_in,
+                                                                    'product_discount_type'     	                => $product_discount_type,
+                                                                    'product_discount_value'     	                => $product_discount_amount_value,
+                                                                    
+                                                                    'product_discount_slab_min'     	            => $product_min_slab,
+                                                                    'product_discount_slab_max'     	            => $product_max_slab,
+                                                                    'product_slab_increment'     	                => $product_slab_increment,
+                                                                    'product_applied_flexible_slab'     	        => $product_slab_consider,
+                                                                    'product_received_discount'     	            => $product_discount_amount,
+                                                                );
+                                                                $this->db->insert('tbl_booking_services_products_details', $service_product_data);
+                                                            }
                                                         }
                                                     }
-                                                }
-    
-                                                $service_product_details = array(
-                                                    'product_ids'     		=> ($single_service_all_products != "" && is_array($single_service_all_products) && !empty($single_service_all_products)) ? implode(',',$single_service_all_products) : null,
-                                                );
-                                                $this->db->where('id',$booking_service_details_id);
-                                                $this->db->update('tbl_booking_services_details',$service_product_details);
-                                            }elseif($service_added_from == '1'){
-                                                $stylist_data = array(
-                                                    'booking_id' 		    => $booking_id,
-                                                    'branch_id' 			=> $branch_id,
-                                                    'salon_id' 				=> $salon_id,
-                                                    'customer_name' 		=> $customer_id,
-                                                    'booking_generated_from'=> '1',
-                                                    'service_added_from'	=> '1', //package
-                                                    'package_id'     		=> $selected_package_id,
-                                                    'service_id'     		=> $service_id,
-    
-                                                    'service_reward_points' => $single_service->reward_point,
-                                                    'stylist_id'      		=> $selected_stylist != "" ? $selected_stylist : '',
-                                                    'service_date'     		=> date('Y-m-d',strtotime($booking_date)),
-                                                    'service_from'    	    => $service_from != "" ? date('Y-m-d H:i:s',strtotime($service_from)) : null,
-                                                    'service_to'      	    => $service_to != "" ? date('Y-m-d H:i:s',strtotime($service_to)) : null,
-                                                    'created_on'            => date("Y-m-d H:i:s"),
-                                                );
-                                                $this->db->insert('tbl_booking_services_details', $stylist_data);                
-                                                $booking_service_details_id = $this->db->insert_id();
-                                
-                                                $single_service_all_products = [];
-                                                if($products_single != "" && is_array($products_single) && !empty($products_single)){
-                                                    for($j=0;$j<count($products_single);$j++){
-                                                        $product_id = $products_single[$j]['productId'];
-                                                        $this->db->where('tbl_product.branch_id',$branch_id);
-                                                        $this->db->where('tbl_product.salon_id',$salon_id);
-                                                        $this->db->where('tbl_product.id',$product_id);
-                                                        $this->db->where('tbl_product.is_deleted','0');
-                                                        $this->db->where('tbl_product.status','1');
-                                                        $single_product = $this->db->get('tbl_product');
-                                                        $single_product = $single_product->row();
-                                                        if(!empty($single_product)){
-                                                            $single_service_all_products[] = $single_product->id;
-                                                            $service_product_data = array(
-                                                                'booking_service_details_id'  => $booking_service_details_id,
-                                                                'booking_id' 		    => $booking_id,
-                                                                'branch_id' 			=> $branch_id,
-                                                                'salon_id' 				=> $salon_id,
-                                                                'customer_name' 		=> $customer_id,
-                                                                'booking_generated_from'=> '1',
-                                                                'package_id' 		    => $selected_package_id,
-                                                                'product_added_from'	=> '1', //package
-                                                                'service_id'     		=> $service_id,
-                                                                'product_id'     		=> $product_id,
-                                                                'created_on'            => date("Y-m-d H:i:s"),
-                                                            );
-                                                            $this->db->insert('tbl_booking_services_products_details', $service_product_data);
+        
+                                                    $service_product_details = array(
+                                                        'product_ids'     		=> ($single_service_all_products != "" && is_array($single_service_all_products) && !empty($single_service_all_products)) ? implode(',',$single_service_all_products) : null,
+                                                    );
+                                                    $this->db->where('id',$booking_service_details_id);
+                                                    $this->db->update('tbl_booking_services_details',$service_product_details);
+                                                }elseif($service_added_from == '1'){
+                                                    $stylist_data = array(
+                                                        'booking_id' 		    => $booking_id,
+                                                        'branch_id' 			=> $branch_id,
+                                                        'salon_id' 				=> $salon_id,
+                                                        'customer_name' 		=> $customer_id,
+                                                        'booking_generated_from'=> '1',
+                                                        'service_added_from'	=> '1', //package
+                                                        'package_id'     		=> $selected_package_id,
+                                                        'service_id'     		=> $service_id,
+        
+                                                        'service_reward_points' => $single_service->reward_point,
+                                                        'stylist_id'      		=> $selected_stylist != "" ? $selected_stylist : '',
+                                                        'service_date'     		=> date('Y-m-d',strtotime($booking_date)),
+                                                        'service_from'    	    => $service_from != "" ? date('Y-m-d H:i:s',strtotime($service_from)) : null,
+                                                        'service_to'      	    => $service_to != "" ? date('Y-m-d H:i:s',strtotime($service_to)) : null,
+                                                        'created_on'            => date("Y-m-d H:i:s"),
+                                                    );
+                                                    $this->db->insert('tbl_booking_services_details', $stylist_data);                
+                                                    $booking_service_details_id = $this->db->insert_id();
+                                    
+                                                    $single_service_all_products = [];
+                                                    if($products_single != "" && is_array($products_single) && !empty($products_single)){
+                                                        for($j=0;$j<count($products_single);$j++){
+                                                            $product_id = $products_single[$j]['productId'];
+                                                            $this->db->where('tbl_product.branch_id',$branch_id);
+                                                            $this->db->where('tbl_product.salon_id',$salon_id);
+                                                            $this->db->where('tbl_product.id',$product_id);
+                                                            $this->db->where('tbl_product.is_deleted','0');
+                                                            $this->db->where('tbl_product.status','1');
+                                                            $single_product = $this->db->get('tbl_product');
+                                                            $single_product = $single_product->row();
+                                                            if(!empty($single_product)){
+                                                                $single_service_all_products[] = $single_product->id;
+                                                                $service_product_data = array(
+                                                                    'booking_service_details_id'  => $booking_service_details_id,
+                                                                    'booking_id' 		    => $booking_id,
+                                                                    'branch_id' 			=> $branch_id,
+                                                                    'salon_id' 				=> $salon_id,
+                                                                    'customer_name' 		=> $customer_id,
+                                                                    'booking_generated_from'=> '1',
+                                                                    'package_id' 		    => $selected_package_id,
+                                                                    'product_added_from'	=> '1', //package
+                                                                    'service_id'     		=> $service_id,
+                                                                    'product_id'     		=> $product_id,
+                                                                    'created_on'            => date("Y-m-d H:i:s"),
+                                                                );
+                                                                $this->db->insert('tbl_booking_services_products_details', $service_product_data);
+                                                            }
                                                         }
                                                     }
+        
+                                                    $service_product_details = array(
+                                                        'product_ids'     		=> ($single_service_all_products != "" && is_array($single_service_all_products) && !empty($single_service_all_products)) ? implode(',',$single_service_all_products) : null,
+                                                    );
+                                                    $this->db->where('id',$booking_service_details_id);
+                                                    $this->db->update('tbl_booking_services_details',$service_product_details);
                                                 }
-    
-                                                $service_product_details = array(
-                                                    'product_ids'     		=> ($single_service_all_products != "" && is_array($single_service_all_products) && !empty($single_service_all_products)) ? implode(',',$single_service_all_products) : null,
-                                                );
-                                                $this->db->where('id',$booking_service_details_id);
-                                                $this->db->update('tbl_booking_services_details',$service_product_details);
                                             }
                                         }
                                     }
-                                }
-                        
-                                if($selected_package_id != "" && $is_package_included == '1'){
-                                    $package_details = $this->Salon_model->get_package_details($selected_package_id);
-                                    if(!empty($package_details)){
-                                        $package_rewards_data = array(
-                                            'package_rewards' =>  $package_details->reward_point
-                                        );
-                                        
-                                        $this->db->where('id',$booking_id);
-                                        $this->db->where('branch_id',$branch_id);
-                                        $this->db->where('salon_id',$salon_id);
-                                        $this->db->update('tbl_new_booking',$package_rewards_data);
-                        
-                                        if($is_old_package == '1'){
-                                            $active_package_allocation = $this->Salon_model->get_active_package_allocation($selected_package_allocation_id);
-                                            if(!empty($active_package_allocation)){
-                                                if($services != "" && is_array($services) && !empty($services)){
-                                                    for($i=0;$i<count($services);$i++){
-                                                        $service_added_from = $services[$i]['service_added_from'];
-                                                        if($service_added_from == '1'){
-                                                            $service_id = $services[$i]['service_id'];
-                                                            $old_details = $this->Salon_model->get_active_package_allocation_item_status($active_package_allocation->id,$service_id,'0');
-                                                            if(!empty($old_details)){
-                                                                $package_item_used_details = array(
-                                                                    'item_used_in_booking_id'   => $booking_id,
-                                                                    'used_status'               => '1',
-                                                                    'service_date'     		    => date('Y-m-d',strtotime($booking_date)),
-                                                                    'service_from'    	        => $service_from != "" ? date('Y-m-d H:i:s',strtotime($service_from)) : null,
-                                                                    'service_to'      	        => $service_to != "" ? date('Y-m-d H:i:s',strtotime($service_to)) : null,
-                                                                    'item_used_on'              => date("Y-m-d"),
-                                                                );
-                                                                $this->db->where('id',$old_details->id);
-                                                                $this->db->update('tbl_booking_package_detail_status', $package_item_used_details);                                    
                             
-                                                                $allocation_data_for_service = array(
-                                                                    'package_allocation_id'         =>  $active_package_allocation->id,
-                                                                    'package_allocation_status_id'  =>  $old_details->id,
-                                                                );
-                                                                $this->db->where('service_id', $service_id);
-                                                                $this->db->where('customer_name',$customer_id);
-                                                                $this->db->where('booking_id',$booking_id);
-                                                                $this->db->where('service_added_from','1');
-                                                                $this->db->where('branch_id',$branch_id);
-                                                                $this->db->where('salon_id',$salon_id);
-                                                                $this->db->update('tbl_booking_services_details',$allocation_data_for_service);
+                                    if($selected_package_id != "" && $is_package_included == '1'){
+                                        $package_details = $this->Salon_model->get_package_details($selected_package_id);
+                                        if(!empty($package_details)){
+                                            $package_rewards_data = array(
+                                                'package_rewards' =>  $package_details->reward_point
+                                            );
+                                            
+                                            $this->db->where('id',$booking_id);
+                                            $this->db->where('branch_id',$branch_id);
+                                            $this->db->where('salon_id',$salon_id);
+                                            $this->db->update('tbl_new_booking',$package_rewards_data);
+                            
+                                            if($is_old_package == '1'){
+                                                $active_package_allocation = $this->Salon_model->get_active_package_allocation($selected_package_allocation_id);
+                                                if(!empty($active_package_allocation)){
+                                                    if($services != "" && is_array($services) && !empty($services)){
+                                                        for($i=0;$i<count($services);$i++){
+                                                            $service_added_from = $services[$i]['service_added_from'];
+                                                            if($service_added_from == '1'){
+                                                                $service_id = $services[$i]['service_id'];
+                                                                $old_details = $this->Salon_model->get_active_package_allocation_item_status($active_package_allocation->id,$service_id,'0');
+                                                                if(!empty($old_details)){
+                                                                    $package_item_used_details = array(
+                                                                        'item_used_in_booking_id'   => $booking_id,
+                                                                        'used_status'               => '1',
+                                                                        'service_date'     		    => date('Y-m-d',strtotime($booking_date)),
+                                                                        'service_from'    	        => $service_from != "" ? date('Y-m-d H:i:s',strtotime($service_from)) : null,
+                                                                        'service_to'      	        => $service_to != "" ? date('Y-m-d H:i:s',strtotime($service_to)) : null,
+                                                                        'item_used_on'              => date("Y-m-d"),
+                                                                    );
+                                                                    $this->db->where('id',$old_details->id);
+                                                                    $this->db->update('tbl_booking_package_detail_status', $package_item_used_details);                                    
+                                
+                                                                    $allocation_data_for_service = array(
+                                                                        'package_allocation_id'         =>  $active_package_allocation->id,
+                                                                        'package_allocation_status_id'  =>  $old_details->id,
+                                                                    );
+                                                                    $this->db->where('service_id', $service_id);
+                                                                    $this->db->where('customer_name',$customer_id);
+                                                                    $this->db->where('booking_id',$booking_id);
+                                                                    $this->db->where('service_added_from','1');
+                                                                    $this->db->where('branch_id',$branch_id);
+                                                                    $this->db->where('salon_id',$salon_id);
+                                                                    $this->db->update('tbl_booking_services_details',$allocation_data_for_service);
+                                                                }
                                                             }
                                                         }
                                                     }
+                            
+                                                    $used_in_booking_status_data = array(
+                                                        'is_booking_done'       =>  '1',
+                                                        'added_in_booking_id'   =>  $booking_id,
+                                                    );
+                                                    $this->db->where('allocation_id',$active_package_allocation->id);
+                                                    $this->db->update('tbl_booking_package_detail_status', $used_in_booking_status_data);
+                                                    
+                                                    $used_in_booking_data = array(
+                                                        'is_booking_done'           =>  '1',
+                                                        'allocated_in_booking_id'   =>  $booking_id,
+                                                    );
+                                                    $this->db->where('id',$active_package_allocation->id);
+                                                    $this->db->update('tbl_customer_package_allocations', $used_in_booking_data);
+                            
+                                                    $this->db->where('allocation_id',$active_package_allocation->id);
+                                                    $this->db->where('customer_name',$customer_id);
+                                                    $this->db->where('pacakge_id',$selected_package_id);
+                                                    $this->db->where('used_status','0');
+                                                    $this->db->where('is_deleted','0');
+                                                    $available_unused_item = $this->db->get('tbl_booking_package_detail_status')->num_rows();
+                                                    if($available_unused_item == 0){
+                                                        $lapsed_data = array(
+                                                            'is_lapsed' =>  '1',
+                                                        );
+                                                        $this->db->where('id',$active_package_allocation->id);
+                                                        $this->db->update('tbl_customer_package_allocations', $lapsed_data);
+                                                    }
+                                                    
+                                                    $allocation_data_for_product = array(
+                                                        'package_allocation_id' =>  $active_package_allocation->id,
+                                                        'used_package_type'     =>  '0'
+                                                    );
+                                                    
+                                                    $this->db->where('id',$booking_id);
+                                                    $this->db->where('branch_id',$branch_id);
+                                                    $this->db->where('salon_id',$salon_id);
+                                                    $this->db->update('tbl_new_booking',$allocation_data_for_product);
                                                 }
-                        
-                                                $used_in_booking_status_data = array(
-                                                    'is_booking_done'       =>  '1',
-                                                    'added_in_booking_id'   =>  $booking_id,
-                                                );
-                                                $this->db->where('allocation_id',$active_package_allocation->id);
-                                                $this->db->update('tbl_booking_package_detail_status', $used_in_booking_status_data);
-                                                
-                                                $used_in_booking_data = array(
-                                                    'is_booking_done'           =>  '1',
+                                            }else{
+                                                $allocation_data = array(
+                                                    'customer_name'         =>  $customer_id,
                                                     'allocated_in_booking_id'   =>  $booking_id,
+                                                    'package_id'            =>  $selected_package_id,
+                                                    'branch_id' 			=>  $branch_id,
+                                                    'salon_id' 				=>  $salon_id,
+                                                    'package_start_date'    =>  date("Y-m-d"),
+                                                    'package_amount'        =>  $package_amount,
+                                                    'created_on'            =>  date("Y-m-d H:i:s"),
                                                 );
-                                                $this->db->where('id',$active_package_allocation->id);
-                                                $this->db->update('tbl_customer_package_allocations', $used_in_booking_data);
-                        
-                                                $this->db->where('allocation_id',$active_package_allocation->id);
+                                                $this->db->insert('tbl_customer_package_allocations', $allocation_data);
+                                                $allocation_id = $this->db->insert_id();
+                            
+                                                $allocation_data_for_product = array(
+                                                    'package_allocation_id' =>  $allocation_id
+                                                );
+                                                $allocation_data_for_booking = array(
+                                                    'package_allocation_id' =>  $allocation_id,
+                                                    'used_package_type'     =>  '1'
+                                                );
+                                                
+                                                $this->db->where('id',$booking_id);
+                                                $this->db->where('branch_id',$branch_id);
+                                                $this->db->where('salon_id',$salon_id);
+                                                $this->db->update('tbl_new_booking',$allocation_data_for_booking);
+                            
+                                                $this->db->where('product_added_from','1');
+                                                $this->db->where('customer_name',$customer_id);
+                                                $this->db->where('booking_id',$booking_id);
+                                                $this->db->where('package_id',$selected_package_id);
+                                                $this->db->where('branch_id',$branch_id);
+                                                $this->db->where('salon_id',$salon_id);
+                                                $this->db->update('tbl_booking_services_products_details',$allocation_data_for_product);
+                            
+                                                $package_all_services = explode(',',$package_details->service_name);
+                            
+                                                if(!empty($package_all_services)){
+                                                    for($i=0;$i<count($package_all_services);$i++){
+                                                        $package_service_products = $this->Salon_model->get_package_products_single_all($package_details->id,$package_all_services[$i],$branch_id,$salon_id);
+                                                        $package_item_details = array(
+                                                            'branch_id' 			=> $branch_id,
+                                                            'salon_id' 				=> $salon_id,
+                                                            'allocation_id' 		=> $allocation_id,
+                                                            'customer_name' 		=> $customer_id,
+                                                            'pacakge_id' 		    => $selected_package_id,
+                                                            'package_amount' 		=> $package_amount,
+                                                            'added_in_booking_id'   => $booking_id,
+                                                            'item_type'             =>  '0',
+                                                            'item_id'               =>  $package_all_services[$i],
+                                                            'products_id'           =>  !empty($package_service_products) ? $package_service_products->product_ids : null,
+                                                            'item_added_on'         =>  date("Y-m-d"),
+                                                            'package_start_date'    =>  date("Y-m-d"),
+                                                            'created_on'            =>  date("Y-m-d H:i:s"),
+                                                        );
+                                                        $this->db->insert('tbl_booking_package_detail_status', $package_item_details);
+                                                        $single_package_details_id = $this->db->insert_id();
+                            
+                                                        if($services != "" && is_array($services) && !empty($services)){
+                                                            for($i=0;$i<count($services);$i++){
+                                                                $service_added_from = $services[$i]['service_added_from'];
+                                                                if($service_added_from == '1'){
+                                                                    $service_id = $services[$i]['service_id'];
+                                                                    if($package_all_services[$i] == $service_id){
+                                                                        $package_item_used_details = array(
+                                                                            'item_used_in_booking_id'   => $booking_id,
+                                                                            'used_status'               =>  '1',
+                                                                            'item_used_on'              =>  date("Y-m-d"),                                                                
+                                                                            'service_date'     		    => date('Y-m-d',strtotime($booking_date)),
+                                                                            'service_from'    	        => $service_from != "" ? date('Y-m-d H:i:s',strtotime($service_from)) : null,
+                                                                            'service_to'      	        => $service_to != "" ? date('Y-m-d H:i:s',strtotime($service_to)) : null,
+                                                                        );
+                                                                        $this->db->where('item_type','0');
+                                                                        $this->db->where('allocation_id',$allocation_id);
+                                                                        $this->db->where('id',$single_package_details_id);
+                                                                        $this->db->where('item_id',$package_all_services[$i]);
+                                                                        $this->db->update('tbl_booking_package_detail_status', $package_item_used_details);
+                                                                    }
+                                                                }
+                                                            }
+                                                        }                            
+                            
+                                                        $allocation_data_for_service = array(
+                                                            'package_allocation_id'         =>  $allocation_id,
+                                                            'package_allocation_status_id'  =>  $single_package_details_id,
+                                                        );
+                                                        $this->db->where('service_id', $package_all_services[$i]);
+                                                        $this->db->where('customer_name',$customer_id);
+                                                        $this->db->where('booking_id',$booking_id);
+                                                        $this->db->where('service_added_from','1');
+                                                        $this->db->where('branch_id',$branch_id);
+                                                        $this->db->where('salon_id',$salon_id);
+                                                        $this->db->update('tbl_booking_services_details',$allocation_data_for_service);
+                                                    }
+                                                }                
+                            
+                                                $this->db->where('allocation_id',$allocation_id);
                                                 $this->db->where('customer_name',$customer_id);
                                                 $this->db->where('pacakge_id',$selected_package_id);
                                                 $this->db->where('used_status','0');
@@ -4087,294 +4371,181 @@ class Api_model extends CI_Model {
                                                     $lapsed_data = array(
                                                         'is_lapsed' =>  '1',
                                                     );
-                                                    $this->db->where('id',$active_package_allocation->id);
+                                                    $this->db->where('id',$allocation_id);
                                                     $this->db->update('tbl_customer_package_allocations', $lapsed_data);
                                                 }
-                                                
-                                                $allocation_data_for_product = array(
-                                                    'package_allocation_id' =>  $active_package_allocation->id,
-                                                    'used_package_type'     =>  '0'
-                                                );
-                                                
-                                                $this->db->where('id',$booking_id);
-                                                $this->db->where('branch_id',$branch_id);
-                                                $this->db->where('salon_id',$salon_id);
-                                                $this->db->update('tbl_new_booking',$allocation_data_for_product);
                                             }
-                                        }else{
-                                            $allocation_data = array(
-                                                'customer_name'         =>  $customer_id,
-                                                'allocated_in_booking_id'   =>  $booking_id,
-                                                'package_id'            =>  $selected_package_id,
-                                                'branch_id' 			=>  $branch_id,
-                                                'salon_id' 				=>  $salon_id,
-                                                'package_start_date'    =>  date("Y-m-d"),
-                                                'package_amount'        =>  $package_amount,
-                                                'created_on'            =>  date("Y-m-d H:i:s"),
-                                            );
-                                            $this->db->insert('tbl_customer_package_allocations', $allocation_data);
-                                            $allocation_id = $this->db->insert_id();
-                        
-                                            $allocation_data_for_product = array(
-                                                'package_allocation_id' =>  $allocation_id
-                                            );
-                                            $allocation_data_for_booking = array(
-                                                'package_allocation_id' =>  $allocation_id,
-                                                'used_package_type'     =>  '1'
-                                            );
-                                            
-                                            $this->db->where('id',$booking_id);
-                                            $this->db->where('branch_id',$branch_id);
-                                            $this->db->where('salon_id',$salon_id);
-                                            $this->db->update('tbl_new_booking',$allocation_data_for_booking);
-                        
-                                            $this->db->where('product_added_from','1');
-                                            $this->db->where('customer_name',$customer_id);
-                                            $this->db->where('booking_id',$booking_id);
-                                            $this->db->where('package_id',$selected_package_id);
-                                            $this->db->where('branch_id',$branch_id);
-                                            $this->db->where('salon_id',$salon_id);
-                                            $this->db->update('tbl_booking_services_products_details',$allocation_data_for_product);
-                        
-                                            $package_all_services = explode(',',$package_details->service_name);
-                        
-                                            if(!empty($package_all_services)){
-                                                for($i=0;$i<count($package_all_services);$i++){
-                                                    $package_service_products = $this->Salon_model->get_package_products_single_all($package_details->id,$package_all_services[$i],$branch_id,$salon_id);
-                                                    $package_item_details = array(
-                                                        'branch_id' 			=> $branch_id,
-                                                        'salon_id' 				=> $salon_id,
-                                                        'allocation_id' 		=> $allocation_id,
-                                                        'customer_name' 		=> $customer_id,
-                                                        'pacakge_id' 		    => $selected_package_id,
-                                                        'package_amount' 		=> $package_amount,
-                                                        'added_in_booking_id'   => $booking_id,
-                                                        'item_type'             =>  '0',
-                                                        'item_id'               =>  $package_all_services[$i],
-                                                        'products_id'           =>  !empty($package_service_products) ? $package_service_products->product_ids : null,
-                                                        'item_added_on'         =>  date("Y-m-d"),
-                                                        'package_start_date'    =>  date("Y-m-d"),
-                                                        'created_on'            =>  date("Y-m-d H:i:s"),
-                                                    );
-                                                    $this->db->insert('tbl_booking_package_detail_status', $package_item_details);
-                                                    $single_package_details_id = $this->db->insert_id();
-                        
-                                                    if($services != "" && is_array($services) && !empty($services)){
-                                                        for($i=0;$i<count($services);$i++){
-                                                            $service_added_from = $services[$i]['service_added_from'];
-                                                            if($service_added_from == '1'){
-                                                                $service_id = $services[$i]['service_id'];
-                                                                if($package_all_services[$i] == $service_id){
-                                                                    $package_item_used_details = array(
-                                                                        'item_used_in_booking_id'   => $booking_id,
-                                                                        'used_status'               =>  '1',
-                                                                        'item_used_on'              =>  date("Y-m-d"),                                                                
-                                                                        'service_date'     		    => date('Y-m-d',strtotime($booking_date)),
-                                                                        'service_from'    	        => $service_from != "" ? date('Y-m-d H:i:s',strtotime($service_from)) : null,
-                                                                        'service_to'      	        => $service_to != "" ? date('Y-m-d H:i:s',strtotime($service_to)) : null,
-                                                                    );
-                                                                    $this->db->where('item_type','0');
-                                                                    $this->db->where('allocation_id',$allocation_id);
-                                                                    $this->db->where('id',$single_package_details_id);
-                                                                    $this->db->where('item_id',$package_all_services[$i]);
-                                                                    $this->db->update('tbl_booking_package_detail_status', $package_item_used_details);
-                                                                }
-                                                            }
-                                                        }
-                                                    }                            
-                        
-                                                    $allocation_data_for_service = array(
-                                                        'package_allocation_id'         =>  $allocation_id,
-                                                        'package_allocation_status_id'  =>  $single_package_details_id,
-                                                    );
-                                                    $this->db->where('service_id', $package_all_services[$i]);
-                                                    $this->db->where('customer_name',$customer_id);
-                                                    $this->db->where('booking_id',$booking_id);
-                                                    $this->db->where('service_added_from','1');
+                                        }
+                                    }
+                            
+                                    $this->Salon_model->update_booking_service_end_all($booking_id,$branch_id,$salon_id);
+                            
+                                    $this->db->where('id',$customer_id);
+                                    $this->db->where('branch_id',$branch_id);
+                                    $this->db->where('salon_id',$salon_id);
+                                    $this->db->where('is_deleted','0');
+                                    $customer_details = $this->db->get('tbl_salon_customer')->row();
+                                    if(!empty($customer_details) && $customer_details->customer_phone != "" && $customer_details->customer_phone != null && $customer_details->customer_phone != '0000000000'){
+                                        $services_text = '';
+                                        $this->db->where('id',$booking_id);
+                                        $booking_details = $this->db->get('tbl_new_booking')->row();
+                                        if(!empty($booking_details)){
+                                            $services = explode(',',$booking_details->services);
+                                            if(count($services) > 0){
+                                                for($i=0;$i<count($services);$i++){
+                                                    $this->db->where('id',$services[$i]);
                                                     $this->db->where('branch_id',$branch_id);
                                                     $this->db->where('salon_id',$salon_id);
-                                                    $this->db->update('tbl_booking_services_details',$allocation_data_for_service);
-                                                }
-                                            }                
-                        
-                                            $this->db->where('allocation_id',$allocation_id);
-                                            $this->db->where('customer_name',$customer_id);
-                                            $this->db->where('pacakge_id',$selected_package_id);
-                                            $this->db->where('used_status','0');
-                                            $this->db->where('is_deleted','0');
-                                            $available_unused_item = $this->db->get('tbl_booking_package_detail_status')->num_rows();
-                                            if($available_unused_item == 0){
-                                                $lapsed_data = array(
-                                                    'is_lapsed' =>  '1',
-                                                );
-                                                $this->db->where('id',$allocation_id);
-                                                $this->db->update('tbl_customer_package_allocations', $lapsed_data);
-                                            }
-                                        }
-                                    }
-                                }
-                        
-                                $this->Salon_model->update_booking_service_end_all($booking_id,$branch_id,$salon_id);
-                        
-                                $this->db->where('id',$customer_id);
-                                $this->db->where('branch_id',$branch_id);
-                                $this->db->where('salon_id',$salon_id);
-                                $this->db->where('is_deleted','0');
-                                $customer_details = $this->db->get('tbl_salon_customer')->row();
-                                if(!empty($customer_details) && $customer_details->customer_phone != "" && $customer_details->customer_phone != null && $customer_details->customer_phone != '0000000000'){
-                                    $services_text = '';
-                                    $this->db->where('id',$booking_id);
-                                    $booking_details = $this->db->get('tbl_new_booking')->row();
-                                    if(!empty($booking_details)){
-                                        $services = explode(',',$booking_details->services);
-                                        if(count($services) > 0){
-                                            for($i=0;$i<count($services);$i++){
-                                                $this->db->where('id',$services[$i]);
-                                                $this->db->where('branch_id',$branch_id);
-                                                $this->db->where('salon_id',$salon_id);
-                                                $this->db->where('is_deleted','0');
-                                                $service_details = $this->db->get('tbl_salon_emp_service')->row();
-                                                if (!empty($service_details)) {
-                                                    // $services_text .= $service_details->service_name . '|' . $service_details->service_name_marathi;
-                                                    $services_text .= $service_details->service_name;
-                                                    
-                                                    if ($i < count($services) - 1) {
-                                                        $services_text .= ', ';
+                                                    $this->db->where('is_deleted','0');
+                                                    $service_details = $this->db->get('tbl_salon_emp_service')->row();
+                                                    if (!empty($service_details)) {
+                                                        // $services_text .= $service_details->service_name . '|' . $service_details->service_name_marathi;
+                                                        $services_text .= $service_details->service_name;
+                                                        
+                                                        if ($i < count($services) - 1) {
+                                                            $services_text .= ', ';
+                                                        }
                                                     }
                                                 }
-                                            }
-                                            $services_text = trim($services_text,',');
-                                            $services_text = trim($services_text,' ');
-                                            $cleanedNumber = preg_replace('/[^0-9]/', '', $customer_details->customer_phone);
-                                            $finalNumber = substr($cleanedNumber, -10);
-                                            $finalNumber = '91' . $finalNumber;
-                        
-                                            $this->db->where('is_deleted','0');
-                                            $this->db->where('id',$customer_details->branch_id);
-                                            $this->db->where('salon_id',$customer_details->salon_id);
-                                            $branch = $this->db->get('tbl_branch')->row();
-                                            $visit_text = '';
-                                            if(!empty($branch)){
-                                                if($branch->branch_name != ""){
-                                                    $visit_text .= $branch->branch_name.'%0a';
+                                                $services_text = trim($services_text,',');
+                                                $services_text = trim($services_text,' ');
+                                                $cleanedNumber = preg_replace('/[^0-9]/', '', $customer_details->customer_phone);
+                                                $finalNumber = substr($cleanedNumber, -10);
+                                                $finalNumber = '91' . $finalNumber;
+                            
+                                                $this->db->where('is_deleted','0');
+                                                $this->db->where('id',$customer_details->branch_id);
+                                                $this->db->where('salon_id',$customer_details->salon_id);
+                                                $branch = $this->db->get('tbl_branch')->row();
+                                                $visit_text = '';
+                                                if(!empty($branch)){
+                                                    if($branch->branch_name != ""){
+                                                        $visit_text .= $branch->branch_name.'%0a';
+                                                    }
                                                 }
-                                            }
-                                            $receipt_link = base_url() . 'mobile-booking-print/' . base64_encode($booking_details->id) . '?print&mobile';
-    
-                                            $type = '5';
-                                            $message = "Hello, " . $customer_details->full_name . "!%0a%0aYou're booked\u{1F389}%0a\u{1F5D3}" . date('d M, Y',strtotime($booking_details->service_start_date)) . " at%0a\u{1F55B}" . date('h:i A',strtotime($booking_details->service_start_time)) . " for%0a\u{1F488}" . $services_text . "%0a%0aFollow the link for booking receipt.%0a" . $receipt_link . "%0a%0aNeed changes !!! Just Feel Free To Contact Us.%0a%0aThanks for choosing us!%0a" . $visit_text . "";
-                                            $app_message = "Hello, " . $customer_details->full_name . "!\n\nYou're booked\u{1F389}\n\u{1F5D3}" . date('d M, Y', strtotime($booking_details->service_start_date)) . " at\n\u{1F55B}" . date('h:i A', strtotime($booking_details->service_start_time)) . " for\n\u{1F488}" . $services_text . "\nFollow the link for booking receipt." . $receipt_link . "\n\nNeed changes!!! Just Feel Free To Contact Us.\n\nThanks for choosing us!\n" . $visit_text . "";
-                                            // echo $message; exit;
-                                            $number = $finalNumber;
-                                            $customer = $customer_details->id;
-                                            $salon_id = $customer_details->salon_id;
-                                            $branch_id = $customer_details->branch_id;
-                                            $for_order_id = $booking_details->id;
-                                            $for_offer_id = '';
-                                            $for_query_id = '';
-                                            $consent_form_id = '';
-                                            $title = 'Booking Received';
-                                            $generated_from = '1';
-                                            $notification_data = [
-                                                "landing_page"  => 'booking_details',
-                                                "redirect_id"   => (string)$for_order_id
-                                            ];
-                        
-                                            $message_send_on = '';
-                                            $template_id = '';
-                                            $email_subject = '';
-                                            $email_html = '';
-                                            $booking_rules = $this->Salon_model->get_booking_rules_all($branch_id,$salon_id);
-                                            if(!empty($booking_rules)){
-                                                if($booking_rules->booking_reminder_type == '1'){
-                                                    $message_send_on = '0'; //SMS
-                                                    $template_id = '';
-                                                }elseif($booking_rules->booking_reminder_type == '2'){
-                                                    $message_send_on = '2'; //EMAIL
-                                                    $email_html = '';
-                                                }elseif($booking_rules->booking_reminder_type == '3'){
-                                                    $message_send_on = '1'; //WP
+                                                $receipt_link = base_url() . 'mobile-booking-print/' . base64_encode($booking_details->id) . '?print&mobile';
+        
+                                                $type = '5';
+                                                $message = "Hello, " . $customer_details->full_name . "!%0a%0aYou're booked\u{1F389}%0a\u{1F5D3}" . date('d M, Y',strtotime($booking_details->service_start_date)) . " at%0a\u{1F55B}" . date('h:i A',strtotime($booking_details->service_start_time)) . " for%0a\u{1F488}" . $services_text . "%0a%0aFollow the link for booking receipt.%0a" . $receipt_link . "%0a%0aNeed changes !!! Just Feel Free To Contact Us.%0a%0aThanks for choosing us!%0a" . $visit_text . "";
+                                                $app_message = "Hello, " . $customer_details->full_name . "!\n\nYou're booked\u{1F389}\n\u{1F5D3}" . date('d M, Y', strtotime($booking_details->service_start_date)) . " at\n\u{1F55B}" . date('h:i A', strtotime($booking_details->service_start_time)) . " for\n\u{1F488}" . $services_text . "\nFollow the link for booking receipt." . $receipt_link . "\n\nNeed changes!!! Just Feel Free To Contact Us.\n\nThanks for choosing us!\n" . $visit_text . "";
+                                                // echo $message; exit;
+                                                $number = $finalNumber;
+                                                $customer = $customer_details->id;
+                                                $salon_id = $customer_details->salon_id;
+                                                $branch_id = $customer_details->branch_id;
+                                                $for_order_id = $booking_details->id;
+                                                $for_offer_id = '';
+                                                $for_query_id = '';
+                                                $consent_form_id = '';
+                                                $title = 'Booking Received';
+                                                $generated_from = '1';
+                                                $notification_data = [
+                                                    "landing_page"  => 'booking_details',
+                                                    "redirect_id"   => (string)$for_order_id
+                                                ];
+                            
+                                                $message_send_on = '';
+                                                $template_id = '';
+                                                $email_subject = '';
+                                                $email_html = '';
+                                                $booking_rules = $this->Salon_model->get_booking_rules_all($branch_id,$salon_id);
+                                                if(!empty($booking_rules)){
+                                                    if($booking_rules->booking_reminder_type == '1'){
+                                                        $message_send_on = '0'; //SMS
+                                                        $template_id = '';
+                                                    }elseif($booking_rules->booking_reminder_type == '2'){
+                                                        $message_send_on = '2'; //EMAIL
+                                                        $email_html = '';
+                                                    }elseif($booking_rules->booking_reminder_type == '3'){
+                                                        $message_send_on = '1'; //WP
+                                                    }
                                                 }
+                                                $membership_history_id = '';
+                                                $package_allocation_id = '';
+                                                $giftcard_purchase_id = '';
+                                                $trying_booking_id = '';
+                                                $wp_template_data = [];
+                                                $cron_id = '';
+                            
+                                                $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                                             }
-                                            $membership_history_id = '';
-                                            $package_allocation_id = '';
-                                            $giftcard_purchase_id = '';
-                                            $trying_booking_id = '';
-                                            $wp_template_data = [];
-                        
-                                            $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
                                         }
                                     }
-                                }
-    
-                                if($selected_stylist != "" && $branch_id != "" && $salon_id != ""){
-                                    $this->db->where('id',$booking_id);
-                                    $booking_details = $this->db->get('tbl_new_booking')->row();
-                                    if(!empty($booking_details)){
-                                        $this->db->where('id',$selected_stylist);
-                                        $emp_details = $this->db->get('tbl_salon_employee')->row();
-                                        if(!empty($emp_details)){
-                                            $uid = $branch_id.'@@@'.$salon_id;
-                                            $type = 'sender';
-                                            $project = 'salon';
-                                            $message = 'Received booking for ' . $emp_details->full_name . ' on ' . date('d M, Y h:i A', strtotime($booking_details->service_start_date.' '.$booking_details->service_start_time));
-                                            $data = json_encode([
-                                                'message_type'  => 'booking_placed',
-                                                'branch_id'     => $branch_id,
-                                                'salon_id'      => $salon_id,
-                                                'project'       => $project,
-                                                'uid'           => $uid,
-                                                'message'       => $message,
-                                                'stylist'       => $selected_stylist,
-                                                'service_start_time'  => $booking_details->service_start_time,
-                                                'service_from'  => $booking_details->service_start_date.' '.$booking_details->service_start_time,
-                                                'service_to'    => $booking_details->service_start_date.' '.$booking_details->service_end_time,
-                                                'service_date'  => date('Y-m-d', strtotime($booking_details->service_start_date)),
-                                                'service_name'  => !empty($service_details) ? $service_details->service_name : '',
-                                                'stylist_name'  => $emp_details->full_name
-                                            ]);
-                                            $this->Salon_model->send_data_to_socket_client('app',$uid,$type,$project,$message,$data);
+        
+                                    if($selected_stylist != "" && $branch_id != "" && $salon_id != ""){
+                                        $this->db->where('id',$booking_id);
+                                        $booking_details = $this->db->get('tbl_new_booking')->row();
+                                        if(!empty($booking_details)){
+                                            $this->db->where('id',$selected_stylist);
+                                            $emp_details = $this->db->get('tbl_salon_employee')->row();
+                                            if(!empty($emp_details)){
+                                                $uid = $branch_id.'@@@'.$salon_id;
+                                                $type = 'sender';
+                                                $project = 'salon';
+                                                $message = 'Received booking for ' . $emp_details->full_name . ' on ' . date('d M, Y h:i A', strtotime($booking_details->service_start_date.' '.$booking_details->service_start_time));
+                                                $data = json_encode([
+                                                    'message_type'  => 'booking_placed',
+                                                    'branch_id'     => $branch_id,
+                                                    'salon_id'      => $salon_id,
+                                                    'project'       => $project,
+                                                    'uid'           => $uid,
+                                                    'message'       => $message,
+                                                    'stylist'       => $selected_stylist,
+                                                    'service_start_time'  => $booking_details->service_start_time,
+                                                    'service_from'  => $booking_details->service_start_date.' '.$booking_details->service_start_time,
+                                                    'service_to'    => $booking_details->service_start_date.' '.$booking_details->service_end_time,
+                                                    'service_date'  => date('Y-m-d', strtotime($booking_details->service_start_date)),
+                                                    'service_name'  => !empty($service_details) ? $service_details->service_name : '',
+                                                    'stylist_name'  => $emp_details->full_name
+                                                ]);
+                                                $this->Salon_model->send_data_to_socket_client('app',$uid,$type,$project,$message,$data);
+                                            }
                                         }
                                     }
-                                }
 
-                                if(isset($request['temp_booking_id']) && $request['temp_booking_id'] != ""){    
-                                    $this->db->where('customer_id', $customer_id);
-                                    $this->db->where('branch_id', $branch_id);
-                                    $this->db->where('salon_id', $salon_id);
-                                    $this->db->where('is_deleted', '0');
-                                    $this->db->where('id', $request['temp_booking_id']);
-                                    $this->db->update('tbl_trying_for_booking', array(
-                                        'step'              => null,
-                                        'booking_status'    => '1',
-                                        'booking_id'        => $booking_id,
-                                        'booking_placed_on' => date('Y-m-d H:i:s')
-                                    ));
-                                }
+                                    if(isset($request['temp_booking_id']) && $request['temp_booking_id'] != ""){    
+                                        $this->db->where('customer_id', $customer_id);
+                                        $this->db->where('branch_id', $branch_id);
+                                        $this->db->where('salon_id', $salon_id);
+                                        $this->db->where('is_deleted', '0');
+                                        $this->db->where('id', $request['temp_booking_id']);
+                                        $this->db->update('tbl_trying_for_booking', array(
+                                            'step'              => null,
+                                            'booking_status'    => '1',
+                                            'booking_id'        => $booking_id,
+                                            'booking_placed_on' => date('Y-m-d H:i:s')
+                                        ));
+                                    }
 
-                                if(isset($request['reservation_id']) && $request['reservation_id'] != ""){                                    
-                                    $booking_date = date('Y-m-d',strtotime($booking_date));
-                                    $slot_from = date('H:i:s',strtotime($slot_from));
-                                    list($year, $month, $day) = explode('-', $booking_date);
-                                    list($hour, $minute, $second) = explode(':', $slot_from);
-                                    $timestamp = mktime($hour, $minute, $second, $month, $day, $year);
-                                    $slot = date('Y-m-d H:i:s', $timestamp);
+                                    if(isset($request['reservation_id']) && $request['reservation_id'] != ""){                                    
+                                        $booking_date = date('Y-m-d',strtotime($booking_date));
+                                        $slot_from = date('H:i:s',strtotime($slot_from));
+                                        list($year, $month, $day) = explode('-', $booking_date);
+                                        list($hour, $minute, $second) = explode(':', $slot_from);
+                                        $timestamp = mktime($hour, $minute, $second, $month, $day, $year);
+                                        $slot = date('Y-m-d H:i:s', $timestamp);
 
-                                    $this->db->where('branch_id', $branch_id);
-                                    $this->db->where('salon_id', $salon_id);
-                                    $this->db->where('id', $request['reservation_id']);
-                                    $this->db->where('slot', $slot);
-                                    $this->db->update('tbl_stylist_slot_reservations', array(
-                                        'status' => '1'
-                                    ));
+                                        $this->db->where('status', '0');
+                                        $this->db->where('branch_id', $branch_id);
+                                        $this->db->where('salon_id', $salon_id);
+                                        $this->db->where('id', $request['reservation_id']);
+                                        $this->db->update('tbl_stylist_slot_reservations', array(
+                                            'status'                => '1',
+                                            'confirm_booking_id'    => $booking_id
+                                        ));
+                                    }
+        
+                                    $json_arr['status'] = 'true';
+                                    $json_arr['message'] = 'Booking placed successfully';
+                                    $json_arr['data'] = array('booking_id'  =>  $booking_id, 'receipt'  =>  base_url().'mobile-booking-print/'.base64_encode($booking_id).'?print&mobile');
+                                }else{
+                                    $json_arr['status'] = 'false';
+                                    $json_arr['message'] = 'Slot not available now, Please try again with another slot';
+                                    $json_arr['data'] = [];
                                 }
-    
-                                $json_arr['status'] = 'true';
-                                $json_arr['message'] = 'Booking placed successfully';
-                                $json_arr['data'] = array('booking_id'  =>  $booking_id, 'receipt'  =>  base_url().'mobile-booking-print/'.base64_encode($booking_id).'?print&mobile');
                             }else{
                                 $json_arr['status'] = 'false';
-                                $json_arr['message'] = 'Slot not available now, Please try again with another slot';
+                                $json_arr['message'] = 'Slot not available now, Stylist Short Break overlapped';
                                 $json_arr['data'] = [];
                             }
                         }else{
@@ -4406,12 +4577,14 @@ class Api_model extends CI_Model {
     }
     public function get_available_reschedule_timeslots(){
         $request = json_decode(file_get_contents('php://input'), true);
+        $is_show_tabs = '0';
         if($request){
             if(isset($request['branch_id'])){
                 $customer_id = $request['customer_id'];
                 $salon_id = $request['salon_id'];
                 $branch_id = $request['branch_id'];
                 $stylist_id = isset($request['stylist_id']) ? $request['stylist_id'] : '';    
+                $reservation_id = isset($request['reservation_id']) ? $request['reservation_id'] : '';    
 
                 $this->db->where('is_deleted','0');
                 $this->db->where('status','1');
@@ -4429,6 +4602,16 @@ class Api_model extends CI_Model {
                     if(!empty($branch)){
                         $rules = $this->Salon_model->get_booking_rules_all($branch_id,$salon_id); 
                         if(!empty($rules)){
+                            $slot_type = isset($request['slot_type']) ? $request['slot_type'] : '';
+                            $slot_thresholds = [
+                                'morning'   => ['start' => '05:00:00', 'end' => '12:00:00', 'label' => 'morning_slots'],
+                                'afternoon' => ['start' => '12:00:00', 'end' => '17:00:00', 'label' => 'afternoon_slots'],
+                                'evening'   => ['start' => '17:00:00', 'end' => '23:00:00', 'label' => 'evening_slots'],
+                            ];                         
+
+                            $offset = $request['offset'];   
+                            $limit = $request['limit']; 
+
                             $booking_id = $request['booking_id'];    
                             $this->db->where('is_deleted','0');
                             $this->db->where('status','1');
@@ -4467,193 +4650,304 @@ class Api_model extends CI_Model {
 
                                                 $store_start = date('Y-m-d H:i:s',strtotime($booking_date.' '.$working_hrs['start']));
                                                 $store_end = date('Y-m-d H:i:s',strtotime($booking_date.' '.$working_hrs['end']));
-                                                $slots = $this->Salon_model->generateCommonTimePairs($booking_date,$store_start,$store_end,$duration);
-                            
-                                                $slots_morning = [];
-                                                $slots_afternoon = [];
-                                                $slots_evening = [];
-
-                                                for($i=0;$i<count($slots);$i++){
-                                                    $slot_time = date('H:i:s', strtotime($slots[$i]['from']));
-                                                    if ($slot_time >= '05:00:00' && $slot_time < '12:00:00') {
-                                                        $slots_morning[] = $slots[$i];
-                                                    } elseif ($slot_time >= '12:00:00' && $slot_time < '17:00:00') {
-                                                        $slots_afternoon[] = $slots[$i];
-                                                    } else {
-                                                        $slots_evening[] = $slots[$i];
-                                                    }
-                                                }
-
-                                                $offset = $request['offset'];   
-                                                $limit = $request['limit']; 
                                                 
-                                                $slots_morning_array = array();
-                                                if(!empty($slots_morning)){
-                                                    foreach ($slots_morning as &$slot) {
-                                                        $allowed_booking_datetime = date('Y-m-d H:i:s', strtotime($slot['from'] . ' - ' . $minutes_early_booking . ' minutes'));
-                                                        $current_date = date('Y-m-d H:i:s');
-                                                        if ($current_date <= $allowed_booking_datetime) {
-                                                            $selected_start = date('Y-m-d H:i:s', strtotime($slot['from']));
-                                                            if (date('Y-m-d H:i:s', strtotime($slot['from'])) >= $selected_start) {
-                                                                // $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_resch_services_all($slot['from'], $reschedule_details, $branch_id, $salon_id);
-                                                                $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_resch_services_all_stylist($slot['from'], $reschedule_details, $branch_id, $salon_id, $stylist_id);
-                                                                if($is_vacent){
-                                                                    $is_vacent_flag = '1';
-                                                                }else{
-                                                                    $is_vacent_flag = '0';
-                                                                }
-                                                                if($is_vacent_flag == '1'){
-                                                                    $slots_morning_array[] = array(
-                                                                        'from'      =>  date('h:i A', strtotime($slot['from'])),
-                                                                        'to'        =>  date('h:i A', strtotime($slot['to'])),
-                                                                        'is_vacent' =>  $is_vacent_flag
-                                                                    );
+                                                if (!empty($slot_type) && isset($slot_thresholds[$slot_type])) {
+                                                    $threshold = $slot_thresholds[$slot_type];
+
+                                                    $threshold_start = date('Y-m-d H:i:s', strtotime($booking_date . ' ' . $threshold['start']));
+                                                    $threshold_end   = date('Y-m-d H:i:s', strtotime($booking_date . ' ' . $threshold['end']));
+
+                                                    $slot_start_time = max($store_start, $threshold_start);
+                                                    $slot_end_time   = min($store_end, $threshold_end);
+
+                                                    $slots = $this->Salon_model->generateCommonTimePairs($booking_date, $slot_start_time, $slot_end_time, $duration);
+
+                                                    if($limit != ""){
+                                                        $slots = array_slice($slots, $offset, $limit);
+                                                    }
+                                                    
+                                                    $final_slots = array();
+                                                    if(!empty($slots)){
+                                                        foreach ($slots as $slot) {
+                                                            $allowed_booking_datetime = date('Y-m-d H:i:s', strtotime($slot['from'] . ' - ' . $minutes_early_booking . ' minutes'));
+                                                            $current_date = date('Y-m-d H:i:s');
+                                                            if ($current_date <= $allowed_booking_datetime) {
+                                                                $selected_start = date('Y-m-d H:i:s', strtotime($slot['from']));
+                                                                if (date('Y-m-d H:i:s', strtotime($slot['from'])) >= $selected_start) {
+                                                                    $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_resch_services_all_stylist($slot['from'], $reschedule_details, $branch_id, $salon_id, $stylist_id, $reservation_id);
+                                                                    if($is_vacent){
+                                                                        $is_vacent_flag = '1';
+                                                                    }else{
+                                                                        $is_vacent_flag = '0';
+                                                                    }
+                                                                    if($is_vacent_flag == '1'){
+                                                                        $final_slots[] = array(
+                                                                            'from'      =>  date('h:i A', strtotime($slot['from'])),
+                                                                            'to'        =>  date('h:i A', strtotime($slot['to'])),
+                                                                            'is_vacent' =>  $is_vacent_flag
+                                                                        );
+                                                                    }
                                                                 }
                                                             }
                                                         }
-                                                    }
-                                                }
-                                                
-                                                $slots_afternoon_array = array();
-                                                if(!empty($slots_afternoon)){
-                                                    foreach ($slots_afternoon as &$slot) {
-                                                        $allowed_booking_datetime = date('Y-m-d H:i:s', strtotime($slot['from'] . ' - ' . $minutes_early_booking . ' minutes'));
-                                                        $current_date = date('Y-m-d H:i:s');
-                                                        if ($current_date <= $allowed_booking_datetime) {
-                                                            $selected_start = date('Y-m-d H:i:s', strtotime($slot['from']));
-                                                            if (date('Y-m-d H:i:s', strtotime($slot['from'])) >= $selected_start) {
-                                                                // $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_resch_services_all($slot['from'], $reschedule_details, $branch_id, $salon_id);
-                                                                $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_resch_services_all_stylist($slot['from'], $reschedule_details, $branch_id, $salon_id, $stylist_id);
-                                                                if($is_vacent){
-                                                                    $is_vacent_flag = '1';
-                                                                }else{
-                                                                    $is_vacent_flag = '0';
-                                                                }
-                                                                if($is_vacent_flag == '1'){
-                                                                    $slots_afternoon_array[] = array(
-                                                                        'from'      =>  date('h:i A', strtotime($slot['from'])),
-                                                                        'to'        =>  date('h:i A', strtotime($slot['to'])),
-                                                                        'is_vacent' =>  $is_vacent_flag
-                                                                    );
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                                
-                                                $slots_evening_array = array();
-                                                if(!empty($slots_evening)){
-                                                    foreach ($slots_evening as &$slot) {
-                                                        $allowed_booking_datetime = date('Y-m-d H:i:s', strtotime($slot['from'] . ' - ' . $minutes_early_booking . ' minutes'));
-                                                        $current_date = date('Y-m-d H:i:s');
-                                                        if ($current_date <= $allowed_booking_datetime) {
-                                                            $selected_start = date('Y-m-d H:i:s', strtotime($slot['from']));
-                                                            if (date('Y-m-d H:i:s', strtotime($slot['from'])) >= $selected_start) {
-                                                                // $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_resch_services_all($slot['from'], $reschedule_details, $branch_id, $salon_id);
-                                                                $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_resch_services_all_stylist($slot['from'], $reschedule_details, $branch_id, $salon_id, $stylist_id);
-                                                                if($is_vacent){
-                                                                    $is_vacent_flag = '1';
-                                                                }else{
-                                                                    $is_vacent_flag = '0';
-                                                                }
-                                                                if($is_vacent_flag == '1'){
-                                                                    $slots_evening_array[] = array(
-                                                                        'from'      =>  date('h:i A', strtotime($slot['from'])),
-                                                                        'to'        =>  date('h:i A', strtotime($slot['to'])),
-                                                                        'is_vacent' =>  $is_vacent_flag
-                                                                    );
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-
-                                                $morning_slots = array_slice($slots_morning_array, $offset, $limit);
-                                                $afternoon_slots = array_slice($slots_afternoon_array, $offset, $limit);
-                                                $evening_slots = array_slice($slots_evening_array, $offset, $limit);
-
-                                                if (empty($morning_slots) && empty($afternoon_slots) && empty($evening_slots)) {
+                                                    }                                                
+                                        
                                                     if(date('Y-m-d') == date('Y-m-d',strtotime($booking_date))){
                                                         if(date('H:i:s') > date('H:i:s',strtotime($working_hrs['end']))){
                                                             $json_arr['status'] = 'false';
-                                                            $json_arr['message'] = 'Sorry, all time slots for today are closed. Please book for another day.';
+                                                            $json_arr['message'] = 'Booking time for today is over. Try another day.';
+                                                            $json_arr['is_show_tabs'] = $is_show_tabs;
                                                             $json_arr['data'] = [];
                                                         }else{
-                                                            $json_arr['status'] = 'false';
-                                                            $json_arr['message'] = 'Sorry, todays slots are full. Please book for another day.';
-                                                            $json_arr['data'] = [];
+                                                            $is_show_tabs = '1';
+                                                            if (empty($final_slots)) {
+                                                                $json_arr['status'] = 'false';
+                                                                $json_arr['message'] = ucfirst($slot_type) . ' slots not available';
+                                                                $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                                $json_arr['data'] = [];
+                                                            } else {
+                                                                $data = array(
+                                                                    $threshold['label'] => $final_slots,
+                                                                    'limit'             => $limit,
+                                                                    'offset'            => $limit != "" ? $offset + $limit : '',
+                                                                );
+                                                                $json_arr['status'] = 'true';
+                                                                $json_arr['message'] = 'success';
+                                                                $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                                $json_arr['data'] = $data;
+                                                            }
                                                         }
                                                     }else{
-                                                        $json_arr['status'] = 'false';
-                                                        $json_arr['message'] = 'Sorry, slots for selected date are full. Please book for another day.';
-                                                        $json_arr['data'] = [];
+                                                        $is_show_tabs = '1';
+                                                        if (empty($final_slots)) {
+                                                            $json_arr['status'] = 'false';
+                                                            $json_arr['message'] = ucfirst($slot_type) . ' slots not available';
+                                                            $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                            $json_arr['data'] = [];
+                                                        } else {
+                                                            $data = array(
+                                                                $threshold['label'] => $final_slots,
+                                                                'limit'             => $limit,
+                                                                'offset'            => $limit != "" ? $offset + $limit : '',
+                                                            );
+                                                            $json_arr['status'] = 'true';
+                                                            $json_arr['message'] = 'success';
+                                                            $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                            $json_arr['data'] = $data;
+                                                        }
                                                     }
-                                                } else {
-                                                    $data = array(
-                                                        'morning_slots'   => $morning_slots,
-                                                        'afternoon_slots' => $afternoon_slots,
-                                                        'evening_slots'   => $evening_slots,
-                                                        'limit'           => $limit,
-                                                        'offset'          => $offset + $limit,
-                                                    );
-                                                    $json_arr['status'] = 'true';
-                                                    $json_arr['message'] = 'success';
-                                                    $json_arr['data'] = $data;
+                                                }else{
+                                                    $slots = $this->Salon_model->generateCommonTimePairs($booking_date,$store_start,$store_end,$duration);
+                                
+                                                    $slots_morning = [];
+                                                    $slots_afternoon = [];
+                                                    $slots_evening = [];
+
+                                                    for($i=0;$i<count($slots);$i++){
+                                                        $slot_time = date('H:i:s', strtotime($slots[$i]['from']));
+                                                        if ($slot_time >= '05:00:00' && $slot_time < '12:00:00') {
+                                                            $slots_morning[] = $slots[$i];
+                                                        } elseif ($slot_time >= '12:00:00' && $slot_time < '17:00:00') {
+                                                            $slots_afternoon[] = $slots[$i];
+                                                        } else {
+                                                            $slots_evening[] = $slots[$i];
+                                                        }
+                                                    }
+
+                                                    $offset = $request['offset'];   
+                                                    $limit = $request['limit']; 
+                                                    
+                                                    $slots_morning_array = array();
+                                                    if(!empty($slots_morning)){
+                                                        foreach ($slots_morning as &$slot) {
+                                                            $allowed_booking_datetime = date('Y-m-d H:i:s', strtotime($slot['from'] . ' - ' . $minutes_early_booking . ' minutes'));
+                                                            $current_date = date('Y-m-d H:i:s');
+                                                            if ($current_date <= $allowed_booking_datetime) {
+                                                                $selected_start = date('Y-m-d H:i:s', strtotime($slot['from']));
+                                                                if (date('Y-m-d H:i:s', strtotime($slot['from'])) >= $selected_start) {
+                                                                    // $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_resch_services_all($slot['from'], $reschedule_details, $branch_id, $salon_id);
+                                                                    $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_resch_services_all_stylist($slot['from'], $reschedule_details, $branch_id, $salon_id, $stylist_id, $reservation_id);
+                                                                    if($is_vacent){
+                                                                        $is_vacent_flag = '1';
+                                                                    }else{
+                                                                        $is_vacent_flag = '0';
+                                                                    }
+                                                                    if($is_vacent_flag == '1'){
+                                                                        $slots_morning_array[] = array(
+                                                                            'from'      =>  date('h:i A', strtotime($slot['from'])),
+                                                                            'to'        =>  date('h:i A', strtotime($slot['to'])),
+                                                                            'is_vacent' =>  $is_vacent_flag
+                                                                        );
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                    
+                                                    $slots_afternoon_array = array();
+                                                    if(!empty($slots_afternoon)){
+                                                        foreach ($slots_afternoon as &$slot) {
+                                                            $allowed_booking_datetime = date('Y-m-d H:i:s', strtotime($slot['from'] . ' - ' . $minutes_early_booking . ' minutes'));
+                                                            $current_date = date('Y-m-d H:i:s');
+                                                            if ($current_date <= $allowed_booking_datetime) {
+                                                                $selected_start = date('Y-m-d H:i:s', strtotime($slot['from']));
+                                                                if (date('Y-m-d H:i:s', strtotime($slot['from'])) >= $selected_start) {
+                                                                    // $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_resch_services_all($slot['from'], $reschedule_details, $branch_id, $salon_id);
+                                                                    $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_resch_services_all_stylist($slot['from'], $reschedule_details, $branch_id, $salon_id, $stylist_id, $reservation_id);
+                                                                    if($is_vacent){
+                                                                        $is_vacent_flag = '1';
+                                                                    }else{
+                                                                        $is_vacent_flag = '0';
+                                                                    }
+                                                                    if($is_vacent_flag == '1'){
+                                                                        $slots_afternoon_array[] = array(
+                                                                            'from'      =>  date('h:i A', strtotime($slot['from'])),
+                                                                            'to'        =>  date('h:i A', strtotime($slot['to'])),
+                                                                            'is_vacent' =>  $is_vacent_flag
+                                                                        );
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                    
+                                                    $slots_evening_array = array();
+                                                    if(!empty($slots_evening)){
+                                                        foreach ($slots_evening as &$slot) {
+                                                            $allowed_booking_datetime = date('Y-m-d H:i:s', strtotime($slot['from'] . ' - ' . $minutes_early_booking . ' minutes'));
+                                                            $current_date = date('Y-m-d H:i:s');
+                                                            if ($current_date <= $allowed_booking_datetime) {
+                                                                $selected_start = date('Y-m-d H:i:s', strtotime($slot['from']));
+                                                                if (date('Y-m-d H:i:s', strtotime($slot['from'])) >= $selected_start) {
+                                                                    // $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_resch_services_all($slot['from'], $reschedule_details, $branch_id, $salon_id);
+                                                                    $is_vacent = $this->Salon_model->check_slot_vacent_for_selected_resch_services_all_stylist($slot['from'], $reschedule_details, $branch_id, $salon_id, $stylist_id, $reservation_id);
+                                                                    if($is_vacent){
+                                                                        $is_vacent_flag = '1';
+                                                                    }else{
+                                                                        $is_vacent_flag = '0';
+                                                                    }
+                                                                    if($is_vacent_flag == '1'){
+                                                                        $slots_evening_array[] = array(
+                                                                            'from'      =>  date('h:i A', strtotime($slot['from'])),
+                                                                            'to'        =>  date('h:i A', strtotime($slot['to'])),
+                                                                            'is_vacent' =>  $is_vacent_flag
+                                                                        );
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    $morning_slots = array_slice($slots_morning_array, $offset, $limit);
+                                                    $afternoon_slots = array_slice($slots_afternoon_array, $offset, $limit);
+                                                    $evening_slots = array_slice($slots_evening_array, $offset, $limit);                                                   
+
+                                                    if (empty($morning_slots) && empty($afternoon_slots) && empty($evening_slots)) {
+                                                        if(date('Y-m-d') == date('Y-m-d',strtotime($booking_date))){
+                                                            if(date('H:i:s') > date('H:i:s',strtotime($working_hrs['end']))){
+                                                                $json_arr['status'] = 'false';
+                                                                $json_arr['message'] = 'Sorry, all time slots for today are closed. Please book for another day.';
+                                                                $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                                $json_arr['data'] = [];
+                                                            }else{
+                                                                $json_arr['status'] = 'false';
+                                                                $json_arr['message'] = 'Sorry, todays slots are full. Please book for another day.';
+                                                                $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                                $json_arr['data'] = [];
+                                                            }
+                                                        }else{
+                                                            $json_arr['status'] = 'false';
+                                                            $json_arr['message'] = 'Sorry, slots for selected date are full. Please book for another day.';
+                                                            $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                            $json_arr['data'] = [];
+                                                        }
+                                                    } else {
+                                                        $is_show_tabs = '1';
+                                                        $data = array(
+                                                            'morning_slots'   => $morning_slots,
+                                                            'afternoon_slots' => $afternoon_slots,
+                                                            'evening_slots'   => $evening_slots,
+                                                            'limit'           => $limit,
+                                                            'offset'          => $offset + $limit,
+                                                        );
+                                                        $json_arr['status'] = 'true';
+                                                        $json_arr['message'] = 'success';
+                                                        $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                        $json_arr['data'] = $data;
+                                                    }
                                                 }
                                             }else{
                                                 if(date('Y-m-d') == date('Y-m-d',strtotime($booking_date))){
                                                     $json_arr['status'] = 'false';
-                                                    $json_arr['message'] = 'Sorry, the salon is closed today. Please book for another day.';
+                                                    $json_arr['message'] = 'Salon is closed today. Book for another day.';
+                                                    $json_arr['is_show_tabs'] = $is_show_tabs;
                                                     $json_arr['data'] = [];
                                                 }else{
                                                     $json_arr['status'] = 'false';
-                                                    $json_arr['message'] = 'Sorry, the salon is closed for selected date. Please book for another day.';
+                                                    $json_arr['message'] = 'Salon is closed on ' . date('d M, Y',strtotime($booking_date)) . '. Book for another day.';
+                                                    $json_arr['is_show_tabs'] = $is_show_tabs;
                                                     $json_arr['data'] = [];
                                                 }
                                             }
                                         }else{
-                                            $json_arr['status'] = 'false';
-                                            $json_arr['message'] = 'Booking Slots not available, Please contact salon';
-                                            $json_arr['data'] = [];
+                                            if(date('Y-m-d') == date('Y-m-d',strtotime($booking_date))){
+                                                $json_arr['status'] = 'false';
+                                                $json_arr['message'] = $is_emergency->reason != "" ? 'Salon is closed today. Reason: ' . $is_emergency->reason : 'Salon is closed today. Please conact salon.';
+                                                $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                $json_arr['data'] = [];
+                                            }else{
+                                                $json_arr['status'] = 'false';
+                                                $json_arr['message'] = $is_emergency->reason != "" ? 'Salon is closed on ' . date('d M, Y',strtotime($booking_date)) . '. Reason: ' . $is_emergency->reason : 'Salon is closed on' . date('d M, Y',strtotime($booking_date)) . '. Please conact salon.';
+                                                $json_arr['is_show_tabs'] = $is_show_tabs;
+                                                $json_arr['data'] = [];
+                                            }
                                         }
                                     }else{
                                         $json_arr['status'] = 'false';
                                         $json_arr['message'] = 'Service details not found';
+                                        $json_arr['is_show_tabs'] = $is_show_tabs;
                                         $json_arr['data'] = [];
                                     }
                                 }else{
                                     $json_arr['status'] = 'false';
                                     $json_arr['message'] = 'Reschedule details not found';
+                                    $json_arr['is_show_tabs'] = $is_show_tabs;
                                     $json_arr['data'] = [];
                                 }
                             }else{
                                 $json_arr['status'] = 'false';
                                 $json_arr['message'] = 'Booking currently not available, Please contact salon';
+                                $json_arr['is_show_tabs'] = $is_show_tabs;
                                 $json_arr['data'] = [];
                             }
                         }else{
                             $json_arr['status'] = 'false';
                             $json_arr['message'] = 'Booking not available now, Please contact salon';
+                            $json_arr['is_show_tabs'] = $is_show_tabs;
                             $json_arr['data'] = [];
                         }
                     }else{
                         $json_arr['status'] = 'false';
                         $json_arr['message'] = 'Branch not available';
+                        $json_arr['is_show_tabs'] = $is_show_tabs;
                         $json_arr['data'] = [];
                     }
                 }else{
                     $json_arr['status'] = 'false';
                     $json_arr['message'] = 'Customer not found';
+                    $json_arr['is_show_tabs'] = $is_show_tabs;
                     $json_arr['data'] = [];
                 }          
             }else{
                 $json_arr['status'] = 'false';
                 $json_arr['message'] = 'Branch ID required.';
+                $json_arr['is_show_tabs'] = $is_show_tabs;
                 $json_arr['data'] = [];
             }
         }else{
             $json_arr['status'] = 'false';
             $json_arr['message'] = 'Request not found.';
+            $json_arr['is_show_tabs'] = $is_show_tabs;
             $json_arr['data'] = [];
         }
         echo json_encode($json_arr, JSON_UNESCAPED_UNICODE);
@@ -5081,7 +5375,8 @@ class Api_model extends CI_Model {
                 $salon_id = $request['salon_id'];
                 $branch_id = $request['branch_id'];                
                 $reschedule_date = $request['booking_date'];                
-                $reschedule_slot_from = $request['slot_from'];                
+                $reschedule_slot_from = $request['slot_from'];   
+                $validate_data = array();             
 
                 $this->db->where('is_deleted','0');
                 $this->db->where('status','1');
@@ -5099,6 +5394,7 @@ class Api_model extends CI_Model {
                         $timestamp = mktime($hour, $minute, $second, $month, $day, $year);
 
                         $selectedfrom = date('Y-m-d H:i:s', $timestamp);  
+                        $validate_selectedfrom = date('Y-m-d H:i:s', $timestamp);  
 
                         $booking_id = $request['booking_id'];    
                         $this->db->where('is_deleted','0');
@@ -5129,61 +5425,197 @@ class Api_model extends CI_Model {
                                         $this->db->join('tbl_admin_sub_category','tbl_admin_sub_category.id = tbl_salon_emp_service.sub_category');
                                         $single_service = $this->db->get('tbl_salon_emp_service')->row();                        
                                         if (!empty($single_service)) {
-                                            $service_to_datetime = new DateTime($selectedfrom);
+                                            $validate_service_to_datetime = new DateTime($validate_selectedfrom);
 
                                             $service_duration = $single_service->service_duration;
                                             $interval = new DateInterval("PT{$service_duration}M");
-                                            $service_to_datetime->add($interval);
+                                            $validate_service_to_datetime->add($interval);
 
-                                            $selectedto = $service_to_datetime->format('Y-m-d H:i:s');
+                                            $validate_selectedto = $validate_service_to_datetime->format('Y-m-d H:i:s');
 
-                                            $old_service_from = $single_booking_services->service_from;
-                                            $old_service_to = $single_booking_services->service_to;
-                                            $old_service_executive = $single_booking_services->stylist_id;
-                                            $update_data = array(
+                                            $validate_data[] = array(
                                                 'stylist_id'            =>  $reschedule_details[$i]['stylist_id'],
-                                                'booking_shift_id'      =>  $reschedule_details[$i]['stylist_shift_id'],
-                                                'booking_shift_type'    =>  $reschedule_details[$i]['stylist_shift_type'],
                                                 'service_date'          =>  date('Y-m-d',strtotime($reschedule_date)),
-                                                'service_from'          =>  date('Y-m-d H:i:s',strtotime($selectedfrom)),
-                                                'service_to'            =>  date('Y-m-d H:i:s',strtotime($selectedto))
+                                                'service_from'          =>  date('Y-m-d H:i:s',strtotime($validate_selectedfrom)),
+                                                'service_to'            =>  date('Y-m-d H:i:s',strtotime($validate_selectedto)),
+                                                'booking_id'            =>  $single_booking->id
                                             );
-                                            $this->db->where('id',$single_booking_services->id);
-                                            $this->db->update('tbl_booking_services_details',$update_data);                                        
-                                                
-                                            $reschedule_data = array(
-                                                'customer_id'       =>  $single->id,
-                                                'branch_id'         =>  $branch_id,
-                                                'salon_id'          =>  $salon_id,
-                                                'rescheduled_from'  =>  '1',
-                                                'booking_id'        =>  $single_booking->id,
-                                                'service_details_id'=>  $single_booking_services->id,
-                                                'service_id'        =>  $single_booking_services->service_id,
-                                                'old_details'       =>  date('Y-m-d H:i:s',strtotime($old_service_from)).'@@@'.date('Y-m-d H:i:s',strtotime($old_service_to)).'@@@'.$old_service_executive,
-                                                'new_details'       =>  date('Y-m-d H:i:s',strtotime($selectedfrom)).'@@@'.date('Y-m-d H:i:s',strtotime($selectedto)).'@@@'.$reschedule_details[$i]['stylist_id'],
-                                                'created_on'        =>  date("Y-m-d H:i:s")
-                                            );
-                                            $this->db->insert('tbl_customer_rescheduled_bookings',$reschedule_data);
-                                                    
-                                            $selectedfrom = $selectedto;
+
+                                            $validate_selectedfrom = $validate_selectedto;
                                         }
                                     }
-                                } 
-                                $update_booking_data = array(                                    
-                                    'service_start_date'    => date("Y-m-d",strtotime($reschedule_date)),
-                                    'service_start_time'    => date("H:i:s",strtotime($reschedule_slot_from)),
-                                );
-                                $this->db->where('id',$single_booking->id);
-                                $this->db->where('branch_id', $branch_id);
-                                $this->db->where('salon_id', $salon_id);
-                                $this->db->where('customer_name',$single->id);
-                                $this->db->update('tbl_new_booking',$update_booking_data);
+                                }
 
-                                $this->Salon_model->update_booking_service_end_all($single_booking->id,$branch_id,$salon_id);
+                                $valid_booking = $this->Salon_model->validate_booking_resc($validate_data,$branch_id,$salon_id);
+                                if($valid_booking == 1){
+                                    for($i=0;$i<count($reschedule_details);$i++){
+                                        $this->db->where('is_deleted','0');
+                                        $this->db->where('id',$reschedule_details[$i]['booking_details_id']);
+                                        $this->db->where('service_id',$reschedule_details[$i]['service_id']);
+                                        $this->db->where('booking_id',$single_booking->id);
+                                        $this->db->where('customer_name',$single->id);
+                                        $this->db->where('branch_id', $branch_id);
+                                        $this->db->where('salon_id', $salon_id);
+                                        $single_booking_services = $this->db->get('tbl_booking_services_details')->row();
+                                        if(!empty($single_booking_services)){ 
+                                            $this->db->select('tbl_salon_emp_service.*,tbl_admin_service_category.sup_category,tbl_admin_service_category.sup_category_marathi,tbl_admin_sub_category.sub_category,tbl_admin_sub_category.sub_category_marathi'); 
+                                            $this->db->where('tbl_salon_emp_service.id',$single_booking_services->service_id);
+                                            $this->db->where('tbl_salon_emp_service.salon_id', $salon_id);
+                                            $this->db->where('tbl_salon_emp_service.branch_id', $branch_id);
+                                            $this->db->join('tbl_admin_service_category','tbl_admin_service_category.id = tbl_salon_emp_service.category');
+                                            $this->db->join('tbl_admin_sub_category','tbl_admin_sub_category.id = tbl_salon_emp_service.sub_category');
+                                            $single_service = $this->db->get('tbl_salon_emp_service')->row();                        
+                                            if (!empty($single_service)) {
+                                                $service_to_datetime = new DateTime($selectedfrom);
 
-                                $json_arr['status'] = 'true';
-                                $json_arr['message'] = 'success';
-                                $json_arr['data'] = array('booking_id'  =>  $single_booking->id);
+                                                $service_duration = $single_service->service_duration;
+                                                $interval = new DateInterval("PT{$service_duration}M");
+                                                $service_to_datetime->add($interval);
+
+                                                $selectedto = $service_to_datetime->format('Y-m-d H:i:s');
+
+                                                $old_service_from = $single_booking_services->service_from;
+                                                $old_service_to = $single_booking_services->service_to;
+                                                $old_service_executive = $single_booking_services->stylist_id;
+                                                $update_data = array(
+                                                    'stylist_id'            =>  $reschedule_details[$i]['stylist_id'],
+                                                    'booking_shift_id'      =>  $reschedule_details[$i]['stylist_shift_id'],
+                                                    'booking_shift_type'    =>  $reschedule_details[$i]['stylist_shift_type'],
+                                                    'service_date'          =>  date('Y-m-d',strtotime($reschedule_date)),
+                                                    'service_from'          =>  date('Y-m-d H:i:s',strtotime($selectedfrom)),
+                                                    'service_to'            =>  date('Y-m-d H:i:s',strtotime($selectedto))
+                                                );
+                                                $this->db->where('id',$single_booking_services->id);
+                                                $this->db->update('tbl_booking_services_details',$update_data);                                        
+                                                    
+                                                $reschedule_data = array(
+                                                    'customer_id'       =>  $single->id,
+                                                    'branch_id'         =>  $branch_id,
+                                                    'salon_id'          =>  $salon_id,
+                                                    'rescheduled_from'  =>  '1',
+                                                    'booking_id'        =>  $single_booking->id,
+                                                    'service_details_id'=>  $single_booking_services->id,
+                                                    'service_id'        =>  $single_booking_services->service_id,
+                                                    'old_details'       =>  date('Y-m-d H:i:s',strtotime($old_service_from)).'@@@'.date('Y-m-d H:i:s',strtotime($old_service_to)).'@@@'.$old_service_executive,
+                                                    'new_details'       =>  date('Y-m-d H:i:s',strtotime($selectedfrom)).'@@@'.date('Y-m-d H:i:s',strtotime($selectedto)).'@@@'.$reschedule_details[$i]['stylist_id'],
+                                                    'created_on'        =>  date("Y-m-d H:i:s")
+                                                );
+                                                $this->db->insert('tbl_customer_rescheduled_bookings',$reschedule_data);
+                                                        
+                                                $selectedfrom = $selectedto;
+                                            }
+                                        }
+                                    } 
+                                    $update_booking_data = array(                                    
+                                        'service_start_date'    => date("Y-m-d",strtotime($reschedule_date)),
+                                        'service_start_time'    => date("H:i:s",strtotime($reschedule_slot_from)),
+                                    );
+                                    $this->db->where('id',$single_booking->id);
+                                    $this->db->where('branch_id', $branch_id);
+                                    $this->db->where('salon_id', $salon_id);
+                                    $this->db->where('customer_name',$single->id);
+                                    $this->db->update('tbl_new_booking',$update_booking_data);
+
+                                    $this->Salon_model->update_booking_service_end_all($single_booking->id,$branch_id,$salon_id);                                
+
+                                    $this->db->where('id',$single->id);
+                                    $this->db->where('branch_id', $branch_id);
+                                    $this->db->where('salon_id', $salon_id);
+                                    $this->db->where('is_deleted','0');
+                                    $customer_details = $this->db->get('tbl_salon_customer')->row();
+                                    if($customer_details->customer_phone != "" && $customer_details->customer_phone != null && $customer_details->customer_phone != '0000000000'){
+                                        $services_text = '';
+                                        $this->db->where('id',$single_booking->id);
+                                        $booking_details = $this->db->get('tbl_new_booking')->row();
+                                        if(!empty($booking_details)){
+                                            $services = explode(',',$booking_details->services);
+                                            if(count($services) > 0){
+                                                for($i=0;$i<count($services);$i++){
+                                                    $this->db->where('id',$services[$i]);
+                                                    $this->db->where('branch_id', $branch_id);
+                                                    $this->db->where('salon_id', $salon_id);
+                                                    $this->db->where('is_deleted','0');
+                                                    $service_details = $this->db->get('tbl_salon_emp_service')->row();
+                                                    if (!empty($service_details)) {
+                                                        // $services_text .= $service_details->service_name . '|' . $service_details->service_name_marathi;
+                                                        $services_text .= $service_details->service_name;
+                                                        
+                                                        if ($i < count($services) - 1) {
+                                                            $services_text .= ', ';
+                                                        }
+                                                    }
+                                                }
+                                                $services_text = trim($services_text,',');
+                                                $services_text = trim($services_text,' ');
+                                                $cleanedNumber = preg_replace('/[^0-9]/', '', $customer_details->customer_phone);
+                                                $finalNumber = substr($cleanedNumber, -10);
+                                                $finalNumber = '91' . $finalNumber;
+
+                                                $this->db->where('is_deleted','0');
+                                                $this->db->where('id', $branch_id);
+                                                $this->db->where('salon_id', $salon_id);
+                                                $branch = $this->db->get('tbl_branch')->row();
+                                                $visit_text = '';
+                                                if(!empty($branch)){
+                                                    if($branch->branch_name != ""){
+                                                        $visit_text .= $branch->branch_name;
+                                                    }
+                                                }
+
+                                                $type = '6';
+                                                $message = "Hello, " . $customer_details->full_name . "!%0aRescheduled Appointment:%0a%0a\u{1F5D3}" . date('d M, Y',strtotime($booking_details->service_start_date)) . " at%0a\u{1F55B}" . date('h:i A',strtotime($booking_details->service_start_time)) . " for%0a\u{1F488}" . $services_text . "%0a%0aFeel free to reach out if you have any questions.%0a%0aThank you!%0a" . $visit_text . "";
+                                                $app_message = "Hello, " . $customer_details->full_name . "!\nRescheduled Appointment:\n\n📅 " . date('d M, Y', strtotime($booking_details->service_start_date)) . " at\n🕒 " . date('h:i A', strtotime($booking_details->service_start_time)) . " for\n💇‍♀️ " . $services_text . "\n\nFeel free to reach out if you have any questions.\n\nThank you!\n" . $visit_text . "";
+                                                $number = $finalNumber;
+                                                $customer = $customer_details->id;
+                                                $salon_id = $customer_details->salon_id;
+                                                $branch_id = $customer_details->branch_id;
+                                                $for_order_id = $booking_details->id;
+                                                $for_offer_id = '';
+                                                $for_query_id = '';
+                                                $consent_form_id = '';
+                                                $title = 'Appointment Rescheduled';
+                                                $generated_from = '0';
+                                                $notification_data = [
+                                                    "landing_page"  => 'order_details',
+                                                    "redirect_id"   => (string)$for_order_id
+                                                ];
+                                            
+                                                $message_send_on = '';
+                                                $template_id = '';                        
+                                                $email_subject = '';
+                                                $email_html = '';
+                                                $booking_rules = $this->Salon_model->get_booking_rules_all($branch_id,$salon_id);
+                                                if(!empty($booking_rules)){
+                                                    if($booking_rules->booking_reminder_type == '1'){
+                                                        $message_send_on = '0'; //SMS
+                                                        $template_id = '';
+                                                    }elseif($booking_rules->booking_reminder_type == '2'){
+                                                        $message_send_on = '2'; //EMAIL
+                                                        $email_html = '';
+                                                    }elseif($booking_rules->booking_reminder_type == '3'){
+                                                        $message_send_on = '1'; //WP
+                                                    }
+                                                }
+                                                $membership_history_id = '';
+                                                $package_allocation_id = '';
+                                                $giftcard_purchase_id = '';
+                                                $trying_booking_id = '';
+                                                $wp_template_data = [];
+                                                $cron_id = '';
+
+                                                $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
+                                            }
+                                        }
+                                    }
+
+                                    $json_arr['status'] = 'true';
+                                    $json_arr['message'] = 'success';
+                                    $json_arr['data'] = array('booking_id'  =>  $single_booking->id);
+                                }else{
+                                    $json_arr['status'] = 'false';
+                                    $json_arr['message'] = 'Slot not available now. Please select another slot';
+                                    $json_arr['data'] = [];
+                                }  
                             }else{
                                 $json_arr['status'] = 'false';
                                 $json_arr['message'] = 'Services not available for reschedule';
@@ -5762,8 +6194,9 @@ class Api_model extends CI_Model {
                                             $giftcard_purchase_id = '';
                                             $trying_booking_id = '';
                                             $wp_template_data = [];
+                                            $cron_id = '';
 
-                                            $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+                                            $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                                         }
                                     }
                                 }
@@ -6814,6 +7247,151 @@ class Api_model extends CI_Model {
         }
         echo json_encode($json_arr, JSON_UNESCAPED_UNICODE);
     }
+    public function apply_offer(){
+        $request = json_decode(file_get_contents('php://input'), true);
+        if($request){
+            if($request['branch_id']){
+                $customer_id = $request['customer_id'];
+                $salon_id = $request['salon_id'];
+                $branch_id = $request['branch_id'];   
+
+                $this->db->where('is_deleted','0');
+                $this->db->where('status','1');
+                $this->db->where('id',$customer_id);
+                $this->db->where('branch_id', $branch_id);
+                $this->db->where('salon_id', $salon_id);
+                $single = $this->db->get('tbl_salon_customer')->row();
+
+                if(!empty($single)){  
+                    $services = $request['selected_services'];   
+                    if(!empty($services)){        
+                        $this->db->where('is_deleted','0');
+                        $this->db->where('status','1');
+                        $this->db->where('validity_status','1');
+                        $this->db->where('id',$request['applied_offer_id']);
+                        $this->db->where('gender',$single->gender);
+                        $this->db->where('branch_id', $branch_id);
+                        $this->db->where('salon_id', $salon_id);
+                        $offer_data = $this->db->get('tbl_offers')->row();
+                        if(!empty($offer_data)){   
+                            $services_data = [];
+                            $input_service_ids = [];
+                            $total_offer_discount = 0;
+                            $is_final_offer_applied = '0';
+
+                            $service_offer_discount = $offer_data->discount;
+                            $service_offer_discount_type = $offer_data->discount_in;
+                            if($service_offer_discount_type == '0'){
+                                $discount_text = $service_offer_discount . '% Off';
+                            }elseif($service_offer_discount_type == '1'){
+                                $discount_text = 'Flat Rs.' . $service_offer_discount . ' Off';
+                            }
+
+                            $offer_services = $offer_data->service_name != "" ? explode(',',$offer_data->service_name) : [];
+                            foreach ($services as $srv) {
+                                $service_id = $srv['service_id'];
+                                if (!empty($service_id)) {
+                                    $input_service_ids[] = $service_id;
+                                }
+                            }
+
+                            $diff = array_diff($offer_services, $input_service_ids);
+                            if (empty($diff)) {
+                                $is_final_offer_applied = '1';
+                            }
+                            
+                            for($i=0;$i<count($services);$i++){
+                                $service_id = $services[$i]['service_id'];
+                                $is_offer_applied = '0';
+                                $service_offer_discount_amount = 0;
+                                if($service_id != ""){
+                                    if ($is_final_offer_applied == '1' && in_array($service_id, $offer_services)) {
+                                        if($service_offer_discount_type == '0'){
+                                            $service_offer_discount_amount = ($services[$i]['price'] * $service_offer_discount) / 100;
+                                        }elseif($service_offer_discount_type == '1'){
+                                            $service_offer_discount_amount = $service_offer_discount;
+                                        }
+                                        $is_offer_applied = '1';
+                                    }
+                                    $services_data[] = array(
+                                        'service_id'        =>  $service_id,
+                                        'is_offer_applied'  =>  $is_final_offer_applied == '1' ? $is_offer_applied : '0',
+                                        'price'             =>  $services[$i]['price'],
+                                        'discount'          =>  $is_final_offer_applied == '1' ? $service_offer_discount_amount : 0,
+                                        'final_price'       =>  $services[$i]['price'] - ($is_final_offer_applied == '1' ? $service_offer_discount_amount : 0),
+                                        'discount_text'     =>  $is_final_offer_applied == '1' ? $discount_text : ''
+                                    );
+                                }
+                                $total_offer_discount += ($is_final_offer_applied == '1' ? $service_offer_discount_amount : 0);
+                            }                            
+
+                            $not_applied_text = '';
+                            if ($is_final_offer_applied == '1') {
+                                $offer_text = $offer_data->offers_name . ' offer applied.';
+                            } else {
+                                $offer_text = $offer_data->offers_name . ' offer not eligible.';
+
+                                $missing_service_names = [];
+                                $missing_count = count($diff);
+
+                                if ($missing_count > 0) {
+                                    $this->db->select('service_name');
+                                    $this->db->from('tbl_salon_emp_service');
+                                    $this->db->where_in('id', $diff);
+                                    $this->db->where('is_deleted', '0');
+                                    $this->db->where('branch_id', $branch_id);
+                                    $this->db->where('salon_id', $salon_id);
+                                    $missing_services = $this->db->get()->result();
+
+                                    foreach ($missing_services as $ms) {
+                                        $missing_service_names[] = $ms->service_name;
+                                    }
+
+                                    $not_applied_text = 'Add ' . $missing_count . ' more ' . ($missing_count > 1 ? 'services' : 'service') .
+                                                        ' to unlock ' . $offer_data->offers_name . ': ' .
+                                                        implode(', ', $missing_service_names) . '.';
+                                }
+                            }
+
+                            $data = array(
+                                'offer_id'              =>  $offer_data->id,
+                                'is_offer_applied'      =>  $is_final_offer_applied,
+                                'total_offer_discount'  =>  $is_final_offer_applied == '1' ? $total_offer_discount : 0,
+                                'discount_text'         =>  $is_final_offer_applied == '1' ? $discount_text : '',
+                                'offer_text'            =>  $offer_text,
+                                'not_applied_text'      =>  $not_applied_text,
+                                'services_data'         =>  $services_data
+                            );
+                            $json_arr['status'] = 'true';
+                            $json_arr['message'] = 'success';
+                            $json_arr['data'] = $data;
+                        }else{
+                            $json_arr['status'] = 'false';
+                            $json_arr['message'] = 'Offer not found';
+                            $json_arr['data'] = [];
+                        }
+                    }else{
+                        $json_arr['status'] = 'false';
+                        $json_arr['message'] = 'Services not selected';
+                        $json_arr['data'] = [];
+                    }
+                }else{
+                    $json_arr['status'] = 'false';
+                    $json_arr['message'] = 'Customer not found';
+                    $json_arr['data'] = [];
+                }          
+            }else{
+                $json_arr['status'] = 'false';
+                $json_arr['message'] = 'Branch ID not available.';
+                $json_arr['data'] = [];
+            }
+        }else{
+            $json_arr['status'] = 'false';
+            $json_arr['message'] = 'Request not found.';
+            $json_arr['data'] = [];
+        }
+        echo json_encode($json_arr, JSON_UNESCAPED_UNICODE);
+    }
     public function get_customer_packages(){
         $request = json_decode(file_get_contents('php://input'), true);
         if($request){
@@ -7230,8 +7808,8 @@ class Api_model extends CI_Model {
         }else{
             $this->db->order_by('tbl_new_booking.id', 'DESC');
         }
-        if(!empty($limit) && !empty($offset)){    
-		    $this->db->limit($limit,$offset);  
+        if (is_numeric($limit) && is_numeric($offset)) {
+            $this->db->limit((int)$limit, (int)$offset);
         }          
         $result = $this->db->get('tbl_new_booking');
         $bookings = $result->result();   
@@ -7286,7 +7864,7 @@ class Api_model extends CI_Model {
                             'service_details_id'    =>  $booking_service_details_result->id,
                             'category_name'          =>  $booking_service_details_result->sup_category,
                             'category_name_marathi' =>  $booking_service_details_result->sup_category_marathi,
-                            'sub_category_name'          =>  $booking_service_details_result->sub_category_name,
+                            'sub_category_name'         =>  $booking_service_details_result->sub_category_name,
                             'sub_category_name_marathi' =>  $booking_service_details_result->sub_category_marathi,
                             'service_name'          =>  $booking_service_details_result->service_name,
                             'service_name_marathi'  =>  $booking_service_details_result->service_name_marathi,
@@ -7464,7 +8042,6 @@ class Api_model extends CI_Model {
 
                     $applied_offer = $single_payment_details->applied_offer_id;
                     $this->db->where('tbl_offers.id', $applied_offer);
-                    $this->db->where('tbl_offers.status', '1');
                     $this->db->where('tbl_offers.is_deleted', '0');
                     $this->db->where('tbl_offers.branch_id', $branch_id);
                     $this->db->where('tbl_offers.salon_id', $salon_id);
@@ -7626,7 +8203,6 @@ class Api_model extends CI_Model {
 
                     $applied_offer = $bookings_result->applied_offer_id;
                     $this->db->where('tbl_offers.id', $applied_offer);
-                    $this->db->where('tbl_offers.status', '1');
                     $this->db->where('tbl_offers.is_deleted', '0');
                     $this->db->where('tbl_offers.branch_id', $branch_id);
                     $this->db->where('tbl_offers.salon_id', $salon_id);
@@ -7796,55 +8372,54 @@ class Api_model extends CI_Model {
                 $first_service = $this->db->get('tbl_booking_services_details')->row();
 
                 $data[] = array(
-                    'booking_id'        =>  $bookings_result->id,
-                    'is_direct_billing' =>  $bookings_result->is_direct_billing,
-                    'ref_id'            =>  $bookings_result->receipt_no,
-                    'customer'          =>  $bookings_result->customer_full_name,
-                    'phone_no'          =>  $bookings_result->customer_phone,
-                    'booking_date'      =>  date('d M, Y',strtotime($bookings_result->service_start_date)),
-                    'from'              =>  !empty($first_service) && $first_service->service_from != "" ? date('h:i A',strtotime($first_service->service_from)) : null,
-                    'to'                =>  !empty($last_service) && $last_service->service_to != "" ? date('h:i A',strtotime($last_service->service_to)) : null,
-                    'services_text'     =>  rtrim($services_text, ', '),
-                    'stylists_text'     =>  rtrim($stylists_text, ', '),
-                    'reward_value'          => $reward_value == 0 ? '' : (string)$reward_value,
-                    'stylists_text_with_service'     =>  rtrim($stylists_text_with_service, ', '),
-                    'services'          =>  $services_data,
-                    'booking_status_text'    =>  $booking_status_text,
-                    'booking_status_flag'    =>  $bookings_result->booking_status,
-                    'payment_status_text'    =>  $payment_status_text,
-                    'payment_status_flag'    =>  $bookings_result->payment_status,
-                    'is_reschedule_allowed'  =>  $is_reschedule_allowed,
-                    'is_cancellation_allowed'=>  $is_cancellation_allowed,
-                    'is_reminder_set'        =>  $is_reminder_set,
+                    'booking_id'                    =>  $bookings_result->id,
+                    'is_direct_billing'             =>  $bookings_result->is_direct_billing,
+                    'ref_id'                        =>  $bookings_result->receipt_no,
+                    'customer'                      =>  $bookings_result->customer_full_name,
+                    'phone_no'                      =>  $bookings_result->customer_phone,
+                    'booking_date'                  =>  date('d M, Y',strtotime($bookings_result->service_start_date)),
+                    'from'                          =>  !empty($first_service) && $first_service->service_from != "" ? date('h:i A',strtotime($first_service->service_from)) : null,
+                    'to'                            =>  !empty($last_service) && $last_service->service_to != "" ? date('h:i A',strtotime($last_service->service_to)) : null,
+                    'services_text'                 =>  rtrim($services_text, ', '),
+                    'stylists_text'                 =>  rtrim($stylists_text, ', '),
+                    'reward_value'                  => $reward_value == 0 ? '' : (string)$reward_value,
+                    'stylists_text_with_service'    =>  rtrim($stylists_text_with_service, ', '),
+                    'services'                      =>  $services_data,
+                    'booking_status_text'           =>  $booking_status_text,
+                    'booking_status_flag'           =>  $bookings_result->booking_status,
+                    'payment_status_text'           =>  $payment_status_text,
+                    'payment_status_flag'           =>  $bookings_result->payment_status,
+                    'is_reschedule_allowed'         =>  $is_reschedule_allowed,
+                    'is_cancellation_allowed'       =>  $is_cancellation_allowed,
+                    'is_reminder_set'               =>  $is_reminder_set,
 
-                    'all_discount_details'   =>  $discount_details,
-                    'applied_offer_details'  =>  $applied_offer_details,
-                    'applied_coupon_details' =>  $applied_coupon_details,
-                    'applied_membership_details' =>  $applied_membership_details,
-                    'applied_package_details'=>  $applied_package_details,
-                    'applied_reward_details' =>  $applied_reward_details,
-                    'applied_giftcard_details'  =>  $applied_giftcard_details,
+                    'all_discount_details'          =>  $discount_details,
+                    'applied_offer_details'         =>  $applied_offer_details,
+                    'applied_coupon_details'        =>  $applied_coupon_details,
+                    'applied_membership_details'    =>  $applied_membership_details,
+                    'applied_package_details'       =>  $applied_package_details,
+                    'applied_reward_details'        =>  $applied_reward_details,
+                    'applied_giftcard_details'      =>  $applied_giftcard_details,
 
-                    'total_product_price'            =>  number_format($total_product_price, 2, '.', ''),
-                    'total_service_price'            =>  number_format($total_service_price, 2, '.', ''),
-                    'package_amount'                 =>  number_format($package_amount, 2, '.', ''),
-                    'membership_payment_amount'      =>  number_format($membership_payment_amount, 2, '.', ''),
+                    'total_product_price'           =>  number_format($total_product_price, 2, '.', ''),
+                    'total_service_price'           =>  number_format($total_service_price, 2, '.', ''),
+                    'package_amount'                =>  number_format($package_amount, 2, '.', ''),
+                    'membership_payment_amount'     =>  number_format($membership_payment_amount, 2, '.', ''),
                     // 'total_discount_amount'          =>  number_format($total_discount, 2, '.', ''),
-                    'total_discount_amount'          =>  '0.00',
-                    'booking_amount'                 =>  number_format($booking_amount, 2, '.', ''),
-                    'salon_gst_rate'                 =>  number_format($salon_gst_rate, 2, '.', ''),
-                    'gst_amount'                     =>  number_format($gst_amount, 2, '.', ''),
-                    'amount_to_paid'                 =>  number_format($amount_to_paid, 2, '.', ''),
+                    'total_discount_amount'         =>  '0.00',
+                    'booking_amount'                =>  number_format($booking_amount, 2, '.', ''),
+                    'salon_gst_rate'                =>  number_format($salon_gst_rate, 2, '.', ''),
+                    'gst_amount'                    =>  number_format($gst_amount, 2, '.', ''),
+                    'amount_to_paid'                =>  number_format($amount_to_paid, 2, '.', ''),
                     
-                    'is_review_submitted'    =>  $bookings_result->is_review_submitted,
-                    'review_id'              =>  !empty($booking_review) ? $booking_review->id : '',
-                    'review_stars'           =>  !empty($booking_review) ? $booking_review->stars : '',
-                    'review_description'     =>  !empty($booking_review) ? $booking_review->description : '',
-                    'receipt'           =>  $bookings_result->payment_status == '1' ? base_url().'booking-print/'.base64_encode($bookings_result->id).'/'.base64_encode($bookings_result->booking_payment_id).'?print&mobile' : base_url().'mobile-booking-print/'.base64_encode($bookings_result->id).'?print&mobile',
+                    'is_review_submitted'           =>  $bookings_result->is_review_submitted,
+                    'review_id'                     =>  !empty($booking_review) ? $booking_review->id : '',
+                    'review_stars'                  =>  !empty($booking_review) ? $booking_review->stars : '',
+                    'review_description'            =>  !empty($booking_review) ? $booking_review->description : '',
+                    'receipt'                       =>  $bookings_result->payment_status == '1' ? base_url().'booking-print/'.base64_encode($bookings_result->id).'/'.base64_encode($bookings_result->booking_payment_id).'?print&mobile' : base_url().'mobile-booking-print/'.base64_encode($bookings_result->id).'?print&mobile',
                 );
             }   
         }
-        // echo '<pre>'; print_r($data); exit();
         return $data;
     }
     public function pending_bookings(){
@@ -8180,6 +8755,7 @@ class Api_model extends CI_Model {
                         $this->db->where('tbl_offers.id', $offer_id);
                     }                
                     $this->db->where('tbl_offers.status', '1');
+                    $this->db->where('validity_status','1');
                     $this->db->where('tbl_offers.is_deleted', '0');
                     $this->db->where('tbl_offers.branch_id', $branch_id);
                     $this->db->where('tbl_offers.salon_id', $salon_id);
@@ -8238,10 +8814,29 @@ class Api_model extends CI_Model {
                                 $offer_discount_text = '';
                             }
 
-                            if($offers_result->duration > 1){
-                                $validity_text = 'Offer valid for ' . $offers_result->duration . ' Weeks';
-                            }else{
-                                $validity_text = 'Offer valid for ' . $offers_result->duration . ' Week';
+                            $validity_text = '';
+                            if (!empty($offers_result->offer_ends)) {
+                                $today = new DateTime();
+                                $offer_ends = new DateTime($offers_result->offer_ends);
+                                $interval = $today->diff($offer_ends);
+                                $days_left = (int)$interval->format('%r%a');
+
+                                if ($days_left < 0) {
+                                    $validity_text = 'Offer expired';
+                                } elseif ($days_left == 0) {
+                                    $validity_text = 'Offer valid till today';
+                                } elseif ($days_left < 7) {
+                                    $validity_text = 'Offer valid for ' . $days_left . ' day' . ($days_left > 1 ? 's' : '');
+                                } else {
+                                    $weeks_left = floor($days_left / 7);
+                                    $validity_text = 'Offer valid for ' . $weeks_left . ' week' . ($weeks_left > 1 ? 's' : '');
+                                }
+                            } else {
+                                if ($offers_result->duration > 1) {
+                                    $validity_text = 'Offer valid for ' . $offers_result->duration . ' weeks';
+                                } else {
+                                    $validity_text = 'Offer valid for ' . $offers_result->duration . ' week';
+                                }
                             }
 
                             $data[] = array(
@@ -8250,6 +8845,8 @@ class Api_model extends CI_Model {
                                 'offer_discount_text'        =>  $offer_discount_text,
                                 'validity'          =>  $offers_result->duration,
                                 'validity_text'     =>  $validity_text,
+                                'offer_starts'      =>  $offers_result->offer_starts != "" ? date('d M, Y',strtotime($offers_result->offer_starts)) : null,
+                                'offer_ends'        =>  $offers_result->offer_ends != "" ? date('d M, Y',strtotime($offers_result->offer_ends)) : null,
                                 'rewards'           =>  $offers_result->reward_point,
                                 'offer_icon'        =>  '',
                                 'offer_name'        =>  $offers_result->offers_name,
@@ -8787,6 +9384,18 @@ class Api_model extends CI_Model {
             if (!empty($exist)) {
                 $data = array();
     
+                // if (isset($_POST['f_name']) && $_POST['f_name'] != "") {
+                //     $data['f_name'] = $_POST['f_name'];
+                // }
+    
+                // if (isset($_POST['l_name']) && $_POST['l_name'] != "") {
+                //     $data['l_name'] = $_POST['l_name'];
+                // }
+    
+                // if (isset($_POST['f_name']) && $_POST['f_name'] != "" && isset($_POST['l_name']) && $_POST['l_name'] != "") {
+                //     $data['full_name'] = $_POST['f_name'] . ' ' . $_POST['l_name'];
+                // }
+    
                 if (isset($_POST['full_name']) && $_POST['full_name'] != "") {
                     $data['full_name'] = $_POST['full_name'];
                 }
@@ -8862,65 +9471,84 @@ class Api_model extends CI_Model {
     public function get_store_details(){
         $request = json_decode(file_get_contents('php://input'), true);
         if($request){
+            if(isset($request['branch_id']) && $request['branch_id'] != ""){
+                $this->db->where('active_for_mobile_apps','1');
+                $this->db->where('is_deleted','0');
+                $this->db->where('id',$request['branch_id']);
+                $branch = $this->db->get('tbl_branch')->row();
+                if(empty($branch)){
+                    $json_arr['status'] = 'false';
+                    $json_arr['message'] = 'Napito services are no longer available for this salon. Please contact the salon directly.';
+                    $json_arr['data'] = [];
+                    echo json_encode($json_arr);
+                    exit;
+                }
+            }
+
             if(isset($request['store_code'])){
                 $store_code = $request['store_code'];
-
                 $this->db->where('is_deleted','0');
                 $this->db->where('branch_unique_code',$store_code);
                 $branch = $this->db->get('tbl_branch')->row();
 
                 if(!empty($branch)){
-                    $this->db->select('tbl_store_profile.*,tbl_branch.category as branch_category');
-                    $this->db->where('tbl_store_profile.is_deleted','0');
-                    $this->db->where('tbl_store_profile.branch_id',$branch->id);
-                    $this->db->where('tbl_store_profile.salon_id',$branch->salon_id);
-                    $this->db->join('tbl_branch','tbl_branch.id = tbl_store_profile.branch_id');
-                    $branch_profile = $this->db->get('tbl_store_profile');
-                    $branch_profile = $branch_profile->row();
-                    if(!empty($branch_profile)){                    
-                        $this->db->select('tbl_store_reviews.*,tbl_salon_customer.full_name,tbl_salon_customer.profile_pic');
-                        $this->db->join('tbl_salon_customer','tbl_salon_customer.id = tbl_store_reviews.customer_id');
-                        $this->db->order_by('tbl_store_reviews.created_on','desc');
-                        $this->db->where('tbl_store_reviews.is_deleted','0');
-                        $this->db->where('tbl_store_reviews.salon_id',$branch->salon_id);
-                        $this->db->where('tbl_store_reviews.branch_id',$branch->id);
-                        $result = $this->db->get('tbl_store_reviews');
-                        $result = $result->result();
-                        
-                        $total = 0;
-                        $rating = '';
-                        if(!empty($result)){
-                            foreach($result as $result_data){
-                                $total += (float)str_replace('.', '', $result_data->stars);
+                    if($branch->active_for_mobile_apps == '1'){
+                        $this->db->select('tbl_store_profile.*,tbl_branch.category as branch_category');
+                        $this->db->where('tbl_store_profile.is_deleted','0');
+                        $this->db->where('tbl_store_profile.branch_id',$branch->id);
+                        $this->db->where('tbl_store_profile.salon_id',$branch->salon_id);
+                        $this->db->join('tbl_branch','tbl_branch.id = tbl_store_profile.branch_id');
+                        $branch_profile = $this->db->get('tbl_store_profile');
+                        $branch_profile = $branch_profile->row();
+                        if(!empty($branch_profile)){                    
+                            $this->db->select('tbl_store_reviews.*,tbl_salon_customer.full_name,tbl_salon_customer.profile_pic');
+                            $this->db->join('tbl_salon_customer','tbl_salon_customer.id = tbl_store_reviews.customer_id');
+                            $this->db->order_by('tbl_store_reviews.created_on','desc');
+                            $this->db->where('tbl_store_reviews.is_deleted','0');
+                            $this->db->where('tbl_store_reviews.salon_id',$branch->salon_id);
+                            $this->db->where('tbl_store_reviews.branch_id',$branch->id);
+                            $result = $this->db->get('tbl_store_reviews');
+                            $result = $result->result();
+                            
+                            $total = 0;
+                            $rating = '';
+                            if(!empty($result)){
+                                foreach($result as $result_data){
+                                    $total += (float)str_replace('.', '', $result_data->stars);
+                                }
                             }
-                        }
-                        
-                        $total_entries = count($result);
-                        if($total_entries > 0){
-                            $rating = round($total / $total_entries);
-                        }
+                            
+                            $total_entries = count($result);
+                            if($total_entries > 0){
+                                $rating = round($total / $total_entries);
+                            }
 
-                        $data['branch_id'] = $branch->id;
-                        $data['salon_id'] = $branch->salon_id;
-                        $data['branch_name'] = $branch_profile->branch_name;
-                        $data['mobile_number'] = $branch->salon_number;
-                        $data['description'] = $branch_profile->description;
-                        $data['category'] = $branch_profile->branch_category;
-                        $data['store_logo'] = base_url('admin_assets/images/store_logo/' . $branch_profile->store_logo);
-                        $data['address'] = $branch->salon_address . ($branch->pincode != "" ? ' '.$branch->pincode : '');
-                        $data['rating'] = $rating;
+                            $data['branch_id'] = $branch->id;
+                            $data['salon_id'] = $branch->salon_id;
+                            $data['branch_name'] = $branch_profile->branch_name;
+                            $data['mobile_number'] = $branch->salon_number;
+                            $data['description'] = $branch_profile->description;
+                            $data['category'] = $branch_profile->branch_category;
+                            $data['store_logo'] = base_url('admin_assets/images/store_logo/' . $branch_profile->store_logo);
+                            $data['address'] = $branch->salon_address . ($branch->pincode != "" ? ' '.$branch->pincode : '');
+                            $data['rating'] = $rating;
 
-                        $json_arr['status'] = 'true';
-                        $json_arr['message'] = 'success';
-                        $json_arr['data'] = [$data];
+                            $json_arr['status'] = 'true';
+                            $json_arr['message'] = 'success';
+                            $json_arr['data'] = [$data];
+                        }else{
+                            $json_arr['status'] = 'false';
+                            $json_arr['message'] = 'Details not found. Please contact the store.';
+                            $json_arr['data'] = [];
+                        }
                     }else{
                         $json_arr['status'] = 'false';
-                        $json_arr['message'] = 'Details not found. Please contact the store.';
+                        $json_arr['message'] = 'Napito services are no longer available for this salon. Please contact the salon directly.';
                         $json_arr['data'] = [];
                     }
                 }else{
                     $json_arr['status'] = 'false';
-                    $json_arr['message'] = 'The QR code is not valid. Please try scanning again.';
+                    $json_arr['message'] = 'Details not found. Please contact the store.';
                     $json_arr['data'] = [];
                 }
                 
@@ -8949,16 +9577,22 @@ class Api_model extends CI_Model {
                     $branch = $this->db->get('tbl_branch')->row();
 
                     if(!empty($branch)){
-                        $update_data = array(
-                            'salon_id'  =>  $salon_id,
-                            'branch_id' =>  $branch_id
-                        );
-                        $this->db->where('id',$exist->id);
-                        $this->db->update('tbl_salon_customer',$update_data);
+                        if($branch->active_for_mobile_apps == '1'){
+                            $update_data = array(
+                                'salon_id'  =>  $salon_id,
+                                'branch_id' =>  $branch_id
+                            );
+                            $this->db->where('id',$exist->id);
+                            $this->db->update('tbl_salon_customer',$update_data);
 
-                        $json_arr['status'] = 'true';
-                        $json_arr['message'] = 'success';
-                        $json_arr['data'] = [];                        
+                            $json_arr['status'] = 'true';
+                            $json_arr['message'] = 'success';
+                            $json_arr['data'] = [];                     
+                        }else{
+                            $json_arr['status'] = 'false';
+                            $json_arr['message'] = 'Napito services are no longer available for this salon. Please contact the salon directly.';
+                            $json_arr['data'] = [];
+                        }                      
                     }else{
                         $json_arr['status'] = 'false';
                         $json_arr['message'] = 'Invalid store. Please try again.';
@@ -9002,50 +9636,56 @@ class Api_model extends CI_Model {
                     $this->db->where('salon_id',$salon_id);
                     $new_branch = $this->db->get('tbl_branch')->row();
                     if(!empty($new_branch)){
-                        $this->db->where('is_deleted','0');
-                        $this->db->where('salon_id',$new_branch->salon_id);
-                        $this->db->where('branch_id',$new_branch->id);
-                        $this->db->where('customer_phone',$customer_mobile);
-                        $this->db->order_by('created_on','desc');
-                        $this->db->limit(1);
-                        $exist = $this->db->get('tbl_salon_customer')->row();
-                        if(!empty($exist)){
-                            if(isset($request['fcm_token']) && $request['fcm_token'] != ""){
+                        if($new_branch->active_for_mobile_apps == '1'){
+                            $this->db->where('is_deleted','0');
+                            $this->db->where('salon_id',$new_branch->salon_id);
+                            $this->db->where('branch_id',$new_branch->id);
+                            $this->db->where('customer_phone',$customer_mobile);
+                            $this->db->order_by('created_on','desc');
+                            $this->db->limit(1);
+                            $exist = $this->db->get('tbl_salon_customer')->row();
+                            if(!empty($exist)){
+                                if(isset($request['fcm_token']) && $request['fcm_token'] != ""){
+                                    $user_data = array(
+                                        'fcm_token'      =>  $request['fcm_token'],
+                                        'is_logged_in'   =>  '1'
+                                    );     
+                                }else{
+                                    $user_data = array(
+                                        'is_logged_in'   =>  '1'
+                                    );  
+                                }
+                                $this->db->where('id',$exist->id);  
+                                $this->db->update('tbl_salon_customer',$user_data);
+
+                                $customer_id = $exist->id;
+                                $is_new = false;
+                            }else{     
                                 $user_data = array(
-                                    'fcm_token'      =>  $request['fcm_token'],
-                                    'is_logged_in'   =>  '1'
-                                );     
-                            }else{
-                                $user_data = array(
-                                    'is_logged_in'   =>  '1'
-                                );  
-                            }
-                            $this->db->where('id',$exist->id);  
-                            $this->db->update('tbl_salon_customer',$user_data);
+                                    'customer_phone'    =>  $customer_mobile,
+                                    'salon_id'          =>  $new_branch->salon_id,
+                                    'branch_id'         =>  $new_branch->id,
+                                    'is_logged_in'      =>  '1',
+                                    'registered_from'   =>  '1',
+                                    'fcm_token'         =>  isset($request['fcm_token']) ? $request['fcm_token'] : null,
+                                    'created_on'        =>  date('Y-m-d H:i:s')
+                                );           
+                                $this->db->insert('tbl_salon_customer',$user_data);
 
-                            $customer_id = $exist->id;
-                            $is_new = false;
-                        }else{     
-                            $user_data = array(
-                                'customer_phone'    =>  $customer_mobile,
-                                'salon_id'          =>  $new_branch->salon_id,
-                                'branch_id'         =>  $new_branch->id,
-                                'is_logged_in'      =>  '1',
-                                'registered_from'   =>  '1',
-                                'fcm_token'         =>  isset($request['fcm_token']) ? $request['fcm_token'] : null,
-                                'created_on'        =>  date('Y-m-d H:i:s')
-                            );           
-                            $this->db->insert('tbl_salon_customer',$user_data);
+                                $customer_id = $this->db->insert_id();                
+                                $is_new = true;
+                            }                        
 
-                            $customer_id = $this->db->insert_id();                
-                            $is_new = true;
-                        }                        
+                            $this->Salon_model->insert_new_customer_coin_entry($customer_id,$branch_id,$salon_id);
 
-                        $this->Salon_model->insert_new_customer_coin_entry($customer_id,$branch_id,$salon_id);
-
-                        $json_arr['status'] = 'true';
-                        $json_arr['message'] = 'success';
-                        $json_arr['data'] = ['is_new'=>$is_new,'customer_id'=>$customer_id];                        
+                            $json_arr['status'] = 'true';
+                            $json_arr['message'] = 'success';
+                            $json_arr['data'] = ['is_new'=>$is_new,'customer_id'=>$customer_id];                        
+                        }else{
+                            $json_arr['status'] = 'false';
+                            $json_arr['message'] = 'Napito services are no longer available for this salon. Please contact the salon directly.';
+                            $json_arr['data'] = [];
+                        }                     
                     }else{
                         $json_arr['status'] = 'false';
                         $json_arr['message'] = 'Invalid store. Please try again.';
@@ -9270,8 +9910,9 @@ class Api_model extends CI_Model {
             $giftcard_purchase_id = '';
             $trying_booking_id = '';
             $wp_template_data = [];
+            $cron_id = '';
 
-            $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data);
+            $this->Salon_model->send_notification($app_message,$title,$notification_data,$message,$number,$type,$customer,$salon_id,$branch_id,$for_order_id,$for_offer_id,$generated_from,$for_query_id,$message_send_on,$template_id,$email_subject,$email_html,$consent_form_id,$membership_history_id,$giftcard_purchase_id,$package_allocation_id,$trying_booking_id,$wp_template_data,$cron_id);
                             
 			$reponse_data['data'] = array('support_id'=>$support_id);
 			$reponse_data['status'] = 'true';
@@ -10038,9 +10679,11 @@ class Api_model extends CI_Model {
                             $selected_services_array = isset($request['selected_services']) ? $request['selected_services'] : [];
                             if(!empty($selected_services_array) && $booking_date != ""){
                                 $is_emergency = $this->Salon_model->check_is_salon_close_for_period_setup_datewise_all($booking_date,$branch_id,$salon_id);
-                                if(!$is_emergency){
+                                // if(!$is_emergency){
+                                if(true){
                                     $working_hrs = $this->Salon_model->get_saloon_working_hrs_all($booking_date,$branch_id,$salon_id);
-                                    if($working_hrs['is_allowed'] == 1){
+                                    // if($working_hrs['is_allowed'] == 1){
+                                    if(true){
                                         $rules_employee_selection = $rules->employee_selection;
                                         if($rules_employee_selection == '2'){
                                             $is_stylist_selection_page = '1';
@@ -11079,54 +11722,100 @@ class Api_model extends CI_Model {
                 $this->db->where('salon_id', $salon_id);
                 $single = $this->db->get('tbl_salon_customer')->row();
                 if(!empty($single)){ 
+                    $setup = $this->Master_model->get_backend_setups();	
+                    $reserve_mins = !empty($setup) && $setup->reserve_slot_mins != "" ? (int)$setup->reserve_slot_mins : 3;
                     $reservation_id = isset($request['reservation_id']) ? $request['reservation_id'] : '';
                     $stylist_id = $request['stylist_id'];
                     $slot_from = $request['slot_from'];
+                    $slot_to = $request['slot_to'];
                     $booking_date = $request['booking_date'];
-                    if($slot_from != "" && $stylist_id != "" && $booking_date != ""){    
+                    if($slot_to != "" && $slot_from != "" && $stylist_id != "" && $booking_date != ""){    
                         $booking_date = date('Y-m-d',strtotime($booking_date));
+
                         $slot_from = date('H:i:s',strtotime($slot_from));
                         list($year, $month, $day) = explode('-', $booking_date);
                         list($hour, $minute, $second) = explode(':', $slot_from);
                         $timestamp = mktime($hour, $minute, $second, $month, $day, $year);
-                        $slot = date('Y-m-d H:i:s', $timestamp);  
-                        if($slot != "" && $slot != "1970-01-01 05:30:00" && $slot != "0000-00-00 00:00:00"){          
-                            $this->db->where('slot', $slot);
-                            $this->db->where('stylist_id', $stylist_id);
+                        $from_slot = date('Y-m-d H:i:s', $timestamp);  
+                        
+                        $slot_to = date('H:i:s',strtotime($slot_to));
+                        list($year, $month, $day) = explode('-', $booking_date);
+                        list($hour, $minute, $second) = explode(':', $slot_to);
+                        $timestamp = mktime($hour, $minute, $second, $month, $day, $year);
+                        $to_slot = date('Y-m-d H:i:s', $timestamp);  
+ 
+                        if($from_slot != "" && $from_slot != "1970-01-01 05:30:00" && $from_slot != "0000-00-00 00:00:00" && $to_slot != "" && $to_slot != "1970-01-01 05:30:00" && $to_slot != "0000-00-00 00:00:00"){
+                            $reserved_on = date('Y-m-d H:i:s');
+                            $expire_on = date('Y-m-d H:i:s', strtotime('+' . $reserve_mins . ' minutes'));  
+                                      
+                            $this->db->where('id', $reservation_id);
+                            $this->db->where('customer_id', $customer_id);
                             $this->db->where('branch_id', $branch_id);
                             $this->db->where('salon_id', $salon_id);
                             $this->db->where('status', '0');
-                            $this->db->where('expire_on >', date('Y-m-d H:i:s'));
-                            $existing = $this->db->get('tbl_stylist_slot_reservations')->row();
-                        
-                            if (empty($existing)) {          
-                                $reserved_on = date('Y-m-d H:i:s');
-                                $expire_on = date('Y-m-d H:i:s', strtotime('+3 minutes'));
-                                $insert_data = array(
-                                    'salon_id'      => $salon_id,
-                                    'branch_id'     => $branch_id,
+                            $existing = $this->db->get('tbl_stylist_slot_reservations')->row();                      
+                            if (empty($existing)) {               
+                                $this->db->where('slot_from <', $to_slot);
+                                $this->db->where('slot_to >', $from_slot);
+                                $this->db->where('stylist_id', $stylist_id);
+                                $this->db->where('branch_id', $branch_id);
+                                $this->db->where('salon_id', $salon_id);
+                                $this->db->where('status', '0');
+                                $this->db->where('expire_on >', date('Y-m-d H:i:s'));
+                                $already_reserved = $this->db->get('tbl_stylist_slot_reservations')->row(); 
+                                if(empty($already_reserved)){
+                                    $insert_data = array(
+                                        'salon_id'      => $salon_id,
+                                        'branch_id'     => $branch_id,
+                                        'stylist_id'    => $stylist_id,
+                                        'slot_from'     => $from_slot,
+                                        'slot_to'       => $to_slot,
+                                        'customer_id'   => $customer_id,
+                                        'status'        => '0',
+                                        'expire_on'     => $expire_on,
+                                        'reserved_on'   => $reserved_on
+                                    );
+                                    $this->db->insert('tbl_stylist_slot_reservations', $insert_data);
+                                    $reservation_id = $this->db->insert_id();
+                                
+                                    $json_arr['status'] = 'true';
+                                    $json_arr['message'] = 'Slot Reserved';
+                                    $json_arr['data'] = array(
+                                        'reservation_id'    =>  $reservation_id,
+                                        'slot_from'         =>  $slot_from,
+                                        'slot_to'           =>  $slot_to,
+                                        'reserved_on'       =>  $reserved_on,
+                                        'expire_on'         =>  $expire_on
+                                    );
+                                }else{
+                                    $json_arr['status'] = 'false';
+                                    $json_arr['message'] = 'This slot is already reserved';
+                                    $json_arr['data'] = [];
+                                }
+                            }else{     
+                                $update_data = array(
                                     'stylist_id'    => $stylist_id,
-                                    'slot'          => $slot,
-                                    'customer_id'   => $customer_id,
+                                    'slot_from'     => $from_slot,
+                                    'slot_to'       => $to_slot,
                                     'status'        => '0',
                                     'expire_on'     => $expire_on,
                                     'reserved_on'   => $reserved_on
                                 );
-                                $this->db->insert('tbl_stylist_slot_reservations', $insert_data);
+                                $this->db->where('id', $reservation_id);
+                                $this->db->where('branch_id', $branch_id);
+                                $this->db->where('salon_id', $salon_id);
+                                $this->db->update('tbl_stylist_slot_reservations', $update_data);
                                 $reservation_id = $this->db->insert_id();
                             
                                 $json_arr['status'] = 'true';
                                 $json_arr['message'] = 'Slot Reserved';
                                 $json_arr['data'] = array(
                                     'reservation_id'    =>  $reservation_id,
-                                    'slot'              =>  $slot,
+                                    'slot_from'         =>  $slot_from,
+                                    'slot_to'           =>  $slot_to,
                                     'reserved_on'       =>  $reserved_on,
                                     'expire_on'         =>  $expire_on
                                 );
-                            }else{
-                                $json_arr['status'] = 'false';
-                                $json_arr['message'] = 'Slot Unavailable';
-                                $json_arr['data'] = [];
                             }
                         }else{
                             $json_arr['status'] = 'false';
@@ -11156,4 +11845,236 @@ class Api_model extends CI_Model {
 
         echo json_encode($json_arr, JSON_UNESCAPED_UNICODE);
     }    
+
+    
+    public function calculate_discounts(){
+        $request = json_decode(file_get_contents('php://input'), true);
+        if($request){
+            if($request['branch_id']){
+                $customer_id = $request['customer_id'];
+                $salon_id = $request['salon_id'];
+                $branch_id = $request['branch_id'];                   
+                
+                $this->db->select('tbl_store_profile.*,tbl_salon.is_gst_applicable,tbl_salon.gst_no');
+                $this->db->join('tbl_salon','tbl_store_profile.salon_id = tbl_salon.id');
+                $this->db->where('tbl_store_profile.is_deleted', '0');
+                $this->db->where('tbl_store_profile.branch_id', $branch_id);
+                $this->db->where('tbl_store_profile.salon_id', $salon_id);
+                $this->db->order_by('tbl_store_profile.id', 'DESC');
+                $result = $this->db->get('tbl_store_profile');
+                $result = $result->row();
+                if(empty($result)){
+                    $json_arr['status'] = 'false';
+                    $json_arr['message'] = 'Store details not found';
+                    $json_arr['data'] = [];
+                    echo json_encode($json_arr, JSON_UNESCAPED_UNICODE);
+                    exit;
+                }
+
+                $gst_rate = '0';
+                $setup = $this->Master_model->get_backend_setups();	
+                if(!empty($setup)){
+                    $gst_rate = $setup->gst_rate;
+                }
+                $is_gst_applicable = $result->is_gst_applicable == '1' ? '1' : '0';
+                $gst_no = $is_gst_applicable == '1' ? ($result->gst_no != "" ? $result->gst_no : '') : '';
+                
+                if($is_gst_applicable == '0'){
+                    $gst_rate = '0';
+                }
+
+                $gst_data = array(
+                    'is_gst_applicable' =>  $is_gst_applicable,
+                    'gst_rate'          =>  $gst_rate,
+                    'gst_no'            =>  $gst_no
+                );
+                
+                $total = 0;
+
+                $membership_discount = 0;
+                $membership_data = array(); 
+
+                $rewards_discount = 0;
+                $rewards_data = array(); 
+
+                $giftcard_discount = 0;
+                $giftcard_data = array();  
+
+                $coupon_discount = 0;                
+                $coupon_data = array();  
+
+                $marketing_discount = 0;
+                $marketing_discount_data = array();  
+                
+                $input_service_ids = [];
+
+                $this->db->where('is_deleted','0');
+                $this->db->where('status','1');
+                $this->db->where('id',$customer_id);
+                $this->db->where('branch_id', $branch_id);
+                $this->db->where('salon_id', $salon_id);
+                $single = $this->db->get('tbl_salon_customer')->row();
+
+                if(!empty($single)){  
+                    $services = $request['selected_services'];   
+                    if(!empty($services)){ 
+                        foreach ($services as $srv) {
+                            $service_id = $srv['service_id'];
+                            $price = $srv['price'];
+                            if (!empty($service_id)) {
+                                $input_service_ids[] = $service_id;
+                                $total += $price != "" ? (float)$price : 0.00;
+                            }
+                        }
+
+                        $total_offer_discount = 0;
+                        $offers_data = array();  
+                        $is_final_offer_applied = '0';
+                        $is_offer_applied = isset($request['is_offer_applied']) ? $request['is_offer_applied'] : '0';
+                        if($is_offer_applied == '1'){ 
+                            $this->db->where('is_deleted','0');
+                            $this->db->where('status','1');
+                            $this->db->where('validity_status','1');
+                            $this->db->where('id',$request['applied_offer_id']);
+                            $this->db->where('gender',$single->gender);
+                            $this->db->where('branch_id', $branch_id);
+                            $this->db->where('salon_id', $salon_id);
+                            $offer_data = $this->db->get('tbl_offers')->row();
+                            if(empty($offer_data)){
+                                $json_arr['status'] = 'false';
+                                $json_arr['message'] = 'Offer details not found';
+                                $json_arr['data'] = [];
+                                echo json_encode($json_arr, JSON_UNESCAPED_UNICODE);
+                                exit;
+                            }
+
+                            $offer_services_data = [];
+
+                            $service_offer_discount = $offer_data->discount;
+                            $service_offer_discount_type = $offer_data->discount_in;
+                            if($service_offer_discount_type == '0'){
+                                $discount_text = $service_offer_discount . '% Off';
+                            }elseif($service_offer_discount_type == '1'){
+                                $discount_text = 'Flat Rs.' . $service_offer_discount . ' Off';
+                            }
+
+                            $offer_services = $offer_data->service_name != "" ? explode(',',$offer_data->service_name) : [];
+
+                            $diff = array_diff($offer_services, $input_service_ids);
+                            if (empty($diff)) {
+                                $is_final_offer_applied = '1';
+                            }
+                            
+                            for($i=0;$i<count($services);$i++){
+                                $service_id = $services[$i]['service_id'];
+                                $is_offer_applied = '0';
+                                $service_offer_discount_amount = 0;
+                                if($service_id != ""){
+                                    if ($is_final_offer_applied == '1' && in_array($service_id, $offer_services)) {
+                                        if($service_offer_discount_type == '0'){
+                                            $service_offer_discount_amount = ($services[$i]['price'] * $service_offer_discount) / 100;
+                                        }elseif($service_offer_discount_type == '1'){
+                                            $service_offer_discount_amount = $service_offer_discount;
+                                        }
+                                        $is_offer_applied = '1';
+                                    }
+                                    $offer_services_data[] = array(
+                                        'service_id'        =>  $service_id,
+                                        'is_offer_applied'  =>  $is_final_offer_applied == '1' ? $is_offer_applied : '0',
+                                        'price'             =>  $services[$i]['price'],
+                                        'discount'          =>  $is_final_offer_applied == '1' ? $service_offer_discount_amount : 0,
+                                        'final_price'       =>  $services[$i]['price'] - ($is_final_offer_applied == '1' ? $service_offer_discount_amount : 0),
+                                        'discount_text'     =>  $is_final_offer_applied == '1' ? $discount_text : ''
+                                    );
+                                }
+                                $total_offer_discount += ($is_final_offer_applied == '1' ? $service_offer_discount_amount : 0);
+                            }                            
+
+                            $not_applied_text = '';
+                            if ($is_final_offer_applied == '1') {
+                                $offer_text = $offer_data->offers_name . ' offer applied.';
+                            } else {
+                                $offer_text = $offer_data->offers_name . ' offer not eligible.';
+
+                                $missing_service_names = [];
+                                $missing_count = count($diff);
+
+                                if ($missing_count > 0) {
+                                    $this->db->select('service_name');
+                                    $this->db->from('tbl_salon_emp_service');
+                                    $this->db->where_in('id', $diff);
+                                    $this->db->where('is_deleted', '0');
+                                    $this->db->where('branch_id', $branch_id);
+                                    $this->db->where('salon_id', $salon_id);
+                                    $missing_services = $this->db->get()->result();
+
+                                    foreach ($missing_services as $ms) {
+                                        $missing_service_names[] = $ms->service_name;
+                                    }
+
+                                    $not_applied_text = 'Add ' . $missing_count . ' more ' . ($missing_count > 1 ? 'services' : 'service') .
+                                                        ' to unlock ' . $offer_data->offers_name . ': ' .
+                                                        implode(', ', $missing_service_names) . '.';
+                                }
+                            }
+
+                            $offers_data = array(
+                                'is_offer_applied'      =>  $is_final_offer_applied,
+                                'offer_id'              =>  $offer_data->id,
+                                'total_offer_discount'  =>  $is_final_offer_applied == '1' ? $total_offer_discount : 0,
+                                'discount_text'         =>  $is_final_offer_applied == '1' ? $discount_text : '',
+                                'offer_text'            =>  $offer_text,
+                                'not_applied_text'      =>  $not_applied_text,
+                                'offer_services_data'   =>  $offer_services_data
+                            );
+                        } 
+                        
+                        $total_discount = $membership_discount + $rewards_discount + $giftcard_discount + $coupon_discount + $marketing_discount + $total_offer_discount;
+                        
+                        $sub_total = $total - $total_discount;
+                        $gst_amount = $is_gst_applicable == '1' ? ((float)$sub_total * (float)$gst_rate) : 0.00;
+                        $grand_total = $sub_total + $gst_amount;
+
+                        $response_data = array(
+                            'total'             => $total, 
+                            'total_discount'    => $total_discount,
+                            'sub_total'         => $sub_total,
+                            'gst_amount'        => $gst_amount,
+                            'grand_total'       => $grand_total,
+                            'details'           => array(
+                                                        'gst_data'                  => $gst_data,       
+                                                        'membership_data'           => $membership_data,       
+                                                        'offers_data'               => $offers_data,       
+                                                        'rewards_data'              => $rewards_data,       
+                                                        'giftcard_data'             => $giftcard_data,       
+                                                        'coupon_data'               => $coupon_data,       
+                                                        'marketing_discount_data'   => $marketing_discount_data     
+                                                    )
+                        );
+
+                        $json_arr['status'] = 'true';
+                        $json_arr['message'] = 'success';
+                        $json_arr['data'] = $response_data;
+                    }else{
+                        $json_arr['status'] = 'false';
+                        $json_arr['message'] = 'Services not selected';
+                        $json_arr['data'] = [];
+                    }
+                }else{
+                    $json_arr['status'] = 'false';
+                    $json_arr['message'] = 'Customer not found';
+                    $json_arr['data'] = [];
+                }          
+            }else{
+                $json_arr['status'] = 'false';
+                $json_arr['message'] = 'Branch ID not available.';
+                $json_arr['data'] = [];
+            }
+        }else{
+            $json_arr['status'] = 'false';
+            $json_arr['message'] = 'Request not found.';
+            $json_arr['data'] = [];
+        }
+        echo json_encode($json_arr, JSON_UNESCAPED_UNICODE);
+    }
 }    

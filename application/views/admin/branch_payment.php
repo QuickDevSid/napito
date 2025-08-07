@@ -229,9 +229,9 @@ include('header.php'); ?>
             }
         });
 
-        $.validator.addMethod("noCommas", function(value, element) {
-            return this.optional(element) || /^\d+$/.test(value); // Only digits allowed
-        }, "Please enter whole number.");
+        // $.validator.addMethod("noCommas", function(value, element) {
+        //     return this.optional(element) || /^\d+$/.test(value); // Only digits allowed
+        // }, "Please enter whole number.");
         $('#customer_form').validate({
             ignore:[],
             rules: {
@@ -239,13 +239,13 @@ include('header.php'); ?>
                 branch: 'required',
                 now_payment: {
                     required: true,
-                    noCommas: true,
+                    // noCommas: true,
                     number: true,
                     min: 1,
                 },
                 coin_balance_used: {
                     required: true,
-                    noCommas: true,
+                    // noCommas: true,
                     number: true,
                     min: 0,
                 },
@@ -377,7 +377,7 @@ include('header.php'); ?>
         var coin_balance = $('#coin_balance').val();
 
         coin_balance_used_in_rs = coin_balance_used * per_coin_in_rs;
-        new_coin_balance = coin_balance - coin_balance;
+        new_coin_balance = coin_balance - coin_balance_used;
         effective_pending_amount = previous_pending_amount - coin_balance_used_in_rs;
 
         $('#coin_balance_used_in_rs').val(parseFloat(coin_balance_used_in_rs).toFixed(2));

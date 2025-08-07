@@ -724,7 +724,7 @@ public function get_all_bookings_ajax(){
 									<div class="col-lg-4">
 										<p style="font-size: 11px;color: #414141;margin: 0px;">
 											<b>Booking ID: <?=$data->receipt_no != "" ? $data->receipt_no : '-';?></b>
-											<br><small>Created On: <?=date('d M, Y h:i A',strtotime($data->created_on)); ?></small>
+											<br><small>Created On: <?=date('d M, Y h:i:s A',strtotime($data->created_on)); ?></small>
 										</p>
 									</div>
 								</div>
@@ -1276,6 +1276,12 @@ public function get_message_content_ajx(){
 }
 public function get_message_gateway_response_ajx(){
 	$this->Marketing_model->get_message_gateway_response_ajx();
+}
+public function get_notification_content_ajx(){
+	$this->Marketing_model->get_notification_content_ajx();
+}
+public function get_notification_gateway_response_ajx(){
+	$this->Marketing_model->get_notification_gateway_response_ajx();
 }
 
 public function update_shift_order(){
@@ -2776,10 +2782,10 @@ public function get_whatsapp_report_data_ajx(){
 			$sub_array[] = $offset++;
 
 			if($whatsapp_report_type == '1'){
-				$sub_array[] = $this->Common_model->get_message_type($print->type);
-				if($this->input->post('admin_panel') == '1'){
-					// $sub_array[] = $print->salon_name . ' -> ' . $print->branch_name;
+				if($this->input->post('source') == 'admin_panel'){
+					$sub_array[] = $print->salon_name . '->' . $print->branch_name;
 				}
+				$sub_array[] = $this->Common_model->get_message_type($print->type);
 				$sub_array[] = $print->full_name . '<br>' . $print->customer_phone;
 				$sub_array[] = '<button style="float:left;background:transparent !important;outline:none; box-shadow:none;" title="View Message" type="button" class="btn btn-primary event-action-button" id="service_details_button_'.$print->id.'" onclick="showMessage('.$print->id.')" data-toggle="modal" data-target="#messageModal"><i style="color:gray;font-size: 20px;margin-left: -5px;" class="fa-solid fa-comment"></i></button>';
 				$sub_array[] = date('d M, Y h:i A',strtotime($print->created_on));
@@ -2799,10 +2805,64 @@ public function get_whatsapp_report_data_ajx(){
 	}
 	
 	if($whatsapp_report_type == '1'){
-		$TotalProducts = $this->Salon_model->get_employee_whatsapp_coins_report_count($length, $start, $search);
+		$TotalProducts = $this->Salon_model->get_employee_whatsapp_coins_report_count($search);
 	}elseif($whatsapp_report_type == '2'){
-		$TotalProducts = $this->Admin_model->get_branch_payments_ajx_count($length, $start, $search);
+		$TotalProducts = $this->Admin_model->get_branch_payments_ajx_count($search);
 	}
+	
+	$output = array(
+		"draw" 				=> $draw,
+		"recordsTotal" 		=> $TotalProducts,
+		"recordsFiltered" 	=> $TotalProducts,
+		"data" 				=> $data
+	);
+	echo json_encode($output);
+	exit();
+}
+public function get_notification_report_data_ajx(){
+	$draw = intval($this->input->post("draw"));
+	$start = intval($this->input->post("start"));
+	$length = intval($this->input->post("length"));
+	$order = $this->input->post("order");
+	$search = $this->input->post("search");
+	$search = $search['value'];
+	$col = 0;
+	$dir = "";
+	if(!empty($order)){
+		foreach($order as $o){
+			$col = $o['column'];
+			$dir= $o['dir'];
+		}
+	}
+	if($dir != "asc" && $dir != "desc"){
+		$dir = "desc";
+	}		
+
+	$document = $this->Salon_model->get_notification_report_data_ajx($length, $start, $search);
+
+	$data = array();
+	if(!empty($document)){
+		$page = $start / $length + 1;
+		$offset = ($page - 1) * $length + 1;
+		foreach($document as $print){
+			$sub_array = array();
+			$sub_array[] = $offset++;
+
+			if($this->input->post('source') == 'admin_panel'){
+				$sub_array[] = $print->salon_name . '->' . $print->branch_name;
+			}
+			$sub_array[] = $this->Common_model->get_message_type($print->type);
+			$sub_array[] = $print->full_name . '<br>' . $print->customer_phone;
+			$sub_array[] = $print->title;
+			$sub_array[] = '<button style="float:left;background:transparent !important;outline:none; box-shadow:none;" title="View Message" type="button" class="btn btn-primary event-action-button" id="service_details_button_'.$print->id.'" onclick="showMessage('.$print->id.')" data-toggle="modal" data-target="#messageModal"><i style="color:gray;font-size: 20px;margin-left: -5px;" class="fa-solid fa-comment"></i></button>';
+			$sub_array[] = date('d M, Y h:i A',strtotime($print->created_on));
+			$sub_array[] = '<button style="float:left;background:transparent !important;outline:none; box-shadow:none;" title="Gateway Response" type="button" class="btn btn-primary event-action-button" id="response_button_'.$print->id.'" onclick="showGatewayResponse('.$print->id.')" data-toggle="modal" data-target="#responseModal"><i style="color:gray;font-size: 20px;margin-left: -5px;" class="fa-solid fa-info-circle"></i></button>';
+
+			$data[] = $sub_array; 
+		}
+	}
+	
+	$TotalProducts = $this->Salon_model->get_notification_report_data_ajx_count($search);
 	
 	$output = array(
 		"draw" 				=> $draw,
@@ -2866,7 +2926,7 @@ public function get_trying_booking_report_data_ajx(){
 			$sub_array[] = $print->booking_date != "" && $print->booking_date != "1970-01-01" && $print->booking_date != "0000-00-00" ? date('d M, Y',strtotime($print->booking_date)) : '-';
 			$sub_array[] = $print->slot != "" && $print->slot != "1970-01-01 05:30:00" && $print->slot != "0000-00-00 00:00:00" ? date('h:i A',strtotime($print->slot)) : '-';
 			$sub_array[] = $print->full_name != "" ? $print->full_name : '-';
-			$sub_array[] = $booking_status != "" ? $booking_status : '-';
+			// $sub_array[] = $booking_status != "" ? $booking_status : '-';
 			$sub_array[] = $print->updated_on != "" ? date('d M, Y h:i A',strtotime($print->updated_on)) : '-';
 			$sub_array[] = $print->is_wp_sent == "1" ? '<button style="float:left;background:transparent !important;outline:none; box-shadow:none;" title="View Message" type="button" class="btn btn-primary event-action-button" id="service_details_button_'.$print->tbl_messages_history_id.'" onclick="showMessage('.$print->tbl_messages_history_id.')" data-toggle="modal" data-target="#messageModal"><i style="color:gray;font-size: 20px;margin-left: -5px;" class="fa-solid fa-comment"></i></button>' : '-';
 			$data[] = $sub_array; 
@@ -2914,8 +2974,17 @@ public function update_booking_reminder_type_setup(){
 public function submit_booking_rule_change_request(){
 	$this->Salon_model->submit_booking_rule_change_request();
 } 
+public function set_lost_customers_ajx(){
+	$this->Salon_model->set_lost_customers_ajx();
+} 
+public function set_updated_offer_data_ajx(){
+	$this->Salon_model->set_updated_offer_data_ajx();
+} 
 public function set_updated_subscription_data_ajx(){
 	$this->Salon_model->set_updated_subscription_data_ajx();
+} 
+public function set_updated_active_booking_rule_data_ajx(){
+	$this->Salon_model->set_updated_active_booking_rule_data_ajx();
 } 
 public function set_updated_inactive_booking_rule_data_ajx(){
 	$this->Salon_model->set_updated_inactive_booking_rule_data_ajx();

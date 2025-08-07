@@ -312,4 +312,8 @@ class Home_controller extends CI_Controller {
 	public function socket_logs(){
         $this->load->view("salon/socket_logs");
 	}
+	
+	public function reschedule_booking(){
+	   $this->load->view('salon/reschedule_booking');
+	}
 }

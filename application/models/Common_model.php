@@ -301,4 +301,16 @@ class Common_model extends CI_Model {
 			));
 		}
 	}
+	public function set_cron_report($data){
+		$data['created_on'] = date('Y-m-d H:i:s');
+		$this->db->insert('tbl_cron_reports',$data);
+		$insert_id = $this->db->insert_id();
+		return $insert_id;
+	}
+	public function update_cron_report($data,$single_id){
+		$data['updated_on'] = date('Y-m-d H:i:s');
+		$this->db->where('id',$single_id);
+		$this->db->update('tbl_cron_reports',$data);
+		return $single_id;
+	}
 }

@@ -28,7 +28,7 @@ th.sorting{
     text-align: start !important;
     width: 37px !important;
 }
-td{
+.content_table td{
     padding-left: 42px !important;
 
 }

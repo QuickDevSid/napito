@@ -285,6 +285,87 @@
                           <br><small>(Package: <?=$package_details->package_name;?>)</small>
                         <?php } ?>
                         <?=(!empty($paid_products) && $product_details_str != "") ? '<br>Products: ' . $product_details_str : ''; ?>
+                        <?php if($single_services_result->is_service_discount_applied == '1'){    
+                          $customer_criteria = $single_services_result->service_discount_customer_criteria;                   
+                          $customer_criteria = $single_services_result->service_discount_customer_criteria;                   
+                          if($customer_criteria == '0'){
+                              $marketing_criteria_discount_text = 'New Client Benefits';
+                          }elseif($customer_criteria == '1'){
+                              $marketing_criteria_discount_text = 'Regular Client Benefits';
+                          }elseif($customer_criteria == '2'){
+                              $marketing_criteria_discount_text = 'Lost Client Benefits';
+                          }elseif($customer_criteria == '3'){
+                              $marketing_criteria_discount_text = 'Birthday Benefits';
+                          }elseif($customer_criteria == '4'){
+                              $marketing_criteria_discount_text = 'Anniversary Benefits';
+                          }elseif($customer_criteria == '5'){
+                              $marketing_criteria_discount_text = 'Products Marketing Benefits';
+                          }                         
+
+                          //     if($discount_type == '1'){    //Flexible
+                          //         $customer_last_service_booking = $this->get_customer_last_service_booking($custID,$data->id);
+                          //         if(!empty($customer_last_service_booking)){            
+                          //             if($customer_criteria == '1'){                             
+                          //                 $prev_Applied_slab = $customer_last_service_booking->rewards_applied_flexible_slab;
+                          //             }else{
+                          //                 $prev_Applied_slab = $customer_last_service_booking->applied_flexible_slab;
+                          //             }
+
+                          //             if($prev_Applied_slab != ""){
+                          //                 $next_slab = $prev_Applied_slab + $slab_increment;
+                          //             }else{
+                          //                 $next_slab = $min_slab + $slab_increment;
+                          //             }
+
+                          //             if($next_slab > $max_slab){
+                          //                 $slab_consider = $min_slab;
+                          //             }else{
+                          //                 $slab_consider = $next_slab;
+                          //             }
+                          //         }else{
+                          //             $slab_consider = $min_slab;
+                          //         }
+
+                          //         if($discount_in == '0'){  //percentage
+                          //             $discount_amount = ((float)$slab_consider * (float)$data->final_price) / 100;
+                          //             $discount_text = '<p style="color:#01a900;font-size:10px;">' . $marketing_criteria . '' . $slab_consider . '% Off</p>';
+                          //         }elseif($discount_in == '1'){ //flat
+                          //             $discount_amount = (float)$slab_consider;
+                          //             $discount_text = '<p style="color:#01a900;font-size:10px;">' . $marketing_criteria . 'Flat Rs. ' . $slab_consider . ' Off</p>';
+                          //         }
+                          //     }elseif($discount_type == '0'){   //Fixed
+                          //         if($discount_in == '0'){  //percentage
+                          //             $discount_amount = ((float)$discount_amount_value * (float)$data->final_price) / 100;
+                          //             $discount_text = '<p style="color:#01a900;font-size:10px;">' . $marketing_criteria . '' . $discount_amount_value . '% Off</p>';
+                          //         }elseif($discount_in == '1'){ //flat
+                          //             $discount_amount = (float)$discount_amount_value;
+                          //             $discount_text = '<p style="color:#01a900;font-size:10px;">' . $marketing_criteria . 'Flat Rs. ' . $discount_amount_value . ' Off</p>';
+                          //         }
+                          //     }
+                          // }
+
+                          // if($is_discount_applied == '1'){
+                          //     if($customer_criteria == '1'){  //for regular customer rewards are given
+                          //         $rewards_discount_amount = $discount_amount;
+                          //         $rewards_slab_increment = $slab_increment;
+                          //         $rewards_slab_consider = $slab_consider;
+                          //         $rewards_min_slab = $min_slab;
+                          //         $rewards_max_slab = $max_slab;
+                          //         $rewards_text = '<p style="color:#01a900;font-size:10px;">' . $marketing_criteria . 'Earn ' . $rewards_discount_amount . ' Reward Points</p>';
+
+                          //         $discount_text = '';
+                          //         $discount_amount = 0;
+                          //         $slab_increment = '5';
+                          //         $slab_consider = '';
+                          //         $min_slab = '';
+                          //         $max_slab = '';
+
+                          //         $service_discount_rewards_type = '1';   // rewards
+                          //     }else{                                    
+                          //         $service_discount_rewards_type = '0';   // discount
+                          //     }
+                          // }
+                        } ?>
                       </td>
                       <td class="tm_width_2" style="width:20%;text-align:left;"><?=(!empty($after_bill_stylist)) ? $after_bill_stylist->full_name : '-'; ?></td>
                       <td class="tm_width_2" style="width:15%;text-align:center;"><?=($single_services_result->service_price != "") ? number_format($single_services_result->service_price, 2, '.', ',') : '-'; ?></td>

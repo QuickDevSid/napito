@@ -1,6 +1,71 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+
+/**
+ * @OA\Info(
+ *     title="Napito Salon Management API",
+ *     version="1.0.0",
+ *     description="Comprehensive API for salon management operations",
+ *     @OA\Contact(
+ *         email="support@napito.com",
+ *         name="API Support"
+ *     ),
+ *     @OA\License(
+ *         name="MIT",
+ *         url="https://opensource.org/licenses/MIT"
+ *     )
+ * )
+ * 
+ * @OA\Server(
+ *     url="http://127.0.0.1/saloon/napito/api/v1",
+ *     description="Development server"
+ * )
+ * 
+ * @OA\SecurityScheme(
+ *     securityScheme="bearerAuth",
+ *     type="http",
+ *     scheme="bearer",
+ *     bearerFormat="JWT"
+ * )
+ */
 class Api_controller extends CI_Controller {
+    
+    /**
+     * @OA\Post(
+     *     path="/api/v1/api/customer_login",
+     *     summary="Customer Login",
+     *     description="Authenticate customer and return access token",
+     *     tags={"Authentication"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"phone","password"},
+     *             @OA\Property(property="phone", type="string", example="9876543210"),
+     *             @OA\Property(property="password", type="string", example="password123")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Login successful",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Login successful"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="token", type="string", example="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."),
+     *                 @OA\Property(property="user", type="object",
+     *                     @OA\Property(property="id", type="integer", example=1),
+     *                     @OA\Property(property="name", type="string", example="John Doe"),
+     *                     @OA\Property(property="phone", type="string", example="9876543210")
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Invalid credentials"
+     *     )
+     * )
+     */
     public function customer_login(){
         $this->Api_model->customer_login_new();
     }
@@ -21,6 +86,9 @@ class Api_controller extends CI_Controller {
     }
     public function set_new_store(){
         $this->Api_model->set_new_store();
+    }
+    public function calculate_discounts(){
+        $this->Api_model->calculate_discounts();
     }
     public function get_store_genders(){
         $this->Api_model->get_store_genders();
@@ -81,6 +149,9 @@ class Api_controller extends CI_Controller {
     }
     public function get_store_coupons(){
         $this->Api_model->get_store_coupons();
+    }
+    public function apply_offer(){
+        $this->Api_model->apply_offer();
     }
     public function apply_rewards(){
         $this->Api_model->apply_rewards();

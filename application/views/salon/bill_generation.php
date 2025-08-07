@@ -572,8 +572,16 @@
     <div class="add-new-customer-content">
         <form method="post" name="add_customer_modal_form" id="add_customer_modal_form" enctype="multipart/form-data">
             <div class="row">
+                <!-- <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
+                    <label>First Name <b class="require">*</b></label>
+                    <input autocomplete="off" type="text" class="form-control" name="f_name" id="f_name" placeholder="Enter first name">
+                </div>
                 <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
-                    <label>Customer Name <b class="require">*</b></label>
+                    <label>Last Name <b class="require">*</b></label>
+                    <input autocomplete="off" type="text" class="form-control" name="l_name" id="l_name" placeholder="Enter last name">
+                </div> -->
+                <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
+                    <label>Full Name <b class="require">*</b></label>
                     <input autocomplete="off" type="text" class="form-control" name="full_name" id="full_name" placeholder="Enter full name">
                     <input type="hidden" name="added_from" id="added_from" value="bill-generation">
                 </div>
@@ -857,7 +865,7 @@ $today = date('d-m-Y');
             messages: {
                 bill_for: 'Please select bill for!',
                 service_date: 'Please select service date!',
-                full_name: 'Please enter customer name!',
+                full_name: 'Please enter full name!',
                 employee: 'Please select stylist!',
                 membership_id: 'Please select membership name!',
                 selected_customer_phone: {
@@ -935,6 +943,8 @@ $today = date('d-m-Y');
                     number: true,
                     minlength: 10,
                 },
+                // f_name: 'required',
+                // l_name: 'required',
                 full_name: {
                     required: true,
                 },
@@ -946,8 +956,10 @@ $today = date('d-m-Y');
                 },
             },
             messages: {
+                // f_name: 'Please enter first name!',
+                // l_name: 'Please enter last name!',
                 full_name: {
-                    required: 'Please enter customer name!',
+                    required: 'Please enter full name!',
                 },
                 customer_phone: {
                     required: "Please enter mobile number!",
@@ -1723,9 +1735,17 @@ $today = date('d-m-Y');
 
 
     function open_customer_model() {
+        var phone = $('#phone').val();
+
+        // if (/^\d{10}$/.test(phone)) {
+        if (/^\d+$/.test(phone)) {
+            $('#customer_phone').val(phone).focus();
+        } else {
+            $('#customer_phone').val('');
+        }
+
         $(".add-new-customer-main").toggle();
         $(".customer-info-by-search").hide();
-        // $("#customer_phone").val($("#phone").val());
     }
 
     function open_customer_note_model() {

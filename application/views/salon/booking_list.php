@@ -2099,8 +2099,10 @@
                     booking_id: id
                 },
                 success: function(response) {
-                    $('#booking_edit_response').html(response)
-                    showPopup('BookingEditModal');
+                    var encodedId = btoa(id);
+                    window.location.href = '<?= base_url(); ?>reschedule/' + encodedId;
+                    // $('#booking_edit_response').html(response)
+                    // showPopup('BookingEditModal');
                 },
                 error: function(xhr, status, error) {
                     console.error('Error fetching booking details:', error);

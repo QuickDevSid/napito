@@ -118,23 +118,67 @@
                                                                                                                             } 
                                                                                                                         ?>"> 
                                         <label>Select Services<b class="require">*</b></label>
-                                        <div> 
-                                            <button type="button" id="checkAll" class="btn btn-primary btn-sm">Check All</button> 
-                                            <button type="button" id="uncheckAll" class="btn btn-secondary btn-sm">Uncheck All</button> 
-                                        </div> 
-                                        <?php 
-                                        if (!empty($all_services)) {
-                                            $selected_services = [];
-                                            if (!empty($single_new) && $single_new->for_service == '1') {
-                                                $selected_services = explode(',', $single_new->selected_service);
-                                            }
-                                            foreach ($all_services as $service_result) {                                         
-                                        ?> 
-                                                <div class="service_list"> 
-                                                    <input class=" service-checkbox" type="checkbox" value="<?= $service_result->id; ?>" id="selected_service_0" name="selected_service_0[]" <?php if (!empty($single_new) && in_array($service_result->id, $selected_services)) { echo 'checked'; } ?>>
-                                                    <?= $service_result->sub_category_name; ?> | <?= $service_result->sub_category_marathi; ?> -> <?= $service_result->service_name; ?> | <?= $service_result->service_name_marathi; ?> 
+                                        <br><span for="selected_service_0[]" generated="true" class="error invalid-feedback" style="display:none;">Please select atleast one service!</span>
+                                        <div class="row">
+                                            <?php if (!empty($male_services)) { ?>
+                                                <div class="col-lg-6"> 
+                                                    <label>Male Services</label>
+                                                    <div> 
+                                                        <button type="button" id="checkAll" class="btn btn-primary btn-sm">Check All</button> 
+                                                        <button type="button" id="uncheckAll" class="btn btn-secondary btn-sm">Uncheck All</button> 
+                                                    </div> 
+                                                    <?php 
+                                                    if (!empty($male_services)) {
+                                                        $selected_services = [];
+                                                        if (!empty($single_new) && $single_new->for_service == '1') {
+                                                            $selected_services = explode(',', $single_new->selected_service);
+                                                        }
+                                                        foreach ($male_services as $service_result) {     
+                                                            if($service_result->gender == '0'){
+                                                                $gender = '<small>(Male)</small>';
+                                                            }elseif($service_result->gender == '1'){
+                                                                $gender = '<small>(Female)</small>';
+                                                            }else{
+                                                                $gender = '';
+                                                            }                                    
+                                                    ?> 
+                                                            <div class="service_list" style="width: 100%;"> 
+                                                                <input class=" service-checkbox" type="checkbox" value="<?= $service_result->id; ?>" id="selected_service_0" name="selected_service_0[]" <?php if (!empty($single_new) && in_array($service_result->id, $selected_services)) { echo 'checked'; } ?>>
+                                                                <?= $service_result->sub_category_name; ?> | <?= $service_result->sub_category_marathi; ?> -> <?= $service_result->service_name; ?> | <?= $service_result->service_name_marathi; ?> | <?=$gender; ?>
+                                                            </div> 
+                                                    <?php }} ?>
                                                 </div> 
-                                        <?php }} ?>
+                                            <?php } ?>
+                                            <?php if (!empty($female_services)) { ?>
+                                                <div class="col-lg-6"> 
+                                                    <label>Female Services</label>
+                                                    <div> 
+                                                        <button type="button" id="checkAllFemale" class="btn btn-primary btn-sm">Check All</button> 
+                                                        <button type="button" id="uncheckAllFemale" class="btn btn-secondary btn-sm">Uncheck All</button> 
+                                                    </div> 
+                                                    <?php 
+                                                    if (!empty($female_services)) {
+                                                        $selected_services = [];
+                                                        if (!empty($single_new) && $single_new->for_service == '1') {
+                                                            $selected_services = explode(',', $single_new->selected_service);
+                                                        }
+                                                        foreach ($female_services as $service_result) {     
+                                                            if($service_result->gender == '0'){
+                                                                $gender = '<small>(Male)</small>';
+                                                            }elseif($service_result->gender == '1'){
+                                                                $gender = '<small>(Female)</small>';
+                                                            }else{
+                                                                $gender = '';
+                                                            }                                    
+                                                    ?> 
+                                                            <div class="service_list" style="width: 100%;"> 
+                                                                <input class=" service-checkbox-female" type="checkbox" value="<?= $service_result->id; ?>" id="selected_service_female_0" name="selected_service_0[]" <?php if (!empty($single_new) && in_array($service_result->id, $selected_services)) { echo 'checked'; } ?>>
+                                                                <?= $service_result->sub_category_name; ?> | <?= $service_result->sub_category_marathi; ?> -> <?= $service_result->service_name; ?> | <?= $service_result->service_name_marathi; ?> | <?=$gender; ?>
+                                                            </div> 
+                                                    <?php }} ?>
+                                                </div>
+                                            <?php } ?>
+                                        </div>
                                     </div>
                                 </div>
                                 <button type="submit" name="new_client_submit" value="new_client_submit" id="new_client_submit" class="btn btn-primary">Save Data</button>
@@ -253,23 +297,67 @@
                                                                                                                             } 
                                                                                                                         ?>"> 
                                         <label>Select Services<b class="require">*</b></label>
-                                        <div> 
-                                            <button type="button" id="checkAllRegular" class="btn btn-primary btn-sm">Check All</button> 
-                                            <button type="button" id="uncheckAllRegular" class="btn btn-secondary btn-sm">Uncheck All</button> 
-                                        </div> 
-                                        <?php 
-                                        if (!empty($all_services)) {
-                                            $selected_services = [];
-                                            if (!empty($single_regular) && $single_regular->for_service == '1') {
-                                                $selected_services = explode(',', $single_regular->selected_service);
-                                            }
-                                            foreach ($all_services as $all_services_result) { 
-                                        ?> 
-                                                <div class="service_list"> 
-                                                    <input type="checkbox" class=" service-checkbox_regular" id="selected_service_1" name="selected_service_1[]" value="<?= $all_services_result->id ?>" <?php if (!empty($single_regular) && in_array($all_services_result->id, $selected_services)) { echo 'checked'; } ?>> 
-                                                    <?= $all_services_result->sub_category_name; ?> | <?= $all_services_result->sub_category_marathi; ?> -> <?= $all_services_result->service_name; ?> | <?= $all_services_result->service_name_marathi; ?> 
+                                        <br><span for="selected_service_1[]" generated="true" class="error invalid-feedback" style="display:none;">Please select atleast one service!</span>
+                                        <div class="row">
+                                            <?php if (!empty($male_services)) { ?>
+                                                <div class="col-lg-6"> 
+                                                    <label>Male Services</label>                                        
+                                                    <div> 
+                                                        <button type="button" id="checkAllRegular" class="btn btn-primary btn-sm">Check All</button> 
+                                                        <button type="button" id="uncheckAllRegular" class="btn btn-secondary btn-sm">Uncheck All</button> 
+                                                    </div> 
+                                                    <?php 
+                                                    if (!empty($male_services)) {
+                                                        $selected_services = [];
+                                                        if (!empty($single_regular) && $single_regular->for_service == '1') {
+                                                            $selected_services = explode(',', $single_regular->selected_service);
+                                                        }
+                                                        foreach ($male_services as $service_result) {     
+                                                            if($service_result->gender == '0'){
+                                                                $gender = '<small>(Male)</small>';
+                                                            }elseif($service_result->gender == '1'){
+                                                                $gender = '<small>(Female)</small>';
+                                                            }else{
+                                                                $gender = '';
+                                                            }                                    
+                                                    ?> 
+                                                            <div class="service_list" style="width: 100%;"> 
+                                                                <input type="checkbox" class=" service-checkbox_regular" id="selected_service_1" name="selected_service_1[]" value="<?= $service_result->id ?>" <?php if (!empty($single_regular) && in_array($service_result->id, $selected_services)) { echo 'checked'; } ?>> 
+                                                                <?= $service_result->sub_category_name; ?> | <?= $service_result->sub_category_marathi; ?> -> <?= $service_result->service_name; ?> | <?= $service_result->service_name_marathi; ?> | <?=$gender; ?>
+                                                            </div> 
+                                                    <?php }} ?>
+                                                </div> 
+                                            <?php } ?>
+                                            <?php if (!empty($female_services)) { ?>
+                                                <div class="col-lg-6"> 
+                                                    <label>Female Services</label>                                 
+                                                    <div> 
+                                                        <button type="button" id="checkAllRegularFemale" class="btn btn-primary btn-sm">Check All</button> 
+                                                        <button type="button" id="uncheckAllRegularFemale" class="btn btn-secondary btn-sm">Uncheck All</button> 
+                                                    </div> 
+                                                    <?php 
+                                                    if (!empty($female_services)) {
+                                                        $selected_services = [];
+                                                        if (!empty($single_regular) && $single_regular->for_service == '1') {
+                                                            $selected_services = explode(',', $single_regular->selected_service);
+                                                        }
+                                                        foreach ($female_services as $service_result) {     
+                                                            if($service_result->gender == '0'){
+                                                                $gender = '<small>(Male)</small>';
+                                                            }elseif($service_result->gender == '1'){
+                                                                $gender = '<small>(Female)</small>';
+                                                            }else{
+                                                                $gender = '';
+                                                            }                                    
+                                                    ?> 
+                                                            <div class="service_list" style="width: 100%;"> 
+                                                                <input type="checkbox" class=" service-checkbox_regular-female" id="selected_service_female_1" name="selected_service_1[]" value="<?= $service_result->id ?>" <?php if (!empty($single_regular) && in_array($service_result->id, $selected_services)) { echo 'checked'; } ?>> 
+                                                                <?= $service_result->sub_category_name; ?> | <?= $service_result->sub_category_marathi; ?> -> <?= $service_result->service_name; ?> | <?= $service_result->service_name_marathi; ?> | <?=$gender; ?>
+                                                            </div> 
+                                                    <?php }} ?>
                                                 </div>
-                                        <?php }} ?>
+                                            <?php } ?>
+                                        </div>
                                     </div>
                                 </div>
                                 <button type="submit" name="regular_submit" value="regular_submit" id="regular_submit" class="btn btn-primary">Save Data</button>
@@ -336,23 +424,68 @@
                                                                                                                             } 
                                                                                                                         ?>"> 
                                         <label>Select Services<b class="require">*</b></label>
-                                        <div> 
-                                            <button type="button" id="checkAllLost" class="btn btn-primary btn-sm">Check All</button> 
-                                            <button type="button" id="uncheckAllLost" class="btn btn-secondary btn-sm">Uncheck All</button> 
-                                        </div> 
-                                        <?php 
-                                        if (!empty($all_services)) {
-                                            $selected_services = [];
-                                            if (!empty($single_lost) && $single_lost->for_service == '1') {
-                                                $selected_services = explode(',', $single_lost->selected_service);
-                                            }
-                                            foreach ($all_services as $service_result) {                                         
-                                        ?> 
-                                            <div class="service_list"> 
-                                                <input type="checkbox" class="service-checkboxLost" id="selected_service_2" name="selected_service_2[]" value="<?= $service_result->id; ?>" <?php if (!empty($single_lost) && in_array($service_result->id, $selected_services)) { echo 'selected'; } ?>> 
-                                                <?= $service_result->sub_category_name; ?> | <?= $service_result->sub_category_marathi; ?> -> <?= $service_result->service_name; ?> | <?= $service_result->service_name_marathi; ?> 
-                                            </div> 
-                                        <?php }} ?> 
+                                        <br><span for="selected_service_2[]" generated="true" class="error invalid-feedback" style="display:none;">Please select atleast one service!</span>
+                                        <div class="row">
+                                            <?php if (!empty($male_services)) { ?>
+                                                <div class="col-lg-6"> 
+                                                    <label>Male Services</label>                                             
+                                                    <div> 
+                                                        <button type="button" id="checkAllLost" class="btn btn-primary btn-sm">Check All</button> 
+                                                        <button type="button" id="uncheckAllLost" class="btn btn-secondary btn-sm">Uncheck All</button> 
+                                                    </div> 
+                                                    <?php 
+                                                    if (!empty($male_services)) {
+                                                        $selected_services = [];
+                                                        if (!empty($single_lost) && $single_lost->for_service == '1') {
+                                                            $selected_services = explode(',', $single_lost->selected_service);
+                                                        }
+
+                                                        foreach ($male_services as $service_result) {     
+                                                            if($service_result->gender == '0'){
+                                                                $gender = '<small>(Male)</small>';
+                                                            }elseif($service_result->gender == '1'){
+                                                                $gender = '<small>(Female)</small>';
+                                                            }else{
+                                                                $gender = '';
+                                                            }                                    
+                                                    ?> 
+                                                            <div class="service_list" style="width: 100%;"> 
+                                                                <input type="checkbox" class="service-checkboxLost" id="selected_service_2" name="selected_service_2[]" value="<?= $service_result->id; ?>" <?php if (!empty($single_lost) && in_array($service_result->id, $selected_services)) { echo 'checked'; } ?>> 
+                                                                <?= $service_result->sub_category_name; ?> | <?= $service_result->sub_category_marathi; ?> -> <?= $service_result->service_name; ?> | <?= $service_result->service_name_marathi; ?> | <?=$gender; ?>
+                                                            </div> 
+                                                    <?php }} ?>
+                                                </div> 
+                                            <?php } ?>
+                                            <?php if (!empty($female_services)) { ?>
+                                                <div class="col-lg-6"> 
+                                                    <label>Female Services</label>                                         
+                                                    <div> 
+                                                        <button type="button" id="checkAllLostFemale" class="btn btn-primary btn-sm">Check All</button> 
+                                                        <button type="button" id="uncheckAllLostFemale" class="btn btn-secondary btn-sm">Uncheck All</button> 
+                                                    </div> 
+                                                    <?php 
+                                                    if (!empty($female_services)) {
+                                                        $selected_services = [];
+                                                        if (!empty($single_lost) && $single_lost->for_service == '1') {
+                                                            $selected_services = explode(',', $single_lost->selected_service);
+                                                        }
+                                                        foreach ($female_services as $service_result) {     
+                                                            if($service_result->gender == '0'){
+                                                                $gender = '<small>(Male)</small>';
+                                                            }elseif($service_result->gender == '1'){
+                                                                $gender = '<small>(Female)</small>';
+                                                            }else{
+                                                                $gender = '';
+                                                            }                                    
+                                                    ?> 
+                                                            <div class="service_list" style="width: 100%;"> 
+                                                                <input type="checkbox" class="service-checkboxLost-female" id="selected_service_female_2" name="selected_service_2[]" value="<?= $service_result->id; ?>" <?php if (!empty($single_lost) && in_array($service_result->id, $selected_services)) { echo 'checked'; } ?>> 
+                                                                <?= $service_result->sub_category_name; ?> | <?= $service_result->sub_category_marathi; ?> -> <?= $service_result->service_name; ?> | <?= $service_result->service_name_marathi; ?> | <?=$gender; ?>
+                                                            </div> 
+                                                    <?php }} ?>
+                                                </div>
+                                            <?php } ?>
+                                        </div>
                                     </div>
                                 </div>
                                 <button type="submit" name="lost_client_submit" value="lost_client_submit" id="lost_client_submit" class="btn btn-primary">Save Data</button>
@@ -418,23 +551,67 @@
                                                                                                                             } 
                                                                                                                         ?>"> 
                                         <label>Select Services<b class="require">*</b></label>
-                                        <div> 
-                                            <button type="button" id="checkAllBirth" class="btn btn-primary btn-sm">Check All</button> 
-                                            <button type="button" id="uncheckAllBirth" class="btn btn-secondary btn-sm">Uncheck All</button> 
-                                        </div> 
-                                        <?php 
-                                        if (!empty($all_services)) {
-                                            $selected_services = [];
-                                            if (!empty($single_birthday) && $single_birthday->for_service == '1') {
-                                                $selected_services = explode(',', $single_birthday->selected_service);
-                                            }
-                                            foreach ($all_services as $service_result) {                                         
-                                        ?> 
-                                                <div class="service_list"> 
-                                                    <input type="checkbox" class=" service-checkboxBirth" id="selected_service_3" name="selected_service_3[]" value="<?= $service_result->id; ?>" <?php if (!empty($single_birthday) && in_array($service_result->id, $selected_services)) { echo 'checked'; } ?>> 
-                                                    <?= $service_result->sub_category_name; ?> | <?= $service_result->sub_category_marathi; ?> -> <?= $service_result->service_name; ?> | <?= $service_result->service_name_marathi; ?> 
+                                        <br><span for="selected_service_3[]" generated="true" class="error invalid-feedback" style="display:none;">Please select atleast one service!</span>
+                                        <div class="row">
+                                            <?php if (!empty($male_services)) { ?>
+                                                <div class="col-lg-6"> 
+                                                    <label>Male Services</label>   
+                                                    <div> 
+                                                        <button type="button" id="checkAllBirth" class="btn btn-primary btn-sm">Check All</button> 
+                                                        <button type="button" id="uncheckAllBirth" class="btn btn-secondary btn-sm">Uncheck All</button> 
+                                                    </div> 
+                                                    <?php 
+                                                    if (!empty($male_services)) {
+                                                        $selected_services = [];
+                                                        if (!empty($single_birthday) && $single_birthday->for_service == '1') {
+                                                            $selected_services = explode(',', $single_birthday->selected_service);
+                                                        }
+                                                        foreach ($male_services as $service_result) {     
+                                                            if($service_result->gender == '0'){
+                                                                $gender = '<small>(Male)</small>';
+                                                            }elseif($service_result->gender == '1'){
+                                                                $gender = '<small>(Female)</small>';
+                                                            }else{
+                                                                $gender = '';
+                                                            }                                    
+                                                    ?> 
+                                                            <div class="service_list" style="width: 100%;"> 
+                                                        <input type="checkbox" class=" service-checkboxBirth" id="selected_service_3" name="selected_service_3[]" value="<?= $service_result->id; ?>" <?php if (!empty($single_birthday) && in_array($service_result->id, $selected_services)) { echo 'checked'; } ?>> 
+                                                                <?= $service_result->sub_category_name; ?> | <?= $service_result->sub_category_marathi; ?> -> <?= $service_result->service_name; ?> | <?= $service_result->service_name_marathi; ?> | <?=$gender; ?>
+                                                            </div> 
+                                                    <?php }} ?>
                                                 </div> 
-                                        <?php }} ?> 
+                                            <?php } ?>
+                                            <?php if (!empty($female_services)) { ?>
+                                                <div class="col-lg-6"> 
+                                                    <label>Female Services</label>  
+                                                    <div> 
+                                                        <button type="button" id="checkAllBirthFemale" class="btn btn-primary btn-sm">Check All</button> 
+                                                        <button type="button" id="uncheckAllBirthFemale" class="btn btn-secondary btn-sm">Uncheck All</button> 
+                                                    </div> 
+                                                    <?php 
+                                                    if (!empty($female_services)) {
+                                                        $selected_services = [];
+                                                        if (!empty($single_birthday) && $single_birthday->for_service == '1') {
+                                                            $selected_services = explode(',', $single_birthday->selected_service);
+                                                        }
+                                                        foreach ($female_services as $service_result) {     
+                                                            if($service_result->gender == '0'){
+                                                                $gender = '<small>(Male)</small>';
+                                                            }elseif($service_result->gender == '1'){
+                                                                $gender = '<small>(Female)</small>';
+                                                            }else{
+                                                                $gender = '';
+                                                            }                                    
+                                                    ?> 
+                                                            <div class="service_list" style="width: 100%;"> 
+                                                        <input type="checkbox" class=" service-checkboxBirth-female" id="selected_service_female_3" name="selected_service_3[]" value="<?= $service_result->id; ?>" <?php if (!empty($single_birthday) && in_array($service_result->id, $selected_services)) { echo 'checked'; } ?>> 
+                                                                <?= $service_result->sub_category_name; ?> | <?= $service_result->sub_category_marathi; ?> -> <?= $service_result->service_name; ?> | <?= $service_result->service_name_marathi; ?> | <?=$gender; ?>
+                                                            </div> 
+                                                    <?php }} ?>
+                                                </div>
+                                            <?php } ?>
+                                        </div>
                                     </div>
                                 </div>
                                 <button type="submit" name="birthday_submit" value="birthday_submit" id="birthday_submit" class="btn btn-primary">Save Data</button>
@@ -505,23 +682,67 @@
                                                                                                                             } 
                                                                                                                         ?>"> 
                                         <label>Select Services<b class="require">*</b></label>
-                                        <div> 
-                                            <button type="button" id="checkAllAny" class="btn btn-primary btn-sm">Check All</button> 
-                                            <button type="button" id="uncheckAllAny" class="btn btn-secondary btn-sm">Uncheck All</button> 
-                                        </div> 
-                                        <?php 
-                                        if (!empty($all_services)) {
-                                            $selected_services = [];
-                                            if (!empty($single_anniversary) && $single_anniversary->for_service == '1') {
-                                                $selected_services = explode(',', $single_anniversary->selected_service);
-                                            }
-                                            foreach ($all_services as $service_result) {                                         
-                                        ?> 
-                                            <div class="service_list"> 
-                                                <input type="checkbox" class=" service-checkboxAny" id="selected_service_4" name="selected_service_4[]" value="<?= $service_result->id; ?>" <?php if (!empty($single_anniversary) && in_array($service_result->id, $selected_services) && $single_anniversary->for_service == '1') { echo 'selected'; } ?>> 
-                                                <?= $service_result->sub_category_name; ?> | <?= $service_result->sub_category_marathi; ?> -> <?= $service_result->service_name; ?> | <?= $service_result->service_name_marathi; ?> 
-                                            </div> 
-                                        <?php }} ?> 
+                                        <br><span for="selected_service_4[]" generated="true" class="error invalid-feedback" style="display:none;">Please select atleast one service!</span>
+                                        <div class="row">
+                                            <?php if (!empty($male_services)) { ?>
+                                                <div class="col-lg-6"> 
+                                                    <label>Male Services</label>    
+                                                    <div> 
+                                                        <button type="button" id="checkAllAny" class="btn btn-primary btn-sm">Check All</button> 
+                                                        <button type="button" id="uncheckAllAny" class="btn btn-secondary btn-sm">Uncheck All</button> 
+                                                    </div> 
+                                                    <?php 
+                                                    if (!empty($male_services)) {
+                                                        $selected_services = [];
+                                                        if (!empty($single_anniversary) && $single_anniversary->for_service == '1') {
+                                                            $selected_services = explode(',', $single_anniversary->selected_service);
+                                                        }
+                                                        foreach ($male_services as $service_result) {     
+                                                            if($service_result->gender == '0'){
+                                                                $gender = '<small>(Male)</small>';
+                                                            }elseif($service_result->gender == '1'){
+                                                                $gender = '<small>(Female)</small>';
+                                                            }else{
+                                                                $gender = '';
+                                                            }                                    
+                                                    ?> 
+                                                            <div class="service_list" style="width: 100%;"> 
+                                                                <input type="checkbox" class=" service-checkboxAny" id="selected_service_4" name="selected_service_4[]" value="<?= $service_result->id; ?>" <?php if (!empty($single_anniversary) && in_array($service_result->id, $selected_services) && $single_anniversary->for_service == '1') { echo 'checked'; } ?>> 
+                                                                <?= $service_result->sub_category_name; ?> | <?= $service_result->sub_category_marathi; ?> -> <?= $service_result->service_name; ?> | <?= $service_result->service_name_marathi; ?> | <?=$gender; ?>
+                                                            </div> 
+                                                    <?php }} ?>
+                                                </div> 
+                                            <?php } ?>
+                                            <?php if (!empty($female_services)) { ?>
+                                                <div class="col-lg-6"> 
+                                                    <label>Female Services</label>  
+                                                    <div> 
+                                                        <button type="button" id="checkAllAnyFemale" class="btn btn-primary btn-sm">Check All</button> 
+                                                        <button type="button" id="uncheckAllAnyFemale" class="btn btn-secondary btn-sm">Uncheck All</button> 
+                                                    </div> 
+                                                    <?php 
+                                                    if (!empty($female_services)) {
+                                                        $selected_services = [];
+                                                        if (!empty($single_anniversary) && $single_anniversary->for_service == '1') {
+                                                            $selected_services = explode(',', $single_anniversary->selected_service);
+                                                        }
+                                                        foreach ($female_services as $service_result) {     
+                                                            if($service_result->gender == '0'){
+                                                                $gender = '<small>(Male)</small>';
+                                                            }elseif($service_result->gender == '1'){
+                                                                $gender = '<small>(Female)</small>';
+                                                            }else{
+                                                                $gender = '';
+                                                            }                                    
+                                                    ?> 
+                                                            <div class="service_list" style="width: 100%;"> 
+                                                                <input type="checkbox" class=" service-checkboxAny-female" id="selected_service_female_4" name="selected_service_4[]" value="<?= $service_result->id; ?>" <?php if (!empty($single_anniversary) && in_array($service_result->id, $selected_services) && $single_anniversary->for_service == '1') { echo 'checked'; } ?>> 
+                                                                <?= $service_result->sub_category_name; ?> | <?= $service_result->sub_category_marathi; ?> -> <?= $service_result->service_name; ?> | <?= $service_result->service_name_marathi; ?> | <?=$gender; ?>
+                                                            </div> 
+                                                    <?php }} ?>
+                                                </div>
+                                            <?php } ?>
+                                        </div>
                                     </div>
                                 </div>
                                 <button type="submit" name="anniversary_submit" value="anniversary_submit" id="anniversary_submit" class="btn btn-primary">Save Data</button>
@@ -689,29 +910,63 @@
         $('#uncheckAll').click(function() {
             $('.service-checkbox').prop('checked', false);
         });
+        $('#checkAllFemale').click(function() {
+            $('.service-checkbox-female').prop('checked', true);
+        });
+        $('#uncheckAllFemale').click(function() {
+            $('.service-checkbox-female').prop('checked', false);
+        });
+
         $('#checkAllRegular').click(function() {
             $('.service-checkbox_regular').prop('checked', true);
         });
         $('#uncheckAllRegular').click(function() {
             $('.service-checkbox_regular').prop('checked', false);
         });
+        $('#checkAllRegularFemale').click(function() {
+            $('.service-checkbox_regular-female').prop('checked', true);
+        });
+        $('#uncheckAllRegularFemale').click(function() {
+            $('.service-checkbox_regular-female').prop('checked', false);
+        });
+
         $('#checkAllLost').click(function() {
             $('.service-checkboxLost').prop('checked', true);
         });
         $('#uncheckAllLost').click(function() {
             $('.service-checkboxLost').prop('checked', false);
         });
+        $('#checkAllLostFemale').click(function() {
+            $('.service-checkboxLost-female').prop('checked', true);
+        });
+        $('#uncheckAllLostFemale').click(function() {
+            $('.service-checkboxLost-female').prop('checked', false);
+        });
+
         $('#checkAllBirth').click(function() {
             $('.service-checkboxBirth').prop('checked', true);
         });
         $('#uncheckAllBirth').click(function() {
             $('.service-checkboxBirth').prop('checked', false);
         });
+        $('#checkAllBirthFemale').click(function() {
+            $('.service-checkboxBirth-female').prop('checked', true);
+        });
+        $('#uncheckAllBirthFemale').click(function() {
+            $('.service-checkboxBirth-female').prop('checked', false);
+        });
+
         $('#checkAllAny').click(function() {
             $('.service-checkboxAny').prop('checked', true);
         });
         $('#uncheckAllAny').click(function() {
             $('.service-checkboxAny').prop('checked', false);
+        });
+        $('#checkAllAnyFemale').click(function() {
+            $('.service-checkboxAny-female').prop('checked', true);
+        });
+        $('#uncheckAllAnyFemale').click(function() {
+            $('.service-checkboxAny-female').prop('checked', false);
         });
     });
 

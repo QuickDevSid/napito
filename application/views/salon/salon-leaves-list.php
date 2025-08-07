@@ -62,6 +62,9 @@ div.dataTables_wrapper div.dataTables_filter {
                                     <td><?=date('d-m-Y h:i A',strtotime($leaves_result->leave_submitted_on));?></td>
                                     <td>
                                         <a title="Edit" class="btn btn-success" href="<?=base_url();?>add_staff_leave/<?=$leaves_result->id;?>"><i class="fa-solid fa-pen-to-square"></i></a>
+                                        <?php if(date('Y-m-d',strtotime($leaves_result->from_date)) > date('Y-m-d')){ ?>
+                                            <a onclick="return confirm('Are you sure you want to delete this leave?');" href="<?=base_url();?>delete/<?=$leaves_result->id;?>/tbl_salon_emp_leaves" class="btn btn-danger" title="Delete"><i class="fa-solid fa-trash"></i></a>
+                                        <?php } ?>
                                     </td>
                                 </tr>
                                 <?php }} ?>

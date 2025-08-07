@@ -758,6 +758,28 @@ if (!empty($close_setup)) {
                                     <div class="form-group col-md-6 col-sm-12 col-xs-12">                                            
                                         <input readonly type="text" class="form-control" name="booking_date" id="booking_date" placeholder="Select Booking Date" onchange="fetchTimeSlots()">
                                     </div>  
+                                    <?php    
+                                        $slot_thresholds = [
+                                            'morning'   => ['start' => '05:00:00', 'end' => '12:00:00'],
+                                            'afternoon' => ['start' => '12:00:01', 'end' => '17:00:00'],
+                                            'evening'   => ['start' => '17:00:01', 'end' => '23:00:00'],
+                                        ];
+
+                                        $service_time = date('H:i:s');
+                                        $slot_type = '';
+
+                                        foreach ($slot_thresholds as $slot => $range) {
+                                            if ($service_time >= $range['start'] && $service_time <= $range['end']) {
+                                                $slot_type = $slot;
+                                                break;
+                                            }
+                                        }
+
+                                        if ($slot_type === '') {
+                                            $slot_type = 'morning';
+                                        }
+                                    ?>
+                                    <input type="hidden" id="slot_type" value="<?=$slot_type; ?>">
                                     <div class="form-group col-md-6 col-sm-12 col-xs-12">                                            
                                         <input readonly type="text" class="form-control" name="booking_start" id="booking_start" placeholder="Start From Time Slot" onclick="fetchTimeSlots()">
                                     </div> 
@@ -1181,8 +1203,16 @@ if (!empty($close_setup)) {
                         <label for="fullname">Register as Guest?</label><br>
                         <input style="height: 25px !important;" type="checkbox" name="is_guest" id="is_guest" class="dashboardToggle" onchange="getGuestCount(this)">
                     </div>
+                    <!-- <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
+                        <label>First Name <b class="require">*</b></label>
+                        <input autocomplete="off" type="text" class="form-control" name="f_name" id="f_name" placeholder="Enter first name">
+                    </div>
                     <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
-                        <label>Customer Name <b class="require">*</b></label>
+                        <label>Last Name <b class="require">*</b></label>
+                        <input autocomplete="off" type="text" class="form-control" name="l_name" id="l_name" placeholder="Enter last name">
+                    </div> -->
+                    <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
+                        <label>Full Name <b class="require">*</b></label>
                         <input autocomplete="off" type="text" class="form-control" name="full_name" id="full_name" placeholder="Enter full name">
                     </div>
                     <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
@@ -1406,6 +1436,8 @@ if(isset($_GET['stylist']) && $_GET['stylist'] != ""){
 
     function getGuestCount(checkbox){
         $('#full_name').val('').attr('readonly',false);
+        $('#f_name').val('').attr('readonly',false);
+        $('#l_name').val('').attr('readonly',false);
         $('#customer_phone').val('').attr('readonly',false);
         if ($(checkbox).is(':checked')) {
             $.ajax({
@@ -1415,7 +1447,10 @@ if(isset($_GET['stylist']) && $_GET['stylist'] != ""){
                     guest: true
                 },
                 success: function(response) {
+                    let nameParts = response.trim().split(" ");
                     $('#full_name').val(response).attr('readonly',true);
+                    $('#f_name').val(nameParts[0] || '').attr('readonly', true);
+                    $('#l_name').val(nameParts[1] || '').attr('readonly', true);
                     $('#customer_phone').attr('readonly',false);
                 },
                 error: function(xhr, status, error) {
@@ -1494,6 +1529,12 @@ if(isset($_GET['stylist']) && $_GET['stylist'] != ""){
                     number: true,
                     minlength: 10,
                 },
+                // f_name: {
+                //     required: true,
+                // },
+                // l_name: {
+                //     required: true,
+                // },
                 full_name: {
                     // required: function(element) {
                     //     return !$('#is_guest').is(':checked');
@@ -1508,8 +1549,14 @@ if(isset($_GET['stylist']) && $_GET['stylist'] != ""){
                 },
             },
             messages: {
+                // f_name: {
+                //     required:'Please enter first name!',
+                // },
+                // l_name: {
+                //     required:'Please enter last name!',
+                // },
                 full_name: {
-                    required:'Please enter customer name!',
+                    required:'Please enter full name!',
                 },
                 customer_phone: {
                     required: "Please enter mobile number!",
@@ -1843,13 +1890,19 @@ if(isset($_GET['stylist']) && $_GET['stylist'] != ""){
             fetchTimeSlots();
         }
     }
-    function fetchTimeSlots(){
+    function fetchTimeSlots(slot_type = ''){
         var total_service_duration = $('#total_service_duration').val();
         var booking_date = $('#booking_date').val();
         var booking_start = $('#booking_start').val();
         var employee = $('#employee').val();
         var employee_selection_rule = $('#employee_selection_rule').val();
         if(booking_date != ""){
+            if(slot_type == ''){
+                slot_type = $('#slot_type').val();
+            }
+            
+            $('#slot_type').val(slot_type);
+
             if ($('#booking_timeslots').length > 0) {
                 $('#booking_timeslots').html('');
             }
@@ -1861,6 +1914,7 @@ if(isset($_GET['stylist']) && $_GET['stylist'] != ""){
                 url: "<?=base_url();?>salon/Ajax_controller/get_day_timeslots_ajx",
                 data:{
                     'source':'vendor_panel',
+                    'slot_type': slot_type,
                     'booking_date':booking_date,
                     'selected_slot_start_time':selected_slot_start_time,
                     'booking_start':booking_start,
@@ -1910,6 +1964,15 @@ if(isset($_GET['stylist']) && $_GET['stylist'] != ""){
         }); 
     }
     function open_customer_model(source = '') {
+        var phone = $('#phone').val();
+
+        // if (/^\d{10}$/.test(phone)) {
+        if (/^\d+$/.test(phone)) {
+            $('#customer_phone').val(phone).focus();
+        } else {
+            $('#customer_phone').val('');
+        }
+
         $('#is_guest_toggle').show();
         if(source == 'guest_to_parmanant'){
             var guest_to_parmanant = '1';
@@ -1973,6 +2036,8 @@ if(isset($_GET['stylist']) && $_GET['stylist'] != ""){
                     $('#customer_name').val(parsedData.customer.id);
                     $('#customer_gender').val(parsedData.customer.gender);
                     $('#full_name').val(parsedData.customer.full_name);
+                    $('#f_name').val(parsedData.customer.f_name);
+                    $('#l_name').val(parsedData.customer.l_name);
                     $('#customer_phone').val(parsedData.customer.customer_phone);
                     $('#gender').val(parsedData.customer.gender).trigger('chosen');
                     $('#phone').val('');

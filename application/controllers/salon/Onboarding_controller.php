@@ -1127,6 +1127,8 @@ class Onboarding_controller extends CI_Controller {
 				$data['single_anniversary'] = $this->Salon_model->get_single_for_anniversary();				
 				$data['single_product_marketing'] = $this->Salon_model->get_single_for_product_marketing();		
 				$data['all_services'] = $this->Salon_model->all_servics($this->session->userdata('salon_id'), $this->session->userdata('branch_id'));	
+				$data['male_services'] = $this->Salon_model->get_salon_services_list_for_emp_new('0');	
+				$data['female_services'] = $this->Salon_model->get_salon_services_list_for_emp_new('1');	
 				$data['all_products'] = $this->Salon_model->all_products($this->session->userdata('salon_id'), $this->session->userdata('branch_id'));	
 				$this->load->view('salon/add_automated_marketing', $data);			
 			}

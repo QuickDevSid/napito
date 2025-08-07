@@ -118,7 +118,7 @@
     </div>
 <?php } ?>
 <div class="modal fade" id="dashboardModal" tabindex="-1" aria-labelledby="dashboardModalLabel" aria-hidden="true" >
-    <div class="modal-dialog" id="dashboardModal_dialog">
+    <div class="modal-dialog modal-lg" id="dashboardModal_dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="dashboardModalLabel"></h5>
@@ -1068,6 +1068,7 @@ if ($footer_onboarding_status < '18' || $this->uri->segment(1) == 'complete-prof
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.11.6/umd/popper.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tippy.js/6.3.1/tippy-bundle.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 
 
 <script type="text/javascript">
@@ -1122,7 +1123,8 @@ if ($footer_onboarding_status < '18' || $this->uri->segment(1) == 'complete-prof
 <script>
     $(document).ready(function() {
         updateSubscriptionData();
-        updateInactiveBookingRulesData();
+        updateOfferData();
+        updateActiveBookingRulesData();
         updateLapsedShortBreaks();
         $('.timepicker').clockpicker({
             donetext: 'Done',
@@ -1188,6 +1190,40 @@ if ($footer_onboarding_status < '18' || $this->uri->segment(1) == 'complete-prof
 
 
 <script>
+    function setLostCustomers() {
+        $.ajax({
+            url: "<?= base_url(); ?>salon/Ajax_controller/set_lost_customers_ajx",
+            method: 'POST',
+            data: {},
+            success: function(response) {
+                if (response == '1') {
+                    console.log('Lost customers set successfully');
+                } else {
+                    console.log('Something went wrong');
+                }
+            },
+            error: function() {
+                console.log('Error while finding lost customers');
+            }
+        });
+    }
+    function updateOfferData() {
+        $.ajax({
+            url: "<?= base_url(); ?>salon/Ajax_controller/set_updated_offer_data_ajx",
+            method: 'POST',
+            data: {},
+            success: function(response) {
+                if (response == '1') {
+                    console.log('Offer data updated successfully');
+                } else {
+                    console.log('Something went wrong');
+                }
+            },
+            error: function() {
+                console.log('Error while offer data update');
+            }
+        });
+    }
     function updateSubscriptionData() {
         $.ajax({
             url: "<?= base_url(); ?>salon/Ajax_controller/set_updated_subscription_data_ajx",
@@ -1219,6 +1255,23 @@ if ($footer_onboarding_status < '18' || $this->uri->segment(1) == 'complete-prof
             },
             error: function() {
                 console.log('Error while inactive booking rule data update');
+            }
+        });
+    }
+    function updateActiveBookingRulesData() {
+        $.ajax({
+            url: "<?= base_url(); ?>salon/Ajax_controller/set_updated_active_booking_rule_data_ajx",
+            method: 'POST',
+            data: {},
+            success: function(response) {
+                if (response == '1') {
+                    console.log('Active booking rules data updated successfully');
+                } else {
+                    console.log('Active booking rules not available');
+                }
+            },
+            error: function() {
+                console.log('Error while Active booking rule data update');
             }
         });
     }

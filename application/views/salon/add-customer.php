@@ -46,8 +46,34 @@
                         <div class="container">
                             <form method="post" name="add_customer_form" id="add_customer_form" enctype="multipart/form-data">
                                 <div class="row">
+                                    <!-- <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
+                                        <label>First Name <b class="require">*</b></label>
+                                        <input autocomplete="off" type="text" class="form-control" name="f_name" id="f_name" placeholder="Enter first name" value="<?php
+                                                                                                                                                                        if (!empty($single)) {
+                                                                                                                                                                            if ($single->f_name != "") {
+                                                                                                                                                                                echo $single->f_name;
+                                                                                                                                                                            } else {
+                                                                                                                                                                                $nameParts = explode(' ', $single->full_name);
+                                                                                                                                                                                echo isset($nameParts[0]) ? $nameParts[0] : '';
+                                                                                                                                                                            }
+                                                                                                                                                                        }
+                                                                                                                                                                    ?>">
+                                    </div>
                                     <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
-                                        <label>Customer Name <b class="require">*</b></label>
+                                        <label>Last Name <b class="require">*</b></label>
+                                        <input autocomplete="off" type="text" class="form-control" name="l_name" id="l_name" placeholder="Enter last name" value="<?php
+                                                                                                                                                                        if (!empty($single)) {
+                                                                                                                                                                            if ($single->l_name != "") {
+                                                                                                                                                                                echo $single->l_name;
+                                                                                                                                                                            } else {
+                                                                                                                                                                                $nameParts = explode(' ', $single->full_name);
+                                                                                                                                                                                echo isset($nameParts[1]) ? $nameParts[1] : '';
+                                                                                                                                                                            }
+                                                                                                                                                                        }
+                                                                                                                                                                    ?>">
+                                    </div> -->
+                                    <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
+                                        <label>Full Name <b class="require">*</b></label>
                                         <input autocomplete="off" type="text" class="form-control" name="full_name" id="full_name" placeholder="Enter full name" value="<?php if(!empty($single)){ echo $single->full_name; }?>">
                                     </div>
                                     <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
@@ -188,6 +214,12 @@ if ($this->uri->segment(2) != "") {
                     number: true,
                     minlength: 10,
                 },
+                // f_name: {
+                //     required: true,
+                // },
+                // l_name: {
+                //     required: true,
+                // },
                 full_name: {
                     required: true,
                 },
@@ -199,8 +231,14 @@ if ($this->uri->segment(2) != "") {
                 },
             },
             messages: {
+                // f_name: {
+                //     required:'Please enter first name!',
+                // },
+                // l_name: {
+                //     required:'Please enter last name!',
+                // },
                 full_name: {
-                    required:'Please enter customer name!',
+                    required:'Please enter full name!',
                 },
                 customer_phone: {
                     required: "Please enter mobile number!",
@@ -263,7 +301,7 @@ if ($this->uri->segment(2) != "") {
         $.ajax({
         type: "POST",
         url: "<?=base_url();?>salon/Ajax_controller/get_unique_customer_mobile",
-        data:{'customer_phone':customer_phone},
+        data:{'id':'<?=$this->uri->segment(2); ?>','customer_phone':customer_phone},
         success: function(data){console.log(data);
             if(data == "0"){
                 $("#mobile_error").hide();
