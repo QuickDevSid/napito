@@ -512,6 +512,16 @@ class Api_model extends CI_Model {
                         } else {
                             $row->profile_pic = "";
                         }
+
+                        if ($row->f_name == "") {
+                            $nameParts = explode(' ', $row->full_name);
+                            $row->f_name = isset($nameParts[0]) ? $nameParts[0] : '';
+                        }
+                        
+                        if ($row->l_name == "") {
+                            $nameParts = explode(' ', $row->full_name);
+                            $row->l_name = isset($nameParts[1]) ? $nameParts[1] : '';
+                        }
                     }
                     $json_arr['status'] = 'true';
                     $json_arr['message'] = 'success';
