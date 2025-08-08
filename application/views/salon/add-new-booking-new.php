@@ -1203,18 +1203,18 @@ if (!empty($close_setup)) {
                         <label for="fullname">Register as Guest?</label><br>
                         <input style="height: 25px !important;" type="checkbox" name="is_guest" id="is_guest" class="dashboardToggle" onchange="getGuestCount(this)">
                     </div>
-                    <!-- <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
+                    <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
                         <label>First Name <b class="require">*</b></label>
                         <input autocomplete="off" type="text" class="form-control" name="f_name" id="f_name" placeholder="Enter first name">
                     </div>
                     <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
                         <label>Last Name <b class="require">*</b></label>
                         <input autocomplete="off" type="text" class="form-control" name="l_name" id="l_name" placeholder="Enter last name">
-                    </div> -->
-                    <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
+                    </div>
+                    <!-- <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
                         <label>Full Name <b class="require">*</b></label>
                         <input autocomplete="off" type="text" class="form-control" name="full_name" id="full_name" placeholder="Enter full name">
-                    </div>
+                    </div> -->
                     <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
                         <label>Phone Number <b class="require">*</b></label>
                         <input type="text" maxlength="10" class="form-control" name="customer_phone" id="customer_phone" placeholder="Enter phone number" onkeyup="validateUniqueMobile()">
@@ -1529,18 +1529,18 @@ if(isset($_GET['stylist']) && $_GET['stylist'] != ""){
                     number: true,
                     minlength: 10,
                 },
-                // f_name: {
-                //     required: true,
-                // },
-                // l_name: {
-                //     required: true,
-                // },
-                full_name: {
-                    // required: function(element) {
-                    //     return !$('#is_guest').is(':checked');
-                    // },
+                f_name: {
                     required: true,
                 },
+                l_name: {
+                    required: true,
+                },
+                // full_name: {
+                //     // required: function(element) {
+                //     //     return !$('#is_guest').is(':checked');
+                //     // },
+                //     required: true,
+                // },
                 gender: {
                     required: true,
                 },
@@ -1549,15 +1549,15 @@ if(isset($_GET['stylist']) && $_GET['stylist'] != ""){
                 },
             },
             messages: {
-                // f_name: {
-                //     required:'Please enter first name!',
-                // },
-                // l_name: {
-                //     required:'Please enter last name!',
-                // },
-                full_name: {
-                    required:'Please enter full name!',
+                f_name: {
+                    required:'Please enter first name!',
                 },
+                l_name: {
+                    required:'Please enter last name!',
+                },
+                // full_name: {
+                //     required:'Please enter full name!',
+                // },
                 customer_phone: {
                     required: "Please enter mobile number!",
                     number: "Only number allowed!",

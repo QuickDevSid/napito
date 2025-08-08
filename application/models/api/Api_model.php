@@ -476,7 +476,7 @@ class Api_model extends CI_Model {
                 $salon_id = $request['salon_id'];
                 $branch_id = $request['branch_id'];
 
-                $this->db->select('id as customer_id, full_name, dob as date_of_birth, doa as date_of_anniversary, customer_phone, profile_pic, gender, rewards_balance');
+                $this->db->select('id as customer_id, full_name, f_name, l_name, dob as date_of_birth, doa as date_of_anniversary, customer_phone, profile_pic, gender, rewards_balance');
                 $this->db->where('is_deleted','0');
                 $this->db->where('id',$customer_id);
                 //$this->db->where('salon_id',$salon_id);
@@ -9384,19 +9384,17 @@ class Api_model extends CI_Model {
             if (!empty($exist)) {
                 $data = array();
     
-                // if (isset($_POST['f_name']) && $_POST['f_name'] != "") {
-                //     $data['f_name'] = $_POST['f_name'];
-                // }
+                if (isset($_POST['f_name']) && $_POST['f_name'] != "") {
+                    $data['f_name'] = $_POST['f_name'];
+                }
     
-                // if (isset($_POST['l_name']) && $_POST['l_name'] != "") {
-                //     $data['l_name'] = $_POST['l_name'];
-                // }
+                if (isset($_POST['l_name']) && $_POST['l_name'] != "") {
+                    $data['l_name'] = $_POST['l_name'];
+                }
     
-                // if (isset($_POST['f_name']) && $_POST['f_name'] != "" && isset($_POST['l_name']) && $_POST['l_name'] != "") {
-                //     $data['full_name'] = $_POST['f_name'] . ' ' . $_POST['l_name'];
-                // }
-    
-                if (isset($_POST['full_name']) && $_POST['full_name'] != "") {
+                if (isset($_POST['f_name']) && $_POST['f_name'] != "" && isset($_POST['l_name']) && $_POST['l_name'] != "") {
+                    $data['full_name'] = $_POST['f_name'] . ' ' . $_POST['l_name'];
+                }else if (isset($_POST['full_name']) && $_POST['full_name'] != "") {
                     $data['full_name'] = $_POST['full_name'];
                 }
     

@@ -46,7 +46,7 @@
                         <div class="container">
                             <form method="post" name="add_customer_form" id="add_customer_form" enctype="multipart/form-data">
                                 <div class="row">
-                                    <!-- <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
+                                    <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
                                         <label>First Name <b class="require">*</b></label>
                                         <input autocomplete="off" type="text" class="form-control" name="f_name" id="f_name" placeholder="Enter first name" value="<?php
                                                                                                                                                                         if (!empty($single)) {
@@ -71,17 +71,19 @@
                                                                                                                                                                             }
                                                                                                                                                                         }
                                                                                                                                                                     ?>">
-                                    </div> -->
-                                    <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
+                                    </div>
+                                    <!-- <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
                                         <label>Full Name <b class="require">*</b></label>
                                         <input autocomplete="off" type="text" class="form-control" name="full_name" id="full_name" placeholder="Enter full name" value="<?php if(!empty($single)){ echo $single->full_name; }?>">
-                                    </div>
+                                    </div> -->
                                     <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
                                         <label>Phone Number <b class="require">*</b></label>
                                         <input type="hidden" name="id" id="id" value="<?php if(!empty($single)){ echo $single->id; }?>">
                                         <input type="hidden" name="added_from" id="added_from" value="<?php if(isset($_GET['source']) && $_GET['source'] == 'report'){ echo 'report';}else{ echo 'seperate'; } ?>">
                                         <input type="text" maxlength="10" class="form-control" name="customer_phone" id="customer_phone" placeholder="Enter phone number" onkeyup="validateUniqueMobile()" value="<?php if(!empty($single)){ echo $single->customer_phone; }?>">
                                     </div>
+                                </div>
+                                <div class="row">
                                     <div class="col-lg-4 col-md-4 col-sm-6 col-xs-12 form-group">
                                         <label>Select Gender<b class="require">*</b></label>
                                         <select class="form-select form-control" name="gender" id="gender">
@@ -91,13 +93,17 @@
                                             <!-- <option id="female" value="2" <?php if(!empty($single) && $single->gender == '2'){ echo 'selected'; }?>>Other</option> -->
                                         </select>
                                     </div>
+                                    <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
+                                        <label>Email</label>
+                                        <input type="text" class="form-control" name="email" id="email" placeholder="Enter email" value="<?php if(!empty($single)){ echo $single->email; }?>">
+                                    </div>
+                                    <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
+                                        <label>Date Of Birth</label>
+                                        <input readonly maxlength="10" type="text" class="form-control" name="dob" id="dob" placeholder="Enter Date of Birth" value="<?=(!empty($single) && $single->dob != "" && $single->dob != null && $single->dob != "0000-00-00" && $single->dob != "1970-01-01") ? date('d-m-Y', strtotime($single->dob)) : ''?>">
+                                    </div>
                                 </div>
                                 <div class="add-more-info">
                                     <div class="row">
-                                        <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
-                                            <label>Email</label>
-                                            <input type="text" class="form-control" name="email" id="email" placeholder="Enter email" value="<?php if(!empty($single)){ echo $single->email; }?>">
-                                        </div>
                                         <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
                                             <label>Married Status</label>
                                             <select class="form-select form-control" name="married_status" id="married_status">
@@ -112,10 +118,6 @@
                                         </div>
                                     </div>
                                     <div class="row">
-                                        <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
-                                            <label>Date Of Birth</label>
-                                            <input readonly maxlength="10" type="text" class="form-control" name="dob" id="dob" placeholder="Enter Date of Birth" value="<?=(!empty($single) && $single->dob != "" && $single->dob != null && $single->dob != "0000-00-00" && $single->dob != "1970-01-01") ? date('d-m-Y', strtotime($single->dob)) : ''?>">
-                                        </div>
                                         <div class="col-lg-4 col-md-4 col-sm-6 col-xs-12 form-group">
                                             <label>State</label>
                                             <select class="form-select form-control" name="state" id="state">
@@ -214,15 +216,15 @@ if ($this->uri->segment(2) != "") {
                     number: true,
                     minlength: 10,
                 },
-                // f_name: {
-                //     required: true,
-                // },
-                // l_name: {
-                //     required: true,
-                // },
-                full_name: {
+                f_name: {
                     required: true,
                 },
+                l_name: {
+                    required: true,
+                },
+                // full_name: {
+                //     required: true,
+                // },
                 gender: {
                     required: true,
                 },
@@ -231,15 +233,15 @@ if ($this->uri->segment(2) != "") {
                 },
             },
             messages: {
-                // f_name: {
-                //     required:'Please enter first name!',
-                // },
-                // l_name: {
-                //     required:'Please enter last name!',
-                // },
-                full_name: {
-                    required:'Please enter full name!',
+                f_name: {
+                    required:'Please enter first name!',
                 },
+                l_name: {
+                    required:'Please enter last name!',
+                },
+                // full_name: {
+                //     required:'Please enter full name!',
+                // },
                 customer_phone: {
                     required: "Please enter mobile number!",
                     number: "Only number allowed!",

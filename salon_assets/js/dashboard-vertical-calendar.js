@@ -507,7 +507,7 @@ function showAlertWithSound(message, bellSound) {
     alertBox.style.display = 'block';
     setTimeout(() => {
         alertBox.style.display = 'none';
-        bellSound.play();
+        // bellSound.play();
     }, 10000);
 }
 

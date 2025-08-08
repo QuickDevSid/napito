@@ -2015,8 +2015,8 @@ class Salon_model extends CI_Model{
                 $general_data = array(
                     'f_name'                    => $f_name,
                     'l_name'                    => $l_name,
-                    // 'full_name'                 => $full_name,
-                    'full_name' 				=> $this->input->post('full_name'),
+                    'full_name'                 => $full_name,
+                    // 'full_name' 				=> $this->input->post('full_name'),
                     'customer_phone' 			=> ($this->input->post('customer_phone') != "" ? $this->input->post('customer_phone') : $this->input->post('selected_customer_phone')),
                     'gender' 					=> $this->input->post('gender'),
                 );
@@ -2441,8 +2441,8 @@ class Salon_model extends CI_Model{
                     $general_data = array(
                         'f_name'                    => $f_name,
                         'l_name'                    => $l_name,
-                        // 'full_name'                 => $full_name,
-                        'full_name' 				=> $this->input->post('full_name'),
+                        'full_name'                 => $full_name,
+                        // 'full_name' 				=> $this->input->post('full_name'),
                         'customer_phone' 			=> ($this->input->post('customer_phone') != "" ? $this->input->post('customer_phone') : $this->input->post('selected_customer_phone')),
                         'gender' 					=> $this->input->post('gender'),
                     );
@@ -2757,8 +2757,8 @@ class Salon_model extends CI_Model{
                     $general_data = array(
                         'f_name'                    => $f_name,
                         'l_name'                    => $l_name,
-                        // 'full_name'                 => $full_name,
-                        'full_name' 				=> $this->input->post('full_name'),
+                        'full_name'                 => $full_name,
+                        // 'full_name' 				=> $this->input->post('full_name'),
                         'customer_phone' 			=> ($this->input->post('customer_phone') != "" ? $this->input->post('customer_phone') : $this->input->post('selected_customer_phone')),
                         'gender' 					=> $this->input->post('gender'),
                     );
@@ -3130,8 +3130,8 @@ class Salon_model extends CI_Model{
             'salon_id' 			=> $this->session->userdata('salon_id'),
             'f_name' 		    => $f_name,
             'l_name' 		    => $l_name,
-            // 'full_name' 		=> $full_name,
-            'full_name' 		=> $this->input->post('full_name'),
+            'full_name' 		=> $full_name,
+            // 'full_name' 		=> $this->input->post('full_name'),
             'customer_phone' 	=> $this->input->post('customer_phone'),
             'custom_note' 	    => $this->input->post('custom_note'),
             'email' 			=> $this->input->post('email'),
