@@ -145,6 +145,38 @@
             transform: rotate(1turn)
         }
     }
+
+    input[class="dashboardToggle"] {
+        position: relative;
+        appearance: none;
+        width: 50px;
+        height: 25px;
+        background: #ff000085;
+        border-radius: 50px;
+        box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+        cursor: pointer;
+        transition: 0.4s;
+    }
+
+
+
+    input[class="dashboardToggle"]::after {
+        position: absolute;
+        content: "";
+        width: 25px;
+        height: 25px;
+        top: 0;
+        left: 0;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        transform: scale(1.1);
+        transition: 0.4s;
+    }
+
+    input:checked[class="dashboardToggle"] {
+        background: #1aab00b3;
+    }
 </style>
 <div class="right_col salon_booking_area" role="main">
     <?php
@@ -258,9 +290,7 @@
                                                     <input value="<?php if (!empty($single)) {
                                                                         echo $single->customer_phone;
                                                                     } ?>" maxlength="10" autocomplete="off" type="text" class="form-control" name="selected_customer_phone" id="selected_customer_phone" placeholder="Search customer by phone/name ">
-                                                    <input type="hidden" class="form-control" name="id" id="id" value="<?php if (!empty($single)) {
-                                                                                                                            echo $single->id;
-                                                                                                                        } ?>">
+                                                    
                                                     <div class="customer-info-by-phone" style="display: none;" id="customer_div">
                                                         <div></div>
                                                     </div>
@@ -572,6 +602,10 @@
     <div class="add-new-customer-content">
         <form method="post" name="add_customer_modal_form" id="add_customer_modal_form" enctype="multipart/form-data">
             <div class="row">
+                <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12" id="is_guest_toggle" style="display:none;">
+                    <label for="fullname">Register as Guest?</label><br>
+                    <input style="height: 25px !important;" type="checkbox" name="is_guest" id="is_guest" class="dashboardToggle" onchange="getGuestCount(this)">
+                </div>
                 <div class="form-group col-lg-4 col-md-4 col-sm-6 col-xs-12">
                     <label>First Name <b class="require">*</b></label>
                     <input autocomplete="off" type="text" class="form-control" name="f_name" id="f_name" placeholder="Enter first name">
@@ -589,6 +623,8 @@
                     <label>Phone Number <b class="require">*</b></label>
                     <input type="text" maxlength="10" class="form-control" name="customer_phone" id="customer_phone" placeholder="Enter phone number" onkeyup="validateUniqueMobile()">
                 </div>
+                <input type="hidden" name="guest_to_parmanant" id="guest_to_parmanant" value="0">
+                <input type="hidden" name="id" id="id" value="">
                 <div class="col-lg-4 col-md-4 col-sm-6 col-xs-12 form-group">
                     <label>Select Gender<b class="require">*</b></label>
                     <select class="form-select form-control" name="gender" id="gender">
@@ -738,6 +774,31 @@ $today = date('d-m-Y');
             $('#transaction_id').attr('readonly', true);
         } else {
             $('#transaction_id').attr('readonly', false);
+        }
+    }
+
+    function getGuestCount(checkbox){
+        $('#full_name').val('').attr('readonly',false);
+        $('#f_name').val('').attr('readonly',false);
+        $('#l_name').val('').attr('readonly',false);
+        $('#customer_phone').attr('readonly',false);
+        if ($(checkbox).is(':checked')) {
+            $.ajax({
+                url: '<?=base_url(); ?>salon/Ajax_controller/fetch_guest_count_ajax',
+                type: 'POST',
+                data: {
+                    guest: true
+                },
+                success: function(response) {
+                    let nameParts = response.trim().split(" ");
+                    $('#full_name').val(response).attr('readonly',true);
+                    $('#f_name').val(nameParts[0] || '').attr('readonly', true);
+                    $('#l_name').val(nameParts[1] || '').attr('readonly', true);
+                },
+                error: function(xhr, status, error) {
+                    console.error("AJAX Error:", error);
+                }
+            });
         }
     }
 
@@ -939,7 +1000,9 @@ $today = date('d-m-Y');
         $('#add_customer_modal_form').validate({
             rules: {
                 customer_phone: {
-                    required: true,
+                    required: function(element) {
+                        return !$('#is_guest').is(':checked');
+                    },
                     number: true,
                     minlength: 10,
                 },
@@ -1724,7 +1787,8 @@ $today = date('d-m-Y');
                             $('#customers').append('<div class="customers_search_results" onclick="get_customer_info(' + d.id + ',\'' + keyword + '\')">' + d.full_name + '' + phone + '' + is_guest + '</div>');
                         });
                     } else {
-                        $('#customers').html('Customer Not Found! Please Add New Customer.<b onclick="open_customer_model()" class="add-new-customer">Add Customer</b>');
+                        // $('#customers').html('Customer Not Found! Please Add New Customer.<b onclick="open_customer_model()" class="add-new-customer">Add Customer</b>');
+                        $('#customers').html('Customer Not Found ! <b onclick="open_customer_model(\'outer\')" style="cursor:pointer;" class="add-new-customer">Add Customer</b>');
                     }
                 },
             });
@@ -1733,16 +1797,58 @@ $today = date('d-m-Y');
         }
     });
 
+    function validateUniqueMobile(){
+        var customer_phone = $('#customer_phone').val();
+        if(customer_phone != ""){
+            $.ajax({
+                type: "POST",
+                url: "<?=base_url();?>salon/Ajax_controller/get_unique_customer_mobile",
+                data:{'customer_phone':customer_phone},
+                success: function(data){
+                    if(data == "0"){
+                        $("#mobile_error").hide();
+                        $("#mobile_error").html('');
+                        $("#customer_modal_button").show();
+                    }else{
+                        $("#mobile_error").show();
+                        $("#mobile_error").html('This mobile number is already added');
+                        $("#customer_modal_button").hide();
+                    }
+                    
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                console.log(textStatus, errorThrown);
+                }
+            }); 
+        }
+    }
 
-    function open_customer_model() {
+    function open_customer_model(source = '') {
         var phone = $('#phone').val();
 
-        // if (/^\d{10}$/.test(phone)) {
-        if (/^\d+$/.test(phone)) {
-            $('#customer_phone').val(phone).focus();
+        if(source != 'guest_to_parmanant'){
+            // if (/^\d{10}$/.test(phone)) {
+            if (/^\d+$/.test(phone)) {
+                $('#customer_phone').val(phone).focus();
+            } else {
+                $('#customer_phone').val('');
+            }
+            $('#id').val('');
+            $('#f_name').val('');
+            $('#l_name').val('');
         } else {
             $('#customer_phone').val('');
         }
+
+        $('#is_guest_toggle').show();
+        if(source == 'guest_to_parmanant'){
+            var guest_to_parmanant = '1';
+            $('#is_guest_toggle').hide();
+        }else{
+            var guest_to_parmanant = '0';
+        }
+
+        $('#guest_to_parmanant').val(guest_to_parmanant);
 
         $(".add-new-customer-main").toggle();
         $(".customer-info-by-search").hide();
@@ -1810,7 +1916,12 @@ $today = date('d-m-Y');
                     $('.book-right-section').show();
 
                     var parsedData = JSON.parse(data);
+
                     $('#customer_name').val(parsedData.customer.id);
+                    $('#full_name').val(parsedData.customer.full_name);
+                    $('#f_name').val(parsedData.customer.f_name);
+                    $('#l_name').val(parsedData.customer.l_name);
+                    $('#customer_phone').val(parsedData.customer.customer_phone);
                     $('#previous_due_amount').val(parsedData.customer.current_pending_amount);
                     $('#id').val(parsedData.customer.id);
                     $('#selected_full_name').val(parsedData.customer.full_name);
@@ -1893,7 +2004,7 @@ $today = date('d-m-Y');
                     if(parsedData.customer.is_guest == '0'){
                         $('#customer_name_t').html(parsedData.customer.full_name + '<a style="float: right;" title="Edit" href="<?= base_url(); ?>add-customer/' + parsedData.customer.id + '" target="_blank"><i class="fa-solid fa-pen-to-square"></i></a>');
                     }else{
-                        $('#customer_name_t').html(parsedData.customer.full_name);
+                        $('#customer_name_t').html(parsedData.customer.full_name + '<a style="float: right;" title="Add Customer" onclick="open_customer_model(\'guest_to_parmanant\')"><i style="color:green;font-size: 15px;" class="fa-solid fa-plus"></i></a>');
                     }
 
                     $('#phone').val('')

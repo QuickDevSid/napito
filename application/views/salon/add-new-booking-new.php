@@ -1219,6 +1219,8 @@ if (!empty($close_setup)) {
                         <label>Phone Number <b class="require">*</b></label>
                         <input type="text" maxlength="10" class="form-control" name="customer_phone" id="customer_phone" placeholder="Enter phone number" onkeyup="validateUniqueMobile()">
                     </div>
+                    <input type="hidden" name="guest_to_parmanant" id="guest_to_parmanant" value="0">
+                    <input type="hidden" name="id" id="id" value="">
                     <div class="col-lg-4 col-md-4 col-sm-6 col-xs-12 form-group">
                         <label>Select Gender<b class="require">*</b></label>
                         <select class="form-select form-control" name="gender" id="gender">
@@ -1438,7 +1440,7 @@ if(isset($_GET['stylist']) && $_GET['stylist'] != ""){
         $('#full_name').val('').attr('readonly',false);
         $('#f_name').val('').attr('readonly',false);
         $('#l_name').val('').attr('readonly',false);
-        $('#customer_phone').val('').attr('readonly',false);
+        $('#customer_phone').attr('readonly',false);
         if ($(checkbox).is(':checked')) {
             $.ajax({
                 url: '<?=base_url(); ?>salon/Ajax_controller/fetch_guest_count_ajax',
@@ -1451,7 +1453,6 @@ if(isset($_GET['stylist']) && $_GET['stylist'] != ""){
                     $('#full_name').val(response).attr('readonly',true);
                     $('#f_name').val(nameParts[0] || '').attr('readonly', true);
                     $('#l_name').val(nameParts[1] || '').attr('readonly', true);
-                    $('#customer_phone').attr('readonly',false);
                 },
                 error: function(xhr, status, error) {
                     console.error("AJAX Error:", error);
@@ -1942,33 +1943,42 @@ if(isset($_GET['stylist']) && $_GET['stylist'] != ""){
     }
     function validateUniqueMobile(){
         var customer_phone = $('#customer_phone').val();
-        $.ajax({
-            type: "POST",
-            url: "<?=base_url();?>salon/Ajax_controller/get_unique_customer_mobile",
-            data:{'customer_phone':customer_phone},
-            success: function(data){
-                if(data == "0"){
-                    $("#mobile_error").hide();
-                    $("#mobile_error").html('');
-                    $("#customer_button").show();
-                }else{
-                    $("#mobile_error").show();
-                    $("#mobile_error").html('This mobile number is already added');
-                    $("#customer_button").hide();
+        if(customer_phone != ""){
+            $.ajax({
+                type: "POST",
+                url: "<?=base_url();?>salon/Ajax_controller/get_unique_customer_mobile",
+                data:{'customer_phone':customer_phone},
+                success: function(data){
+                    if(data == "0"){
+                        $("#mobile_error").hide();
+                        $("#mobile_error").html('');
+                        $("#customer_button").show();
+                    }else{
+                        $("#mobile_error").show();
+                        $("#mobile_error").html('This mobile number is already added');
+                        $("#customer_button").hide();
+                    }
+                    
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                console.log(textStatus, errorThrown);
                 }
-                
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-            console.log(textStatus, errorThrown);
-            }
-        }); 
+            }); 
+        }
     }
     function open_customer_model(source = '') {
         var phone = $('#phone').val();
 
-        // if (/^\d{10}$/.test(phone)) {
-        if (/^\d+$/.test(phone)) {
-            $('#customer_phone').val(phone).focus();
+        if(source != 'guest_to_parmanant'){
+            // if (/^\d{10}$/.test(phone)) {
+            if (/^\d+$/.test(phone)) {
+                $('#customer_phone').val(phone).focus();
+            } else {
+                $('#customer_phone').val('');
+            }
+            $('#id').val('');
+            $('#f_name').val('');
+            $('#l_name').val('');
         } else {
             $('#customer_phone').val('');
         }
@@ -2038,6 +2048,7 @@ if(isset($_GET['stylist']) && $_GET['stylist'] != ""){
                     $('#full_name').val(parsedData.customer.full_name);
                     $('#f_name').val(parsedData.customer.f_name);
                     $('#l_name').val(parsedData.customer.l_name);
+                    $('#id').val(parsedData.customer.id);
                     $('#customer_phone').val(parsedData.customer.customer_phone);
                     $('#gender').val(parsedData.customer.gender).trigger('chosen');
                     $('#phone').val('');

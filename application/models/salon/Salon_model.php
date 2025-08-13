@@ -1995,44 +1995,39 @@ class Salon_model extends CI_Model{
 			'membership_id' 			=> $this->input->post('membership_id'), 
 		);  
 
+		$customer_id = $this->input->post('id') != "" ? $this->input->post('id') : $this->input->post('customer_name');
         $this->db->where('is_deleted','0');
         $this->db->where('branch_id',$this->session->userdata('branch_id'));
         $this->db->where('salon_id',$this->session->userdata('salon_id'));
-        $this->db->where('customer_phone',($this->input->post('customer_phone') != "" ? $this->input->post('customer_phone') : $this->input->post('selected_customer_phone')));
+        $this->db->where('id',$customer_id);
 		$exist = $this->db->get('tbl_salon_customer');
 		$exist = $exist->row();
 
-		if($this->input->post('id') == ''){
-            if(!empty($exist)){
-                $customer_id = $exist->id;
-                $this->db->where('id', $customer_id);
-                $this->db->update('tbl_salon_customer', $data);
-            }else{
-                $f_name = $this->input->post('f_name') != "" ? $this->input->post('f_name') : null;
-                $l_name = $this->input->post('l_name') != "" ? $this->input->post('l_name') : null;
-                $full_name = $f_name . ' ' . $l_name;
+        if(!empty($exist)){
+            $customer_id = $exist->id;
+            $this->db->where('id', $customer_id);
+            $this->db->update('tbl_salon_customer', $data);
+        }else{
+            $f_name = $this->input->post('f_name') != "" ? $this->input->post('f_name') : null;
+            $l_name = $this->input->post('l_name') != "" ? $this->input->post('l_name') : null;
+            $full_name = $f_name . ' ' . $l_name;
 
-                $general_data = array(
-                    'f_name'                    => $f_name,
-                    'l_name'                    => $l_name,
-                    'full_name'                 => $full_name,
-                    // 'full_name' 				=> $this->input->post('full_name'),
-                    'customer_phone' 			=> ($this->input->post('customer_phone') != "" ? $this->input->post('customer_phone') : $this->input->post('selected_customer_phone')),
-                    'gender' 					=> $this->input->post('gender'),
-                );
-                $date = array(
-                    'created_on' => date("Y-m-d H:i:s")
-                );
-                $new_arr = array_merge($data, $date);
-                $new_arr = array_merge($new_arr, $general_data);
-                $this->db->insert('tbl_salon_customer', $new_arr);
-			    $customer_id = $this->db->insert_id();
-            }
-		}else{
-			$customer_id = $this->input->post('id');
-			$this->db->where('id', $customer_id);
-			$this->db->update('tbl_salon_customer', $data);
-        }  
+            $general_data = array(
+                'f_name'                    => $f_name,
+                'l_name'                    => $l_name,
+                'full_name'                 => $full_name,
+                // 'full_name' 				=> $this->input->post('full_name'),
+                'customer_phone' 			=> ($this->input->post('customer_phone') != "" ? $this->input->post('customer_phone') : $this->input->post('selected_customer_phone')),
+                'gender' 					=> $this->input->post('gender'),
+            );
+            $date = array(
+                'created_on' => date("Y-m-d H:i:s")
+            );
+            $new_arr = array_merge($data, $date);
+            $new_arr = array_merge($new_arr, $general_data);
+            $this->db->insert('tbl_salon_customer', $new_arr);
+            $customer_id = $this->db->insert_id();
+        }
         
         $this->db->where('is_deleted','0');
         $this->db->where('status','1');
@@ -2421,44 +2416,39 @@ class Salon_model extends CI_Model{
                 'married_status' 			=> $this->input->post('married_status'),
             );  
 
+            $customer_id = $this->input->post('id') != "" ? $this->input->post('id') : $this->input->post('customer_name');
             $this->db->where('is_deleted','0');
             $this->db->where('branch_id',$this->session->userdata('branch_id'));
             $this->db->where('salon_id',$this->session->userdata('salon_id'));
-            $this->db->where('customer_phone',($this->input->post('customer_phone') != "" ? $this->input->post('customer_phone') : $this->input->post('selected_customer_phone')));
+            $this->db->where('id',$customer_id);
             $exist = $this->db->get('tbl_salon_customer');
             $exist = $exist->row();
 
-            if($this->input->post('id') == ''){
-                if(!empty($exist)){
-                    $customer_id = $exist->id;
-                    $this->db->where('id', $customer_id);
-                    $this->db->update('tbl_salon_customer', $data);
-                }else{
-                    $f_name = $this->input->post('f_name') != "" ? $this->input->post('f_name') : null;
-                    $l_name = $this->input->post('l_name') != "" ? $this->input->post('l_name') : null;
-                    $full_name = $f_name . ' ' . $l_name;
-
-                    $general_data = array(
-                        'f_name'                    => $f_name,
-                        'l_name'                    => $l_name,
-                        'full_name'                 => $full_name,
-                        // 'full_name' 				=> $this->input->post('full_name'),
-                        'customer_phone' 			=> ($this->input->post('customer_phone') != "" ? $this->input->post('customer_phone') : $this->input->post('selected_customer_phone')),
-                        'gender' 					=> $this->input->post('gender'),
-                    );
-                    $date = array(
-                        'created_on' => date("Y-m-d H:i:s")
-                    );
-                    $new_arr = array_merge($data, $date);
-                    $new_arr = array_merge($new_arr, $general_data);
-                    $this->db->insert('tbl_salon_customer', $new_arr);
-                    $customer_id = $this->db->insert_id();
-                }
-            }else{
-                $customer_id = $this->input->post('id');
+            if(!empty($exist)){
+                $customer_id = $exist->id;
                 $this->db->where('id', $customer_id);
                 $this->db->update('tbl_salon_customer', $data);
-            } 
+            }else{
+                $f_name = $this->input->post('f_name') != "" ? $this->input->post('f_name') : null;
+                $l_name = $this->input->post('l_name') != "" ? $this->input->post('l_name') : null;
+                $full_name = $f_name . ' ' . $l_name;
+
+                $general_data = array(
+                    'f_name'                    => $f_name,
+                    'l_name'                    => $l_name,
+                    'full_name'                 => $full_name,
+                    // 'full_name' 				=> $this->input->post('full_name'),
+                    'customer_phone' 			=> ($this->input->post('customer_phone') != "" ? $this->input->post('customer_phone') : $this->input->post('selected_customer_phone')),
+                    'gender' 					=> $this->input->post('gender'),
+                );
+                $date = array(
+                    'created_on' => date("Y-m-d H:i:s")
+                );
+                $new_arr = array_merge($data, $date);
+                $new_arr = array_merge($new_arr, $general_data);
+                $this->db->insert('tbl_salon_customer', $new_arr);
+                $customer_id = $this->db->insert_id();
+            }
 
             $count_type = $package_data->count_type;
             if($count_type == 'Days'){
@@ -2737,44 +2727,39 @@ class Salon_model extends CI_Model{
                 'married_status' 			=> $this->input->post('married_status'),
             );  
 
+            $customer_id = $this->input->post('id') != "" ? $this->input->post('id') : $this->input->post('customer_name');
             $this->db->where('is_deleted','0');
             $this->db->where('branch_id',$this->session->userdata('branch_id'));
             $this->db->where('salon_id',$this->session->userdata('salon_id'));
-            $this->db->where('customer_phone',($this->input->post('customer_phone') != "" ? $this->input->post('customer_phone') : $this->input->post('selected_customer_phone')));
+            $this->db->where('id',$customer_id);
             $exist = $this->db->get('tbl_salon_customer');
             $exist = $exist->row();
             
-            if($this->input->post('id') == ''){
-                if(!empty($exist)){
-                    $customer_id = $exist->id;
-                    $this->db->where('id', $customer_id);
-                    $this->db->update('tbl_salon_customer', $data);
-                }else{
-                    $f_name = $this->input->post('f_name') != "" ? $this->input->post('f_name') : null;
-                    $l_name = $this->input->post('l_name') != "" ? $this->input->post('l_name') : null;
-                    $full_name = $f_name . ' ' . $l_name;
-
-                    $general_data = array(
-                        'f_name'                    => $f_name,
-                        'l_name'                    => $l_name,
-                        'full_name'                 => $full_name,
-                        // 'full_name' 				=> $this->input->post('full_name'),
-                        'customer_phone' 			=> ($this->input->post('customer_phone') != "" ? $this->input->post('customer_phone') : $this->input->post('selected_customer_phone')),
-                        'gender' 					=> $this->input->post('gender'),
-                    );
-                    $date = array(
-                        'created_on' => date("Y-m-d H:i:s")
-                    );
-                    $new_arr = array_merge($data, $date);
-                    $new_arr = array_merge($new_arr, $general_data);
-                    $this->db->insert('tbl_salon_customer', $new_arr);
-                    $customer_id = $this->db->insert_id();
-                }
-            }else{
-                $customer_id = $this->input->post('id');
+            if(!empty($exist)){
+                $customer_id = $exist->id;
                 $this->db->where('id', $customer_id);
                 $this->db->update('tbl_salon_customer', $data);
-            } 
+            }else{
+                $f_name = $this->input->post('f_name') != "" ? $this->input->post('f_name') : null;
+                $l_name = $this->input->post('l_name') != "" ? $this->input->post('l_name') : null;
+                $full_name = $f_name . ' ' . $l_name;
+
+                $general_data = array(
+                    'f_name'                    => $f_name,
+                    'l_name'                    => $l_name,
+                    'full_name'                 => $full_name,
+                    // 'full_name' 				=> $this->input->post('full_name'),
+                    'customer_phone' 			=> ($this->input->post('customer_phone') != "" ? $this->input->post('customer_phone') : $this->input->post('selected_customer_phone')),
+                    'gender' 					=> $this->input->post('gender'),
+                );
+                $date = array(
+                    'created_on' => date("Y-m-d H:i:s")
+                );
+                $new_arr = array_merge($data, $date);
+                $new_arr = array_merge($new_arr, $general_data);
+                $this->db->insert('tbl_salon_customer', $new_arr);
+                $customer_id = $this->db->insert_id();
+            }
 
             $gift_card_balance = $single_giftcard->gift_price != "" ? $single_giftcard->gift_price : $single_giftcard->regular_price;
             if($gift_card_balance > 0){
@@ -3111,11 +3096,12 @@ class Salon_model extends CI_Model{
         echo $name;
     }
     public function add_new_customer(){
-        $this->db->where('is_deleted','0');
-        $this->db->where('customer_phone',$this->input->post('customer_phone'));
-        $this->db->where('branch_id',$this->session->userdata('branch_id'));
-        $this->db->where('salon_id',$this->session->userdata('salon_id'));
-        $exist = $this->db->get('tbl_salon_customer')->row();
+        // echo '<pre>'; print_r($_POST); exit;
+        // $this->db->where('is_deleted','0');
+        // $this->db->where('customer_phone',$this->input->post('customer_phone'));
+        // $this->db->where('branch_id',$this->session->userdata('branch_id'));
+        // $this->db->where('salon_id',$this->session->userdata('salon_id'));
+        // $exist = $this->db->get('tbl_salon_customer')->row();
 
         $f_name = $this->input->post('f_name') != "" ? $this->input->post('f_name') : null;
         $l_name = $this->input->post('l_name') != "" ? $this->input->post('l_name') : null;
@@ -3144,7 +3130,7 @@ class Salon_model extends CI_Model{
         );
 
         if($this->input->post('id') == ""){
-            if(empty($exist)){
+            // if(empty($exist)){
                 $is_guest = $this->input->post('is_guest');
                 if($is_guest == 'on'){
                     $is_guest = '1';
@@ -3176,36 +3162,37 @@ class Salon_model extends CI_Model{
                     $this->session->set_flashdata('success', 'Success ! Customer added successfully');
                     redirect('add-new-booking-new?customer=' . $last_id . '&start=' . $hidden_start . '&end=' . $hidden_end . '&stylist=' . $hidden_stylist);
                 }
-            }else{        
-                $guest_to_parmanant = $this->input->post('guest_to_parmanant');
-                if($guest_to_parmanant == '1'){
-                    $guest_to_parmanant = '0';
-                }else{
-                    $guest_to_parmanant = '';
-                }
+            // }else{        
+            //     $guest_to_parmanant = $this->input->post('guest_to_parmanant');
+            //     if($guest_to_parmanant == '1'){
+            //         $guest_to_parmanant = '0';
+            //     }else{
+            //         $guest_to_parmanant = '';
+            //     }
 
-                if($guest_to_parmanant != ""){
-                    $date = array(
-                        'is_guest'          =>  $guest_to_parmanant
-                    );
-                    $data = array_merge($data, $date);
-                }
+            //     if($guest_to_parmanant != ""){
+            //         $date = array(
+            //             'is_guest'          =>  $guest_to_parmanant
+            //         );
+            //         $data = array_merge($data, $date);
+            //     }
 
-                $this->db->where('id', $exist->id);
-                $this->db->update('tbl_salon_customer', $data);
+            //     $this->db->where('id', $exist->id);
+            //     $this->db->update('tbl_salon_customer', $data);
 
-                if($this->input->post('added_from') == 'booking-form'){                    
-                    $this->session->set_flashdata('success', 'Success ! Customer added successfully');
-                    redirect('add-new-booking-new?customer=' . $exist->id . '&start=' . $hidden_start . '&end=' . $hidden_end . '&stylist=' . $hidden_stylist);
-                }
-
-                if($this->input->post('added_from') == 'report'){                    
-                    $this->session->set_flashdata('success', 'Success ! Customer updated successfully');
-                    redirect('customer-report');
-                }else{
-                    return 1;
-                }
-            } 
+            //     if($this->input->post('added_from') == 'booking-form'){                    
+            //         $this->session->set_flashdata('success', 'Success ! Customer added successfully');
+            //         redirect('add-new-booking-new?customer=' . $exist->id . '&start=' . $hidden_start . '&end=' . $hidden_end . '&stylist=' . $hidden_stylist);
+            //     }elseif($this->input->post('added_from') == 'bill-generation'){                    
+            //         $this->session->set_flashdata('success', 'Success ! Customer added successfully');
+            //         redirect('bill-generation?customer=' . $exist->id);
+            //     }elseif($this->input->post('added_from') == 'report'){                    
+            //         $this->session->set_flashdata('success', 'Success ! Customer updated successfully');
+            //         redirect('customer-report');
+            //     }else{
+            //         return 1;
+            //     }
+            // } 
         }else{    
             $guest_to_parmanant = $this->input->post('guest_to_parmanant');
             if($guest_to_parmanant == '1'){
@@ -3226,10 +3213,11 @@ class Salon_model extends CI_Model{
             
             if($this->input->post('added_from') == 'booking-form'){                    
                 $this->session->set_flashdata('success', 'Success ! Customer added successfully');
-                redirect('add-new-booking-new?customer=' . $exist->id . '&start=' . $hidden_start . '&end=' . $hidden_end . '&stylist=' . $hidden_stylist);
-            }
-
-            if($this->input->post('added_from') == 'report'){                    
+                redirect('add-new-booking-new?customer=' . $this->input->post('id') . '&start=' . $hidden_start . '&end=' . $hidden_end . '&stylist=' . $hidden_stylist);
+            }elseif($this->input->post('added_from') == 'bill-generation'){                    
+                $this->session->set_flashdata('success', 'Success ! Customer added successfully');
+                redirect('bill-generation?customer=' . $this->input->post('id'));
+            }elseif($this->input->post('added_from') == 'report'){                    
                 $this->session->set_flashdata('success', 'Success ! Customer updated successfully');
                 redirect('customer-report');
             }else{
@@ -37180,12 +37168,17 @@ public function counter_bill_generation(){
     $payable_amount = $service_payable_amount + $product_payable_amount;
     $booking_amount = $payable_amount - $discount_in_rs;
     $grand_total_amount = $booking_amount + $gst_amount;
+    
+    $this->db->where('id',$this->input->post('customer_name'));
+    $single_customer = $this->db->get('tbl_salon_customer')->row();
+
     $booking_data = array(
         'branch_id' 			=> $this->session->userdata('branch_id'),
         'salon_id' 				=> $this->session->userdata('salon_id'),
         'stylist_id' 	        => $this->input->post('employee'),
-        'customer_name' 		=> $this->input->post('id'),
+        'customer_name' 		=> $this->input->post('customer_name'),
         'is_direct_billing'     => '1',
+        'is_guest_booking' 		=> !empty($single_customer) ? $single_customer->is_guest : '0',
         'booking_type' 		    => '0',
         'is_membership_booking' => '0',
         'original_services'     => !empty($services) ? implode(',',$services) : null,
@@ -37247,7 +37240,7 @@ public function counter_bill_generation(){
         'salon_id' 				            => $this->session->userdata('salon_id'),
         'booking_id' 		                => $booking_id,
         'booking_date'                      => date('Y-m-d',strtotime($single->booking_date)),
-        'customer_name' 		            => $this->input->post('id'),
+        'customer_name' 		            => $this->input->post('customer_name'),
         'is_membership_booking'             => '0',        
         'membership_id' 		            => null,
         'is_membership_payment_included'    => '0',
@@ -37382,7 +37375,7 @@ public function counter_bill_generation(){
                     'booking_id' 		    => $booking_id,
                     'branch_id' 			=> $this->session->userdata('branch_id'),
                     'salon_id' 				=> $this->session->userdata('salon_id'),
-                    'customer_name' 		=> $this->input->post('id'),
+                    'customer_name' 		=> $this->input->post('customer_name'),
                     'service_added_from'	=> '0',
                     'service_id'     		=> $services[$i],
                     'service_price'     	=> $service_price,
@@ -37486,7 +37479,7 @@ public function counter_bill_generation(){
                                 'booking_id' 		    => $booking_id,
                                 'branch_id' 			=> $this->session->userdata('branch_id'),
                                 'salon_id' 				=> $this->session->userdata('salon_id'),
-                                'customer_name' 		=> $this->input->post('id'),
+                                'customer_name' 		=> $this->input->post('customer_name'),
                                 'product_added_from'	=> '0',
                                 'service_id'     		=> $services[$i],
                                 'product_id'     		=> $products_single[$j],
@@ -37614,7 +37607,7 @@ public function counter_bill_generation(){
                 $is_product_discount_applied = '0';
                 $employee_product_incentive = '';
 
-                $product_applied_discount = $this->Salon_model->get_customer_product_applied_discount($this->input->post('id'),$single_product->id);
+                $product_applied_discount = $this->Salon_model->get_customer_product_applied_discount($this->input->post('customer_name'),$single_product->id);
                 if($product_applied_discount['is_discount_applied'] == '1'){
                     $product_discount_row_id = $product_applied_discount['discount_row_id'];
                     $employee_product_incentive = $product_applied_discount['employee_product_incentive'];
@@ -37649,7 +37642,7 @@ public function counter_bill_generation(){
                     'booking_id' 		    => $booking_id,
                     'branch_id' 			=> $this->session->userdata('branch_id'),
                     'salon_id' 				=> $this->session->userdata('salon_id'),
-                    'customer_name' 		=> $this->input->post('id'),
+                    'customer_name' 		=> $this->input->post('customer_name'),
                     'stylist_id' 		    => $this->input->post('employee'),
                     'category_id'     		=> $categoryID,
                     'product_id'     		=> $productID,
@@ -37769,7 +37762,7 @@ public function counter_bill_generation(){
     }
     //new product added billing end    
 
-    $this->db->where('id',$this->input->post('id'));
+    $this->db->where('id',$this->input->post('customer_name'));
     $customer = $this->db->get('tbl_salon_customer')->row();
     $pre_total_bill_amount = (float)$customer->total_bill_amount;
     $pre_total_paid_amount = (float)$customer->total_paid_amount;
@@ -37783,7 +37776,7 @@ public function counter_bill_generation(){
     $new_current_pending_amount = ((float)$rounded_bill_amount + (float)$pre_current_pending_amount) - (float)$actual_paid_amount;
 
     $payment_entry_data = array(
-        'customer_id'     =>  $this->input->post('id'),
+        'customer_id'     =>  $this->input->post('customer_name'),
         'branch_id'       =>  $this->session->userdata('branch_id'),
         'salon_id'        =>  $this->session->userdata('salon_id'),
         'booking_id'      =>  $booking_id,
@@ -37815,7 +37808,7 @@ public function counter_bill_generation(){
         'total_paid_amount'         =>  $new_total_paid_amount,
         'current_pending_amount'    =>  number_format((float)($new_current_pending_amount), 2, '.', ''),
     );
-    $this->db->where('id',$this->input->post('id'));
+    $this->db->where('id',$this->input->post('customer_name'));
     $this->db->update('tbl_salon_customer',$payment_data);     
                 
     $update_data = array(
@@ -37859,7 +37852,7 @@ public function counter_product_bill_generation(){
     $discount_in_rs = $this->input->post('discount_in_rs');
 
     $selected_product_id = !empty($this->input->post('selected_product_id')) ? $this->input->post('selected_product_id') : [];
-    $customer_id = $this->input->post('id');
+    $customer_id = $this->input->post('customer_name');
     $product_price = $this->input->post('price');
     $is_gst_applicable = $this->input->post('is_gst_applicable');
     $gst_amount = $this->input->post('gst_amount') != "" ? $this->input->post('gst_amount') : 0.00;
@@ -37869,10 +37862,15 @@ public function counter_product_bill_generation(){
     $payable_amount = $product_payable_amount;
     $booking_amount = $payable_amount - $discount_in_rs;
     $grand_total_amount = $booking_amount + $gst_amount;
+    
+    $this->db->where('id',$customer_id);
+    $single_customer = $this->db->get('tbl_salon_customer')->row();
+
     $booking_data = array(
         'branch_id' 			=> $this->session->userdata('branch_id'),
         'salon_id' 				=> $this->session->userdata('salon_id'),
         'booking_type' 		    => '1',
+        'is_guest_booking' 		=> !empty($single_customer) ? $single_customer->is_guest : '0',
         'is_direct_billing'     => '1',
         'customer_name' 		=> $customer_id,
         'is_membership_booking' => '0',
