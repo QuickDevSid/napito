@@ -99,28 +99,35 @@
             <div class="tm_shape_bg tm_accent_bg tm_mobile_hide" style="width:84%;"></div>
           </div>
           <div class="tm_invoice_info tm_mb25">
-            <div class="tm_card_note tm_mobile_hide"><b class="tm_primary_color">Date: </b><?php echo $single_payment_details->payment_date != "" ? date("d/m/Y",strtotime($single_payment_details->payment_date)) : '-'; ?><br><b class="tm_primary_color">Payment Status: </b>Complete</div>
+            <div class="tm_card_note tm_mobile_hide">
+              <b class="tm_primary_color">Date: </b>
+              <?php echo $single_payment_details->payment_date != "" ? date("d/m/Y",strtotime($single_payment_details->payment_date)) : '-'; ?>
+              <!-- <br><b class="tm_primary_color">Payment Status: </b>Complete -->
+            </div>
             <div class="tm_invoice_info_list tm_white_color">
               <p class="tm_invoice_number tm_m0">Invoice No: 
                 <b>
                   <?php
-                    $total_count = $this->Admin_model->get_year_booking_count($single_payment_details->created_on,$single_payment_details->id);
-                    $year = date('Y',strtotime($single_payment_details->created_on));
-                    $month = date('m',strtotime($single_payment_details->created_on));
+                    if(date('Y-m-d') <= $single_payment_details->created_on){
+                      echo $single_payment_details->invoice_id;
+                    }else{
+                      $total_count = $this->Admin_model->get_year_booking_count($single_payment_details->created_on,$single_payment_details->id);
+                      $year = date('Y',strtotime($single_payment_details->created_on));
+                      $month = date('m',strtotime($single_payment_details->created_on));
 
-                    if ((int)$month >= 4) {
-                      $fy_start = (int)$year % 100;
-                      $fy_end = $fy_start + 1;
-                    } else {
-                      $fy_end = (int)$year % 100;
-                      $fy_start = $fy_end - 1;
+                      if ((int)$month >= 4) {
+                        $fy_start = (int)$year % 100;
+                        $fy_end = $fy_start + 1;
+                      } else {
+                        $fy_end = (int)$year % 100;
+                        $fy_start = $fy_end - 1;
+                      }
+                      $financial_year = 'FY' . sprintf('%02d', $fy_start) . '-' . sprintf('%02d', $fy_end);
+                      $count_formatted = sprintf('%04d', $total_count + 1);
+                      $invoice_id = 'NAP-GST-' . $financial_year . '-' . $count_formatted;
+                      echo $invoice_id;
                     }
-                    $financial_year = 'FY' . sprintf('%02d', $fy_start) . '-' . sprintf('%02d', $fy_end);
-                    $count_formatted = sprintf('%04d', $total_count);
-                    $invoice_id = 'NAP-GST-' . $financial_year . '-' . $count_formatted;
-                    echo $invoice_id;
                   ?>
-                  <!-- <?=$single_payment_details->invoice_id != "" ? $single_payment_details->invoice_id : 'NSP-' . $branch_formatted . '' . $salon_formatted . '' . $count_formatted; ?> -->
                 </b>
               </p>
               <p class="tm_invoice_date tm_m0">HSN/SAC Code: <b>998313</b></p>
@@ -129,11 +136,12 @@
           </div>
           <div class="tm_invoice_head tm_mb10" style="height:150px;">
             <div class="tm_invoice_left">
-			 <p class="tm_mb2"><b class="tm_primary_color">Receipt To:</b></p>
+			        <p class="tm_mb2"><b class="tm_primary_color">Receipt To:</b></p>
               <p>
-                <?=$single_payment_details->branch_name?><br>
-                <?=$single_payment_details->salon_number?><br>
-                <?=$single_payment_details->email?>
+                <?=$single_payment_details->branch_name; ?><br>
+                <?=$single_payment_details->salon_number; ?><br>
+                <?=$single_payment_details->email; ?><br>
+                <?=$single_payment_details->branch_gst_no != "" ? 'GST No: ' . $single_payment_details->branch_gst_no : ''; ?>
               </p>
             </div>
             <div class="tm_invoice_right tm_text_right">
@@ -168,14 +176,13 @@
                           <small><?= !empty($subscription_details) ? date('d M, Y h:i A', strtotime($subscription_details->subscription_start)) : ''; ?> To <?= !empty($subscription_details) ? date('d M, Y h:i A', strtotime($subscription_details->subscription_end)) : ''; ?><small>
                         </th>
                         <th class="tm_width_2" style="width:25%;text-align:left;">
-                          <?= !empty($subscription_details) ? '₹ ' . $subscription_details->subscription_price : ''; ?>
-                          <br><small>(Inc. 9% CGST & 9% SGST)</small>
+                          <?= !empty($subscription_details) ? '₹ ' . number_format((float)($subscription_details->subscription_price), 2, '.', ',') : ''; ?>
                         </th>
                         <th class="tm_width_2" style="width:15%;text-align:left;">
-                          <?='₹ ' . $single_payment_details->coin_balance_used_in_rs;?><br>
+                          <?='₹ ' . number_format((float)($single_payment_details->coin_balance_used_in_rs), 2, '.', ',');?><br>
                           <?=$single_payment_details->coin_balance_used != "" && $single_payment_details->coin_balance_used > 0 ? '<small>(' . $single_payment_details->coin_balance_used . ' Coins Used)</small>' : '';?>
                         </th>
-                        <th class="tm_width_2" style="width:15%;text-align:left;"><?='₹ ' . $single_payment_details->payment_amount;?></th>
+                        <th class="tm_width_2" style="width:15%;text-align:left;"><?='₹ ' . number_format((float)($single_payment_details->payment_amount), 2, '.', ',');?></th>
                       </tr> 
                     </tbody>
                     <?php }else{ ?>
@@ -186,14 +193,13 @@
                           Qty: <?=$single_payment_details->plan_qty;?> Coins
                         </th>
                         <th class="tm_width_2" style="width:25%;text-align:left;">
-                          <?='₹ ' . $single_payment_details->plan_price;?>
-                          <br><small>(Inc. 9% CGST & 9% SGST)</small>
+                          <?='₹ ' . number_format((float)($single_payment_details->plan_price), 2, '.', ',');?>
                         </th>
                         <th class="tm_width_2" style="width:15%;text-align:left;">
                           <?='₹ ' . $single_payment_details->coin_balance_used_in_rs;?><br>
                           <?=$single_payment_details->coin_balance_used != "" && $single_payment_details->coin_balance_used > 0 ? '<small>(' . $single_payment_details->coin_balance_used . ' Coins Used)</small>' : '';?>
                         </th>
-                        <th class="tm_width_2" style="width:15%;text-align:left;"><?='₹ ' . $single_payment_details->payment_amount;?></th>
+                        <th class="tm_width_2" style="width:15%;text-align:left;"><?='₹ ' . number_format((float)($single_payment_details->payment_amount), 2, '.', ',');?></th>
                       </tr> 
                     </tbody>
                     <?php } ?>
@@ -211,13 +217,29 @@
               <div class="tm_right_footer" style="width:50% ;margin-top:50px ;">
                 <table class="tm_mb15">
                   <tbody>
-                    <!-- <tr class="tm_gray_bg "  style="background: #0080002e;border-top: 1px solid #ccc;">
-                      <td class="tm_width_3 tm_primary_color tm_bold">Coins Discount </td>
-                      <td class="tm_width_3 tm_primary_color tm_bold tm_text_right"> <?=$single_payment_details->coin_balance_used_in_rs;?></td>
-                    </tr> -->
+                    <?php if($single_payment_details->is_gst_applicable == '1'){ ?>
+                      <?php if($single_payment_details->cgst_rate != '' && $single_payment_details->cgst_rate > 0){ ?>
+                        <tr class="tm_gray_bg">
+                            <td class="tm_width_3 tm_primary_color tm_bold">CGST <small>(<?=$single_payment_details->cgst_rate . '%'; ?>)</small></td>
+                            <td class="tm_width_3 tm_primary_color tm_bold tm_text_right"><?='₹ ' . number_format((float)($single_payment_details->cgst), 2, '.', ',');?></td>
+                        </tr>
+                      <?php } ?>
+                      <?php if($single_payment_details->sgst_rate != '' && $single_payment_details->sgst_rate > 0){ ?>
+                        <tr class="tm_gray_bg ">
+                          <td class="tm_width_3 tm_primary_color tm_bold">SGST <small>(<?=$single_payment_details->sgst_rate . '%'; ?>)</small></td>
+                          <td class="tm_width_3 tm_primary_color tm_bold tm_text_right"><?='₹ ' . number_format((float)($single_payment_details->sgst), 2, '.', ',');?></td>
+                        </tr>
+                      <?php } ?>
+                      <?php if($single_payment_details->igst_rate != '' && $single_payment_details->igst_rate > 0){ ?>
+                        <tr class="tm_gray_bg">
+                            <td class="tm_width_3 tm_primary_color tm_bold">IGST <small>(<?=$single_payment_details->igst_rate . '%'; ?>)</small></td>
+                            <td class="tm_width_3 tm_primary_color tm_bold tm_text_right"><?='₹ ' . number_format((float)($single_payment_details->igst), 2, '.', ',');?></td>
+                        </tr>
+                      <?php } ?>
+                    <?php } ?>
                     <tr class="tm_accent_bg">
                         <td class="tm_width_3 tm_border_top_0 tm_bold tm_f16 tm_white_color">Total Amount<br><small>(Inc. Taxes)</small></td>
-                        <td class="tm_width_3 tm_border_top_0 tm_bold tm_f16 tm_white_color tm_text_right"><?='₹ ' . $single_payment_details->payment_amount;?></td>
+                        <td class="tm_width_3 tm_border_top_0 tm_bold tm_f16 tm_white_color tm_text_right"><?='₹ ' . ($single_payment_details->final_amount != "" ? number_format((float)($single_payment_details->final_amount), 2, '.', ',') : number_format((float)($single_payment_details->payment_amount), 2, '.', ',')); ?></td>
                     </tr>
                   </tbody>
                 </table>

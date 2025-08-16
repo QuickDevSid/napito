@@ -1975,7 +1975,8 @@ class Admin_model extends CI_Model {
     }
     public function get_branch_payment_details_ajx(){
         $branch = $this->input->post('branch');
-		$this->db->select('tbl_branch.*,tbl_subscription_master.subscription_name');		
+		$this->db->select('tbl_branch.*,tbl_subscription_master.subscription_name,tbl_salon.is_gst_applicable,tbl_salon.gst_no');		
+		$this->db->join('tbl_salon','tbl_salon.id = tbl_branch.salon_id');
 		$this->db->join('tbl_subscription_master','tbl_subscription_master.id = tbl_branch.subscription_id');
 		$this->db->join('tbl_branch_subscription_allocation','tbl_branch_subscription_allocation.id = tbl_branch.subscription_allocation_id');
         $this->db->where('tbl_branch.is_deleted','0');
@@ -1993,6 +1994,7 @@ class Admin_model extends CI_Model {
                     $coin_balance = $branch->coin_balance != "" ? (float)$branch->coin_balance : 0.00;
                     $coin_balance_in_rs = $coin_balance * $per_coin_in_rs;
                     $pending_amount = $branch->pending_due_amount != "" ? (float)$branch->pending_due_amount : 0.00;
+                    $setup = $this->Master_model->get_backend_setups();
                     $array = array(
                         'subscription_name'     =>  $branch->subscription_name,
                         'subscription_start'    =>  $branch->subscription_start,
@@ -2001,7 +2003,14 @@ class Admin_model extends CI_Model {
                         'pending_amount'        =>  $pending_amount,
                         'coin_balance'          =>  $coin_balance,
                         'coin_balance_in_rs'    =>  $coin_balance_in_rs,
-                        'per_coin_in_rs'        =>  $per_coin_in_rs
+                        'per_coin_in_rs'        =>  $per_coin_in_rs,
+                        'is_gst_applicable'     =>  $branch->is_gst_applicable,
+                        'gst_no'                =>  $branch->gst_no,
+                        'gst_rate'              =>  $branch->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate : 18) : 18) : 0,
+                        'igst_rate'             =>  0,
+                        // 'igst_rate'             =>  $branch->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate : 18) : 18) : 0,
+                        'cgst_rate'             =>  $branch->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate/2 : 18/2) : 18/2) : 0,
+                        'sgst_rate'             =>  $branch->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate/2 : 18/2) : 18/2) : 0
                     );
                     echo json_encode($array);
                 }else{
@@ -2035,6 +2044,18 @@ class Admin_model extends CI_Model {
                 'payment_type'  =>  '0',
                 'payment_amount'=>  $this->input->post('now_payment'),
 
+                'is_gst_applicable' =>  $this->input->post('is_gst_applicable'),
+                'branch_gst_no'     =>  $this->input->post('gst_no'),
+                'gst'               =>  $this->input->post('gst_hidden'),
+                'gst_rate'          =>  $this->input->post('gst_rate'),
+                'igst'              =>  $this->input->post('igst_hidden'),
+                'igst_rate'         =>  $this->input->post('igst_rate'),
+                'cgst'              =>  $this->input->post('cgst_hidden'),
+                'cgst_rate'         =>  $this->input->post('cgst_rate'),
+                'sgst'              =>  $this->input->post('sgst_hidden'),
+                'sgst_rate'         =>  $this->input->post('sgst_rate'),
+                'final_amount'      =>  $this->input->post('final_payment_hidden'),
+
                 'coin_balance_used'             =>  $this->input->post('coin_balance_used'),
                 'coin_balance_used_in_rs'       =>  $this->input->post('coin_balance_used_in_rs'),
                 'per_coin_rs_value'             =>  $coin_earn_on_every_download,
@@ -2049,6 +2070,7 @@ class Admin_model extends CI_Model {
                 'closing_due'   =>  $closing_due,
                 'created_on'    =>  date('Y-m-d H:i:s')
             );
+            echo '<pre>'; print_r($data); exit;
             $this->db->insert('tbl_branch_payment_details',$data);
             $branch_payment_id = $this->db->insert_id();
             
@@ -2064,7 +2086,7 @@ class Admin_model extends CI_Model {
                 $fy_start = $fy_end - 1;
             }
             $financial_year = 'FY' . sprintf('%02d', $fy_start) . '-' . sprintf('%02d', $fy_end);
-            $count_formatted = sprintf('%04d', $total_count);
+            $count_formatted = sprintf('%04d', $total_count + 1);
             $invoice_id = 'NAP-GST-' . $financial_year . '-' . $count_formatted;
             $invoice_id_data = array(
                 'invoice_id' => $invoice_id
@@ -2976,7 +2998,7 @@ class Admin_model extends CI_Model {
         return $result->row();
     } 
 	public function get_branch_details($id){
-		$this->db->select('tbl_branch.*, tbl_salon.salon_name');
+		$this->db->select('tbl_branch.*, tbl_salon.salon_name,tbl_salon.gst_no,tbl_salon.is_gst_applicable');
 		$this->db->join('tbl_salon','tbl_salon.id = tbl_branch.salon_id');
 		$this->db->where('tbl_branch.is_deleted','0');
         $this->db->where('tbl_branch.id',$id);
@@ -6708,12 +6730,40 @@ public function get_single_status_color()
                         $this->db->update('tbl_wp_addon_requests',array('wp_addon_request_status'=>'0','inactive_on'=>date('Y-m-d H:i:s'),'inactive_remark'=>'Add on Plan Purchased'));
                     }
 
+                    $gst_no = $branch_details->is_gst_applicable == '1' ? ($branch_details->gst_no != "" ? $branch_details->gst_no : null) : null;
+
+                    $igst_rate = 0;
+                    // $igst_rate = $branch_details->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate : 18) : 18) : 0;
+                    $cgst_rate = $branch_details->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate/2 : 18/2) : 18/2) : 0;
+                    $sgst_rate = $branch_details->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate/2 : 18/2) : 18/2) : 0;
+                    $gst_rate = $branch_details->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate : 18) : 18) : 0;
+
+                    $igst = ($igst_rate * $exist->price) / 100;
+                    $cgst = ($cgst_rate * $exist->price) / 100;
+                    $sgst = ($sgst_rate * $exist->price) / 100;
+                    $gst = ($gst_rate * $exist->price) / 100;
+
+                    $final_amount = $gst + $exist->price;
+
                     $data = array(
                         'branch_id'                     =>  $branch_details->id,
                         'salon_id'                      =>  $branch_details->salon_id,
                         'payment_type'                  =>  '1',
                         'wp_addon_status'               =>  '1',
                         'payment_amount'                =>  $exist->price,
+
+                        'is_gst_applicable'             =>  $branch_details->is_gst_applicable,
+                        'branch_gst_no'                 =>  $gst_no,
+                        'gst'                           =>  $gst,
+                        'gst_rate'                      =>  $gst_rate,
+                        'igst'                          =>  $igst,
+                        'igst_rate'                     =>  $igst_rate,
+                        'cgst'                          =>  $cgst,
+                        'cgst_rate'                     =>  $cgst_rate,
+                        'sgst'                          =>  $sgst,
+                        'sgst_rate'                     =>  $sgst_rate,
+                        'final_amount'                  =>  $final_amount,
+
                         'coin_balance_used'             =>  0,
                         'coin_balance_used_in_rs'       =>  0,
                         'per_coin_rs_value'             =>  null,
@@ -6747,7 +6797,7 @@ public function get_single_status_color()
                         $fy_start = $fy_end - 1;
                     }
                     $financial_year = 'FY' . sprintf('%02d', $fy_start) . '-' . sprintf('%02d', $fy_end);
-                    $count_formatted = sprintf('%04d', $total_count);
+                    $count_formatted = sprintf('%04d', $total_count + 1);
                     $invoice_id = 'NAP-GST-' . $financial_year . '-' . $count_formatted;
                     $invoice_id_data = array(
                         'invoice_id' => $invoice_id

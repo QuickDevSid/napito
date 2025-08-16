@@ -2795,7 +2795,25 @@ public function get_whatsapp_report_data_ajx(){
 				$sub_array[] = '<button style="float:left;background:transparent !important;outline:none; box-shadow:none;" title="Gateway Response" type="button" class="btn btn-primary event-action-button" id="response_button_'.$print->id.'" onclick="showGatewayResponse('.$print->id.')" data-toggle="modal" data-target="#responseModal"><i style="color:gray;font-size: 20px;margin-left: -5px;" class="fa-solid fa-info-circle"></i></button>';
 			}else if($whatsapp_report_type == '2'){
 				$sub_array[] = '<b>' . $print->plan_name . '</b><br>Price: ' . $print->plan_price . '<br>Coins: ' . $print->plan_qty;
-				$sub_array[] = 'Rs. ' . $print->payment_amount;
+				$sub_array[] = 'Rs. ' . number_format((float)($print->payment_amount), 2, '.', ',');
+
+				$gst_text = '';
+				if($print->is_gst_applicable == '1'){
+					if($print->cgst_rate != '' && $print->cgst_rate > 0){
+						$gst_text .= 'CGST <small>(' . number_format((float)($print->cgst_rate), 2, '.', ',') . '%)</small>: Rs. ' . number_format((float)($print->cgst), 2, '.', ',') . '<br>';
+					}
+					if($print->sgst_rate != '' && $print->sgst_rate > 0){
+						$gst_text .= 'SGST <small>(' . number_format((float)($print->sgst_rate), 2, '.', ',') . '%)</small>: Rs. ' . number_format((float)($print->sgst), 2, '.', ',') . '<br>';
+					}
+					if($print->igst_rate != '' && $print->igst_rate > 0){
+						$gst_text .= 'IGST <small>(' . number_format((float)($print->igst_rate), 2, '.', ',') . '%)</small>: Rs. ' . number_format((float)($print->igst), 2, '.', ',') . '<br>';
+					}
+				}else{
+					$gst_text = '0.00';
+				}
+				$sub_array[] = $gst_text;
+
+				$sub_array[] = $print->final_amount != "" ? 'Rs. ' . number_format((float)($print->final_amount), 2, '.', ',') : ($print->payment_amount != "" ? 'Rs. ' . number_format((float)($print->payment_amount), 2, '.', ',') : '0.00');
 				$sub_array[] = date('d M, Y', strtotime($print->payment_date));
 				$sub_array[] = '<a target="_blank" href="' . base_url() . 'payment_receipt/' . base64_encode($print->id) . '" class="btn btn-info">Receipt</a>';
 			}

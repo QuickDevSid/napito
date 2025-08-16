@@ -37,11 +37,13 @@
                                     <th>Branch</th>
                                 <?php } ?>
                                 <th>Payment Type</th>
-                                <th>Opening Due</th>
-                                <th>Amount</th>
-                                <th>Closing Due</th>
                                 <th>Coin Used</th>
                                 <th>Coin Used In INR</th>
+                                <th>Opening Due</th>
+                                <th>Paid Amount</th>
+                                <th>Closing Due</th>
+                                <th>GST Amount</th>
+                                <th>Final Amount</th>
                                 <th>Payment Date</th>
                                 <th>Payment By</th>
                                 <th>Payment Entry On</th>
@@ -109,7 +111,7 @@
                     messageBottom: '',
                     filename: 'Customer-list',
                     exportOptions: {
-                        columns: [0,1,2,4,5,6,7,8,9,10],
+                        columns: [0,1,2,4,5,6,7,8,9,10,11,12],
                         modifier: {
                             search: 'applied',
                             order: 'applied'

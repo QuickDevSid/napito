@@ -159,8 +159,8 @@ class Ajax_controller extends CI_Controller {
 		$this->Admin_model->get_customize_message_ajx(); 
 	}
 	public function showWPAddonForm_ajx() {
-        $setup = $this->Master_model->get_backend_setups();
-        $value = !empty($setup) ? (int)$setup->wp_low_qty_value : 25;
+        $data['setup'] = $this->Master_model->get_backend_setups();
+        $value = !empty($data['setup']) ? (int)$data['setup']->wp_low_qty_value : 25;
 		$data['branch'] = $this->Admin_model->get_branch_details($this->input->post('id'));
 		if(!empty($data['branch'])){ 
 			$wp_coins_qty = $data['branch']->wp_coins_qty != "" ? (int)$data['branch']->wp_coins_qty : 0;
@@ -323,7 +323,7 @@ class Ajax_controller extends CI_Controller {
 				}
 				
 				$actions = '';
-				$actions .= '<button style="" title="Purchase Add On" type="button" class="btn btn-primary event-action-button" id="service_details_button_'.$print->branch_id.'" onclick="showWPAddonForm('.$print->branch_id.','.$requested_plan.')" data-toggle="modal" data-target="#customMessageModal"><i style="" class="fa-solid fa-plus"></i></button>';
+				$actions .= $requested_plan != "" ? '<button style="" title="Purchase Add On" type="button" class="btn btn-primary event-action-button" id="service_details_button_'.$print->branch_id.'" onclick="showWPAddonForm('.$print->branch_id.','.$requested_plan.')" data-toggle="modal" data-target="#customMessageModal"><i style="" class="fa-solid fa-plus"></i></button>' : '';
 				$actions .= '<a onclick="return confirm(\'Are you sure to delete this record?\');" href="'.base_url().'delete/'.$print->id.'/tbl_wp_addon_requests" class="btn btn-danger" title="Delete"><i class="fa-solid fa-trash"></i></a>';
 									
 				$sub_array[] = $actions != "" ? $actions : '-';
@@ -432,11 +432,29 @@ class Ajax_controller extends CI_Controller {
 					$sub_array[] = $subscription_details;
 				}
 				
-				$sub_array[] = $print->opening_due != "" ? $print->opening_due : '0.00';
-				$sub_array[] = $print->payment_amount != "" ? $print->payment_amount : '0.00';
-				$sub_array[] = $print->closing_due != "" ? $print->closing_due : '0.00';
 				$sub_array[] = $print->coin_balance_used != "" ? $print->coin_balance_used : '-';
-				$sub_array[] = $print->coin_balance_used_in_rs != "" ? $print->coin_balance_used_in_rs.'<br><small>(Rs. ' . $print->per_coin_rs_value . ' Per Coin)</small>' : '-';
+				$sub_array[] = $print->coin_balance_used_in_rs != "" ? number_format((float)($print->coin_balance_used_in_rs), 2, '.', ',').'<br><small>(Rs. ' . $print->per_coin_rs_value . ' Per Coin)</small>' : '-';
+				$sub_array[] = $print->opening_due != "" ? number_format((float)($print->opening_due), 2, '.', ',') : '0.00';
+				$sub_array[] = $print->payment_amount != "" ? number_format((float)($print->payment_amount), 2, '.', ',') : '0.00';
+				$sub_array[] = $print->closing_due != "" ? number_format((float)($print->closing_due), 2, '.', ',') : '0.00';
+				
+				$gst_text = '';
+				if($print->is_gst_applicable == '1'){
+					if($print->cgst_rate != '' && $print->cgst_rate > 0){
+						$gst_text .= 'CGST <small>(' . number_format((float)($print->cgst_rate), 2, '.', ',') . '%)</small>: ' . number_format((float)($print->cgst), 2, '.', ',') . '<br>';
+					}
+					if($print->sgst_rate != '' && $print->sgst_rate > 0){
+						$gst_text .= 'SGST <small>(' . number_format((float)($print->sgst_rate), 2, '.', ',') . '%)</small>: ' . number_format((float)($print->sgst), 2, '.', ',') . '<br>';
+					}
+					if($print->igst_rate != '' && $print->igst_rate > 0){
+						$gst_text .= 'IGST <small>(' . number_format((float)($print->igst_rate), 2, '.', ',') . '%)</small>: ' . number_format((float)($print->igst), 2, '.', ',') . '<br>';
+					}
+				}else{
+					$gst_text = '0.00';
+				}
+				$sub_array[] = $gst_text;
+				
+				$sub_array[] = $print->final_amount != "" ? number_format((float)($print->final_amount), 2, '.', ',') : ($print->payment_amount != "" ? number_format((float)($print->payment_amount), 2, '.', ',') : '0.00');
 				$sub_array[] = $print->payment_date != "" && $print->payment_date != '0000-00-00' && $print->payment_date != '1970-01-01' ? date('d M, Y', strtotime($print->payment_date)) : '-';
 				if($this->input->post('salon') == ""){
 					$sub_array[] = $print->full_name;

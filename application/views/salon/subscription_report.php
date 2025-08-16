@@ -136,11 +136,13 @@
                                 <tr>
                                     <th>Sr. No.</th>
                                     <th>Subscription</th>
-                                    <th>Opening Due <small>(In INR)</small></th>
-                                    <th>Amount <small>(In INR)</small></th>
-                                    <th>Closing Due <small>(In INR)</small></th>
                                     <th>Coin Used</th>
-                                    <th>Coin Used <small>(In INR)</small></th>
+                                    <th>Coin Used<br><small>(In INR)</small></th>
+                                    <th>Opening Due<br><small>(In INR)</small></th>
+                                    <th>Paid Amount<br><small>(In INR)</small></th>
+                                    <th>Closing Due<br><small>(In INR)</small></th>
+                                    <th>GST Amount<br><small>(In INR)</small></th>
+                                    <th>Final Amount<br><small>(In INR)</small></th>
                                     <th>Payment Date</th>
                                     <th>Payment Entry On</th>
                                     <th>Receipt</th>
@@ -369,7 +371,7 @@
                     messageBottom: '',
                     filename: 'Customer-list',
                     exportOptions: {
-                        columns: [0,1,2,3,4,5,6,7,8,9],
+                        columns: [0,1,2,3,4,5,6,7,8,9,10,11],
                         modifier: {
                             search: 'applied',
                             order: 'applied'

@@ -136,6 +136,47 @@ include('header.php'); ?>
                                                     <input placeholder="Enter Payment Amount" type="text" onkeyup="calculateCoinBalance()" class="form-control" name="now_payment" id="now_payment" value="">
                                                 </td>
                                             </tr>
+                                            <tr style="display:none;">
+                                                <th>IGST Amount <b class="require">*</b> <small id="igst_rate_text"></small></th>
+                                                <td>
+                                                    <label id="igst_text"></label>
+                                                    <input type="hidden" name="igst_hidden" id="igst_hidden" value="">
+                                                    <input type="hidden" name="igst_rate" id="igst_rate" value="">
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <th>CGST Amount <b class="require">*</b> <small id="cgst_rate_text"></small></th>
+                                                <td>
+                                                    <label id="cgst_text"></label>
+                                                    <input type="hidden" name="cgst_hidden" id="cgst_hidden" value="">
+                                                    <input type="hidden" name="cgst_rate" id="cgst_rate" value="">
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <th>SGST Amount <b class="require">*</b> <small id="sgst_rate_text"></small></th>
+                                                <td>
+                                                    <label id="sgst_text"></label>
+                                                    <input type="hidden" name="sgst_hidden" id="sgst_hidden" value="">
+                                                    <input type="hidden" name="sgst_rate" id="sgst_rate" value="">
+                                                </td>
+                                            </tr>
+                                            <tr style="display:none;">
+                                                <th>GST Amount <b class="require">*</b> <small id="gst_rate_text"></small></th>
+                                                <td>
+                                                    <label id="gst_text"></label>
+                                                    <input type="hidden" name="gst_hidden" id="gst_hidden" value="">
+                                                    <input type="hidden" name="gst_rate" id="gst_rate" value="">
+                                                    <input type="hidden" name="is_gst_applicable" id="is_gst_applicable" value="">
+                                                    <input type="hidden" name="gst_no" id="gst_no" value="">
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <th>Final Amount <b class="require">*</b></th>
+                                                <td>
+                                                    <label id="final_payment_text"></label>
+                                                    <input type="hidden" name="final_payment_hidden" id="final_payment_hidden" value="">
+                                                </td>
+                                            </tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -355,6 +396,16 @@ include('header.php'); ?>
                         $('#coin_balance_text').text(parseInt(coin_balance));
                         $('#coin_balance_in_rs').val(parseFloat(coin_balance_in_rs).toFixed(2));
                         $('#coin_balance_in_rs_text').text(parseFloat(coin_balance_in_rs).toFixed(2));
+                        $('#is_gst_applicable').val(opts.is_gst_applicable);
+                        $('#gst_no').val(opts.gst_no);
+                        $('#gst_rate').val(parseFloat(opts.gst_rate).toFixed(2));
+                        $('#igst_rate').val(parseFloat(opts.igst_rate).toFixed(2));
+                        $('#cgst_rate').val(parseFloat(opts.cgst_rate).toFixed(2));
+                        $('#sgst_rate').val(parseFloat(opts.sgst_rate).toFixed(2));
+                        $('#gst_rate_text').text('(' + parseFloat(opts.gst_rate).toFixed(2) + '%)');
+                        $('#igst_rate_text').text('(' + parseFloat(opts.igst_rate).toFixed(2) + '%)');
+                        $('#cgst_rate_text').text('(' + parseFloat(opts.cgst_rate).toFixed(2) + '%)');
+                        $('#sgst_rate_text').text('(' + parseFloat(opts.sgst_rate).toFixed(2) + '%)');
 
                         if(coin_balance > 0){
                             $('#coin_balance_used').val(parseInt(coin_balance)).attr('max',parseInt(coin_balance)).attr('readonly',false);
@@ -395,5 +446,36 @@ include('header.php'); ?>
         new_pending = effective_pending_amount - now_payment;
         $('#pending_amount').val(parseFloat(new_pending).toFixed(2));
         $('#pending_amount_text').text(parseFloat(new_pending).toFixed(2));
+
+        calculateGST();
+    }
+    function calculateGST(){
+        var now_payment = $('#now_payment').val() ?? 0;
+        var is_gst_applicable = $('#is_gst_applicable').val() ?? '0';
+
+        var igst_rate = is_gst_applicable == '1' ? ($('#igst_rate').val() ?? 0) : 0;
+        var cgst_rate = is_gst_applicable == '1' ? ($('#cgst_rate').val() ?? 0) : 0;
+        var sgst_rate = is_gst_applicable == '1' ? ($('#sgst_rate').val() ?? 0) : 0;
+        var gst_rate = is_gst_applicable == '1' ? ($('#gst_rate').val() ?? 0) : 0;
+
+        igst = (parseFloat(igst_rate) * parseFloat(now_payment))/100;
+        cgst = (parseFloat(cgst_rate) * parseFloat(now_payment))/100;
+        sgst = (parseFloat(sgst_rate) * parseFloat(now_payment))/100;
+        gst = (parseFloat(gst_rate) * parseFloat(now_payment))/100;
+
+        final_payment = parseFloat(gst) + parseFloat(now_payment);
+
+        $('#igst_hidden').val(parseFloat(igst).toFixed(2));
+        $('#cgst_hidden').val(parseFloat(cgst).toFixed(2));
+        $('#sgst_hidden').val(parseFloat(sgst).toFixed(2));
+        $('#igst_text').text(parseFloat(igst).toFixed(2));
+        $('#cgst_text').text(parseFloat(cgst).toFixed(2));
+        $('#sgst_text').text(parseFloat(sgst).toFixed(2));
+
+        $('#gst_hidden').val(parseFloat(gst).toFixed(2));
+        $('#gst_text').text(parseFloat(gst).toFixed(2));
+
+        $('#final_payment_hidden').val(parseFloat(final_payment).toFixed(2));
+        $('#final_payment_text').text(parseFloat(final_payment).toFixed(2));
     }
 </script>

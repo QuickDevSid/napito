@@ -619,10 +619,10 @@ if ($this->uri->segment(2) != "") {
     });
     $("#is_gst_applicable").change(function() {
         if($("#is_gst_applicable").val() == '1'){
-            $('#gst_no').attr('readonly',false);
+            $('#gst_no').attr('readonly',false).attr('required',true);
             $('#gst_no_label').html('GST No. <b class="require">*</b>');
         }else{
-            $('#gst_no').attr('readonly',true).val('');
+            $('#gst_no').attr('readonly',true).val('').attr('required',false);
             $('#gst_no_label').html('GST No.');
         }
     });

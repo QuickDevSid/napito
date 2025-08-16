@@ -189,6 +189,8 @@ div.dataTables_wrapper div.dataTables_paginate{
                                     <th>Sr. No.</th>
                                     <th>Details</th>
                                     <th>Amount</th>
+                                    <th>GST Amount</th>
+                                    <th>Final Amount</th>
                                     <th>Payment Date</th>
                                     <th>Receipt</th>
                                 </tr>
@@ -437,7 +439,7 @@ if(isset($_GET['whatsapp_report_filter_type']) && $_GET['whatsapp_report_filter_
                 var excel_column = [0,1,2,3,4,5,6,7,8];
             }else if(selected_whatsapp_report_type == '2'){
                 var report_text = 'Payments';
-                var excel_column = [0,1,2,3];
+                var excel_column = [0,1,2,3,4,5];
             }
 
             $('#whatsapp_report_type').val(selected_whatsapp_report_type);
