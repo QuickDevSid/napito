@@ -136,6 +136,22 @@ include('header.php'); ?>
                                                     <input placeholder="Enter Payment Amount" type="text" onkeyup="calculateCoinBalance()" class="form-control" name="now_payment" id="now_payment" value="">
                                                 </td>
                                             </tr>
+                                            <tr>
+                                                <th>Is GST Applicable?</th>
+                                                <td>                                                    
+                                                    <select class="form-control chosen-select" required name="is_gst_applicable" id="is_gst_applicable">
+                                                        <option value="1">Yes</option>
+                                                        <option value="0">No</option>
+                                                    </select>
+                                                    <label id="is_gst_applicable-error"  class="error" style="display:block;" for="is_gst_applicable"></label>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <th id="gst_no_label">Branch GST No. <b class="require">*</b></th>
+                                                <td>                                                    
+                                                    <input placeholder="Enter GST No" type="text" name="gst_no" id="gst_no" class="form-control" value="">
+                                                </td>
+                                            </tr>
                                             <tr style="display:none;">
                                                 <th>IGST Amount <b class="require">*</b> <small id="igst_rate_text"></small></th>
                                                 <td>
@@ -166,8 +182,6 @@ include('header.php'); ?>
                                                     <label id="gst_text"></label>
                                                     <input type="hidden" name="gst_hidden" id="gst_hidden" value="">
                                                     <input type="hidden" name="gst_rate" id="gst_rate" value="">
-                                                    <input type="hidden" name="is_gst_applicable" id="is_gst_applicable" value="">
-                                                    <input type="hidden" name="gst_no" id="gst_no" value="">
                                                 </td>
                                             </tr>
                                             <tr>
@@ -230,6 +244,20 @@ include('header.php'); ?>
      
 
     $(document).ready(function () { 
+        $('#gst_no').on('input', function() {
+            $(this).val($(this).val().toUpperCase());
+        });
+        $("#is_gst_applicable").change(function() {
+            if($("#is_gst_applicable").val() == '1'){
+                $('#gst_no').attr('readonly',false).attr('required',true);
+                $('#gst_no_label').html('Branch GST No. <b class="require">*</b>');
+            }else{
+                $('#gst_no').attr('readonly',true).val('').attr('required',false);
+                $('#gst_no_label').html('Branch GST No.');
+            }
+            calculateGST();
+        });
+
         $("#payment_date").datepicker({
 			dateFormat:"dd-mm-yy",
 			changeMonth:true,
@@ -273,6 +301,12 @@ include('header.php'); ?>
         // $.validator.addMethod("noCommas", function(value, element) {
         //     return this.optional(element) || /^\d+$/.test(value); // Only digits allowed
         // }, "Please enter whole number.");
+        jQuery.validator.addMethod("gstFormat", function(value, element) {
+            return this.optional(element) || /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}[Z]{1}[A-Z0-9]{1}$/.test(value);
+        }, "Please enter a valid GST number in the correct format (e.g., 22AAAAA0000A1Z5).");
+        $.validator.addMethod("alphanumeric", function(value, element) {
+            return this.optional(element) || /^[a-zA-Z0-9]+$/.test(value);
+        }, "Only letters and numbers are allowed (no special characters).");
         $('#customer_form').validate({
             ignore:[],
             rules: {
@@ -290,7 +324,16 @@ include('header.php'); ?>
                     number: true,
                     min: 0,
                 },
-                payment_date: 'required'
+                payment_date: 'required',
+                gst_no: {
+                    required: function(element) {
+                        return $('#is_gst_applicable').val() === '1';
+                    },
+                    maxlength: 15,
+                    minlength: 15,
+                    alphanumeric: true,
+                    gstFormat: true,
+                },
             },
             messages: {
                 salon: 'Please select salon!',
@@ -305,7 +348,14 @@ include('header.php'); ?>
                     number: 'Only numbers allowed!',
                     min: 'Minimum 0 value required!',
                 },
-                payment_date: 'Please select payment date!'
+                payment_date: 'Please select payment date!',
+                gst_no:{
+                    required: "Please enter GST No.",
+                    maxlength: "Please enter max 15 digits",
+                    minlength: "Please enter min 15 digits",
+                    alphanumeric: "Please enter valid GST no",
+                    gstFormat: "Please enter valid GST no(e.g. 22AAAAA0000A1Z5)",
+                },
             },
             submitHandler: function(form) {
                 if (confirm("Are you sure you want to submit the form?")) {
@@ -396,8 +446,6 @@ include('header.php'); ?>
                         $('#coin_balance_text').text(parseInt(coin_balance));
                         $('#coin_balance_in_rs').val(parseFloat(coin_balance_in_rs).toFixed(2));
                         $('#coin_balance_in_rs_text').text(parseFloat(coin_balance_in_rs).toFixed(2));
-                        $('#is_gst_applicable').val(opts.is_gst_applicable);
-                        $('#gst_no').val(opts.gst_no);
                         $('#gst_rate').val(parseFloat(opts.gst_rate).toFixed(2));
                         $('#igst_rate').val(parseFloat(opts.igst_rate).toFixed(2));
                         $('#cgst_rate').val(parseFloat(opts.cgst_rate).toFixed(2));

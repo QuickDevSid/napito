@@ -2006,11 +2006,11 @@ class Admin_model extends CI_Model {
                         'per_coin_in_rs'        =>  $per_coin_in_rs,
                         'is_gst_applicable'     =>  $branch->is_gst_applicable,
                         'gst_no'                =>  $branch->gst_no,
-                        'gst_rate'              =>  $branch->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate : 18) : 18) : 0,
+                        'gst_rate'              =>  !empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate : 18) : 18,
                         'igst_rate'             =>  0,
-                        // 'igst_rate'             =>  $branch->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate : 18) : 18) : 0,
-                        'cgst_rate'             =>  $branch->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate/2 : 18/2) : 18/2) : 0,
-                        'sgst_rate'             =>  $branch->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate/2 : 18/2) : 18/2) : 0
+                        // 'igst_rate'             =>  !empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate : 18) : 18,
+                        'cgst_rate'             =>  !empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate/2 : 18/2) : 18/2,
+                        'sgst_rate'             =>  !empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate/2 : 18/2) : 18/2
                     );
                     echo json_encode($array);
                 }else{
@@ -2044,16 +2044,16 @@ class Admin_model extends CI_Model {
                 'payment_type'  =>  '0',
                 'payment_amount'=>  $this->input->post('now_payment'),
 
-                'is_gst_applicable' =>  $this->input->post('is_gst_applicable'),
-                'branch_gst_no'     =>  $this->input->post('gst_no'),
-                'gst'               =>  $this->input->post('gst_hidden'),
-                'gst_rate'          =>  $this->input->post('gst_rate'),
-                'igst'              =>  $this->input->post('igst_hidden'),
-                'igst_rate'         =>  $this->input->post('igst_rate'),
-                'cgst'              =>  $this->input->post('cgst_hidden'),
-                'cgst_rate'         =>  $this->input->post('cgst_rate'),
-                'sgst'              =>  $this->input->post('sgst_hidden'),
-                'sgst_rate'         =>  $this->input->post('sgst_rate'),
+                'is_gst_applicable' =>  $this->input->post('is_gst_applicable') == '1' ? '1' : '0',
+                'branch_gst_no'     =>  $this->input->post('is_gst_applicable') == '1' ? $this->input->post('gst_no') : null,
+                'gst'               =>  $this->input->post('is_gst_applicable') == '1' ? $this->input->post('gst_hidden') : '0.00',
+                'gst_rate'          =>  $this->input->post('is_gst_applicable') == '1' ? $this->input->post('gst_rate') : null,
+                'igst'              =>  $this->input->post('is_gst_applicable') == '1' ? $this->input->post('igst_hidden') : '0.00',
+                'igst_rate'         =>  $this->input->post('is_gst_applicable') == '1' ? $this->input->post('igst_rate') : null,
+                'cgst'              =>  $this->input->post('is_gst_applicable') == '1' ? $this->input->post('cgst_hidden') : '0.00',
+                'cgst_rate'         =>  $this->input->post('is_gst_applicable') == '1' ? $this->input->post('cgst_rate') : null,
+                'sgst'              =>  $this->input->post('is_gst_applicable') == '1' ? $this->input->post('sgst_hidden') : '0.00',
+                'sgst_rate'         =>  $this->input->post('is_gst_applicable') == '1' ? $this->input->post('sgst_rate') : null,
                 'final_amount'      =>  $this->input->post('final_payment_hidden'),
 
                 'coin_balance_used'             =>  $this->input->post('coin_balance_used'),
@@ -2070,7 +2070,6 @@ class Admin_model extends CI_Model {
                 'closing_due'   =>  $closing_due,
                 'created_on'    =>  date('Y-m-d H:i:s')
             );
-            // echo '<pre>'; print_r($data); exit;
             $this->db->insert('tbl_branch_payment_details',$data);
             $branch_payment_id = $this->db->insert_id();
             
@@ -6730,13 +6729,14 @@ public function get_single_status_color()
                         $this->db->update('tbl_wp_addon_requests',array('wp_addon_request_status'=>'0','inactive_on'=>date('Y-m-d H:i:s'),'inactive_remark'=>'Add on Plan Purchased'));
                     }
 
-                    $gst_no = $branch_details->is_gst_applicable == '1' ? ($branch_details->gst_no != "" ? $branch_details->gst_no : null) : null;
+                    $is_gst_applicable = $this->input->post('is_gst_applicable') == '1' ? '1' : '0';
+                    $gst_no = $this->input->post('gst_no') != "" ? $this->input->post('gst_no') : null;
 
                     $igst_rate = 0;
-                    // $igst_rate = $branch_details->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate : 18) : 18) : 0;
-                    $cgst_rate = $branch_details->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate/2 : 18/2) : 18/2) : 0;
-                    $sgst_rate = $branch_details->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate/2 : 18/2) : 18/2) : 0;
-                    $gst_rate = $branch_details->is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate : 18) : 18) : 0;
+                    // $igst_rate = $is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate : 18) : 18) : 0;
+                    $cgst_rate = $is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate/2 : 18/2) : 18/2) : 0;
+                    $sgst_rate = $is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate/2 : 18/2) : 18/2) : 0;
+                    $gst_rate = $is_gst_applicable == '1' ? (!empty($setup) ? ($setup->gst_rate != "" ? $setup->gst_rate : 18) : 18) : 0;
 
                     $igst = ($igst_rate * $exist->price) / 100;
                     $cgst = ($cgst_rate * $exist->price) / 100;
@@ -6752,7 +6752,7 @@ public function get_single_status_color()
                         'wp_addon_status'               =>  '1',
                         'payment_amount'                =>  $exist->price,
 
-                        'is_gst_applicable'             =>  $branch_details->is_gst_applicable,
+                        'is_gst_applicable'             =>  $is_gst_applicable,
                         'branch_gst_no'                 =>  $gst_no,
                         'gst'                           =>  $gst,
                         'gst_rate'                      =>  $gst_rate,

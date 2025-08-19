@@ -33,8 +33,22 @@
         <input type="hidden" name="cgst_rate" id="cgst_rate" value="<?=$cgst_rate; ?>">
         <input type="hidden" name="sgst_rate" id="sgst_rate" value="<?=$sgst_rate; ?>">
         <input type="hidden" name="gst_rate" id="gst_rate" value="<?=$gst_rate; ?>">
-        <input type="hidden" name="is_gst_applicable" id="is_gst_applicable" value="<?php if (!empty($branch)) { echo $branch->is_gst_applicable; }else{ echo '0'; } ?>">
-        <input type="hidden" name="gst_no" id="gst_no" value="<?=$gst_no; ?>">
+        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 form-group">
+            <div class="form-group">
+                <label>Is GST Applicable? <b class="require">*</b></label>
+                <select class="form-control chosen-select" required name="is_gst_applicable" id="is_gst_applicable">
+                    <option value="1">Yes</option>
+                    <option value="0">No</option>
+                </select>
+                <label id="is_gst_applicable-error"  class="error" style="display:block;" for="is_gst_applicable"></label>
+            </div>
+        </div>
+        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 form-group">
+            <div class="form-group">
+                <label for="fullname" id="gst_no_label">GST No. <b class="require">*</b></label>
+                <input readonly placeholder="Enter GST No" type="text" name="gst_no" id="gst_no" class="form-control" value="">
+            </div>
+        </div>
         <div class="col-lg-3 col-md-3 col-sm-6 col-xs-12 form-group">
             <label>Plan Amount</label>
             <input readonly type="text" placeholder="Enter Plan Amount" readonly class="form-control" name="plan_amount" id="plan_amount" value="">
@@ -81,6 +95,20 @@
 </form>
 <script>
     $(document).ready(function () {
+        $('#gst_no').on('input', function() {
+            $(this).val($(this).val().toUpperCase());
+        });
+        $("#is_gst_applicable").change(function() {
+            if($("#is_gst_applicable").val() == '1'){
+                $('#gst_no').attr('readonly',false).attr('required',true);
+                $('#gst_no_label').html('GST No. <b class="require">*</b>');
+            }else{
+                $('#gst_no').attr('readonly',true).val('').attr('required',false);
+                $('#gst_no_label').html('GST No.');
+            }
+            calculateGST();
+        });
+
         function toggleTransactionIdField() {
             var selectedMode = $('#payment_mode').val();
             if (selectedMode.toLowerCase() !== 'cash' && selectedMode !== '') {
@@ -101,11 +129,12 @@
         // ========== GST + Final Amount Calculation ==========
         function calculateGST() {
             var amount = parseFloat($("#add_on_plan option:selected").data("amount")) || 0;
+            var is_gst_applicable = parseFloat($("#is_gst_applicable").val()) || '0';
 
             // GST rates from hidden inputs
-            var igst_rate = parseFloat($("#igst_rate").val()) || 0;
-            var cgst_rate = parseFloat($("#cgst_rate").val()) || 0;
-            var sgst_rate = parseFloat($("#sgst_rate").val()) || 0;
+            var igst_rate = is_gst_applicable == '1' ? (parseFloat($("#igst_rate").val()) || 0) : 0;
+            var cgst_rate = is_gst_applicable == '1' ? (parseFloat($("#cgst_rate").val()) || 0) : 0;
+            var sgst_rate = is_gst_applicable == '1' ? (parseFloat($("#sgst_rate").val()) || 0) : 0;
 
             var igst = (amount * igst_rate) / 100;
             var cgst = (amount * cgst_rate) / 100;
@@ -130,11 +159,27 @@
         calculateGST();
         
         $(".chosen-select").chosen();
+
+        jQuery.validator.addMethod("gstFormat", function(value, element) {
+            return this.optional(element) || /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}[Z]{1}[A-Z0-9]{1}$/.test(value);
+        }, "Please enter a valid GST number in the correct format (e.g., 22AAAAA0000A1Z5).");
+        $.validator.addMethod("alphanumeric", function(value, element) {
+            return this.optional(element) || /^[a-zA-Z0-9]+$/.test(value);
+        }, "Only letters and numbers are allowed (no special characters).");
         $('#make_form').validate({
 			ignore:[],
             rules: {
                 add_on_plan: 'required',
-                payment_mode: 'required'
+                payment_mode: 'required',
+                gst_no: {
+                    required: function(element) {
+                        return $('#is_gst_applicable').val() === '1';
+                    },
+                    maxlength: 15,
+                    minlength: 15,
+                    alphanumeric: true,
+                    gstFormat: true,
+                },
             },
             messages: {
                 add_on_plan: {
@@ -143,6 +188,13 @@
                 payment_mode: {
                         required: "Please select payment mode!",
                     },
+                gst_no:{
+                    required: "Please enter GST No.",
+                    maxlength: "Please enter max 15 digits",
+                    minlength: "Please enter min 15 digits",
+                    alphanumeric: "Please enter valid GST no",
+                    gstFormat: "Please enter valid GST no(e.g. 22AAAAA0000A1Z5)",
+                },
             }
         });
     });
