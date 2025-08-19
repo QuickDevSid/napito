@@ -11871,21 +11871,24 @@ class Api_model extends CI_Model {
                 $single = $this->db->get('tbl_salon_customer')->row();
 
                 if(!empty($single)){  
-                    $services = $request['selected_services'];   
+			        $services = isset($request['selected_services']) ? $request['selected_services'] : [];
                     if(!empty($services)){ 
                         $services_data = [];
                         foreach($services as $service){
-                            $this->db->where('id',$service);
+                            $this->db->where('id',$service['id']);
                             $this->db->where('branch_id',$branch_id);
                             $this->db->where('salon_id',$salon_id);
                             $this->db->where('is_deleted','0');
                             $service_details = $this->db->get('tbl_salon_emp_service')->row();
                             if (!empty($service_details)) {
                                 $services_data[] = array(
-                                    'id'    =>  $service_details->id,
-                                    'price' =>  $service_details->final_price != "" ? (float)$service_details->final_price : 0.00
+                                    'id'            =>  $service_details->id,
+                                    'price'         =>  $service_details->final_price != "" ? (float)$service_details->final_price : 0.00,
+                                    'added_from'    =>  $service['added_from']
                                 );
-                                $service_ids[] = $service_details->id;
+                                if($service['added_from'] == '0'){
+                                    $service_ids[] = $service_details->id;
+                                }
                             }
                         }
 
@@ -11893,17 +11896,20 @@ class Api_model extends CI_Model {
                         $products_data = [];
                         if(!empty($products)){
                             foreach($products as $product){
-                                $this->db->where('id',$product);
+                                $this->db->where('id',$product['id']);
                                 $this->db->where('branch_id',$branch_id);
                                 $this->db->where('salon_id',$salon_id);
                                 $this->db->where('is_deleted','0');
                                 $product_details = $this->db->get('tbl_product')->row();
                                 if (!empty($product_details)) {
                                     $products_data[] = array(
-                                        'id'    =>  $product_details->id,
-                                        'price' =>  $product_details->selling_price != "" ? (float)$product_details->selling_price : 0.00
+                                        'id'            =>  $product_details->id,
+                                        'price'         =>  $product_details->selling_price != "" ? (float)$product_details->selling_price : 0.00,
+                                        'added_from'    =>  $product['added_from']
                                     );
-                                    $product_ids[] = $product_details->id;
+                                    if($product['added_from'] == '0'){
+                                        $product_ids[] = $product_details->id;
+                                    }
                                 }
                             }
                         }
@@ -11916,10 +11922,12 @@ class Api_model extends CI_Model {
                         
 			            $is_giftcard_applied = isset($request['is_giftcard_applied']) ? $request['is_giftcard_applied'] : '0';
 			            $applied_giftcard_no = $is_giftcard_applied == '1' && isset($request['applied_giftcard_no']) ? $request['applied_giftcard_no'] : null;
+                        
+			            $is_user_rewards_applied = isset($request['is_rewards_applied']) ? $request['is_rewards_applied'] : '0';
 
                         $json_arr['status'] = 'true';
                         $json_arr['message'] = 'success';
-                        $json_arr['data'] = $this->Common_model->calculate_discounts($customer_id, $service_ids, $services_data, $product_ids, $products_data, $branch_id, $salon_id, $applied_offer_id, $applied_coupon_id, $applied_giftcard_no);
+                        $json_arr['data'] = $this->Common_model->calculate_discounts($customer_id, $service_ids, $services_data, $product_ids, $products_data, $branch_id, $salon_id, $applied_offer_id, $applied_coupon_id, $applied_giftcard_no, $is_user_rewards_applied);
                     }else{
                         $json_arr['status'] = 'false';
                         $json_arr['message'] = 'Services not selected';

@@ -314,20 +314,8 @@ class Common_model extends CI_Model {
 		return $single_id;
 	}
 
-	public function calculate_discounts($customer_id, $service_ids, $services_data, $product_ids, $products_data, $branch_id, $salon_id, $applied_offer_id, $applied_coupon_id, $applied_giftcard_no){		
+	public function calculate_discounts($customer_id, $service_ids, $services_data, $product_ids, $products_data, $branch_id, $salon_id, $applied_offer_id, $applied_coupon_id, $applied_giftcard_no, $is_user_rewards_applied){		
 		$return_data = array();
-
-		$is_gst_applicable = '0';
-		$gst_rate = 0;
-
-		$service_total = 0;
-		$product_total = 0;  
-
-		$marketing_service_discount = 0;
-		$marketing_service_discount_data = array();  
-		
-		$marketing_product_discount = 0;
-		$marketing_product_discount_data = array();  
 				
 		$this->db->select('tbl_salon_customer.*,tbl_salon.is_gst_applicable,tbl_salon.gst_no');
 		$this->db->join('tbl_salon','tbl_salon_customer.salon_id = tbl_salon.id');
@@ -341,6 +329,12 @@ class Common_model extends CI_Model {
 		$this->db->where('tbl_salon_customer.salon_id', $salon_id);
 		$single = $this->db->get('tbl_salon_customer')->row();
 		if(empty($single)){
+			$is_gst_applicable = '0';
+			$gst_rate = 0;
+
+			$service_total = 0;
+			$product_total = 0;  
+
 			$setup = $this->Master_model->get_backend_setups();	
 			if(!empty($setup)){
 				$gst_rate = $setup->gst_rate;
@@ -353,19 +347,39 @@ class Common_model extends CI_Model {
 			}
 
 			foreach ($services_data as $service) {
-				$service_total += $service['price'] != "" ? (float)$service['price'] : 0.00;
+				$added_from = $service['added_from'];
+				$service_total += $added_from == '0' && $service['price'] != "" ? (float)$service['price'] : 0.00;
 			}
 
 			if(!empty($products_data)){
 				foreach ($products_data as $product) {
-					$product_total += $product['price'] != "" ? (float)$product['price'] : 0.00;
+					$added_from = $product['added_from'];
+					$product_total += $added_from == '0' && $product['price'] != "" ? (float)$product['price'] : 0.00;
 				}
 			}
 
+			$is_automated_service_discount_applied = '0';
+			$automated_service_discount_type = null;
+			$is_automated_product_discount_applied = '0';
+			$is_offer_applied      = '0';
 			$is_offer_applied      = '0';
 			$is_coupon_applied     = '0';
 			$is_giftcard_applied   = '0';
 			$is_rewards_applied    = '0';
+			
+			// Apply Automated Services Start
+			$marketing_service_discount_data = $this->apply_services_automated_discounts($customer_id, $services_data, $branch_id, $salon_id);
+			$marketing_service_discount = !empty($marketing_service_discount_data) && isset($marketing_service_discount_data['marketing_service_discount']) ? $marketing_service_discount_data['marketing_service_discount'] : 0.00;
+			$is_automated_service_discount_applied = !empty($marketing_service_discount_data) && isset($marketing_service_discount_data['is_automated_service_discount_applied']) ? $marketing_service_discount_data['is_automated_service_discount_applied'] : '0';
+			$automated_service_discount_type = !empty($marketing_service_discount_data) && isset($marketing_service_discount_data['automated_discount_type']) ? $marketing_service_discount_data['automated_discount_type'] : null;
+			$is_automated_service_discount_applied = $is_automated_service_discount_applied == '1' ? ($automated_service_discount_type == '0' ? '1' : '0') : $is_automated_service_discount_applied;
+			// Apply Automated Services End
+			
+			// Apply Automated Products Start
+			$marketing_product_discount_data = $this->apply_products_automated_discounts($customer_id, $products_data, $branch_id, $salon_id);
+			$marketing_product_discount = !empty($marketing_product_discount_data) && isset($marketing_product_discount_data['marketing_product_discount']) ? $marketing_product_discount_data['marketing_product_discount'] : 0.00;
+			$is_automated_product_discount_applied = !empty($marketing_product_discount_data) && isset($marketing_product_discount_data['is_automated_product_discount_applied']) ? $marketing_product_discount_data['is_automated_product_discount_applied'] : '0';
+			// Apply Automated Products End
 			
 			// Apply Membership Start
 			$membership_data = $this->apply_membership($customer_id, $services_data, $products_data, $branch_id, $salon_id);
@@ -375,13 +389,15 @@ class Common_model extends CI_Model {
 			// Apply Membership End
 			
 			// Apply Offer Start
-			$offers_data = $this->apply_offer($customer_id, $single->gender, $service_ids, $services_data, $branch_id, $salon_id, $applied_offer_id);
-			$total_offer_discount = !empty($offers_data) && isset($offers_data['total_offer_discount']) ? $offers_data['total_offer_discount'] : 0.00;
-			$is_offer_applied = !empty($offers_data) && isset($offers_data['is_offer_applied']) ? $offers_data['is_offer_applied'] : '0';
+			if ($is_automated_service_discount_applied == '0' && $is_automated_product_discount_applied == '0'){
+				$offers_data = $this->apply_offer($customer_id, $single->gender, $service_ids, $services_data, $branch_id, $salon_id, $applied_offer_id);
+				$total_offer_discount = !empty($offers_data) && isset($offers_data['total_offer_discount']) ? $offers_data['total_offer_discount'] : 0.00;
+				$is_offer_applied = !empty($offers_data) && isset($offers_data['is_offer_applied']) ? $offers_data['is_offer_applied'] : '0';
+			}
 			// Apply Offer End
 			
 			// Apply Coupon Start
-			if ($is_offer_applied == '0') {
+			if ($is_automated_service_discount_applied == '0' && $is_automated_product_discount_applied == '0' && $is_offer_applied == '0') {
 				$coupon_data = $this->apply_coupon($customer_id, $single->gender, $service_ids, $services_data, $products_data, $branch_id, $salon_id, $applied_coupon_id);
 				$coupon_discount = !empty($coupon_data) && isset($coupon_data['coupon_discount']) ? $coupon_data['coupon_discount'] : 0.00;
 				$is_coupon_applied = !empty($coupon_data) && isset($coupon_data['is_coupon_applied']) ? $coupon_data['is_coupon_applied'] : '0';
@@ -389,7 +405,7 @@ class Common_model extends CI_Model {
 			// Apply Coupon End
 			
 			// Apply Giftcard Start
-			if ($is_offer_applied == '0' && $is_coupon_applied == '0'){
+			if ($is_automated_service_discount_applied == '0' && $is_automated_product_discount_applied == '0' && $is_offer_applied == '0' && $is_coupon_applied == '0'){
 				$giftcard_data = $this->apply_giftcard($customer_id, $single->gender, $services_data, $products_data, $branch_id, $salon_id, $applied_giftcard_no);
 				$giftcard_discount = !empty($giftcard_data) && isset($giftcard_data['giftcard_discount']) ? $giftcard_data['giftcard_discount'] : 0.00;
 				$is_giftcard_applied = !empty($giftcard_data) && isset($giftcard_data['is_giftcard_applied']) ? $giftcard_data['is_giftcard_applied'] : '0';
@@ -397,8 +413,8 @@ class Common_model extends CI_Model {
 			// Apply Giftcard End
 			
 			// Apply Rewards Start
-			if ($is_offer_applied == '0' && $is_coupon_applied == '0' && $is_giftcard_applied == '0'){
-				$rewards_data = $this->apply_reward($customer_id, $single->gender, $services_data, $products_data, $branch_id, $salon_id);
+			if ($is_automated_service_discount_applied == '0' && $is_automated_product_discount_applied == '0' && $is_offer_applied == '0' && $is_coupon_applied == '0' && $is_giftcard_applied == '0'){
+				$rewards_data = $this->apply_reward($customer_id, $single->gender, $services_data, $products_data, $branch_id, $salon_id, $is_user_rewards_applied);
 				$rewards_discount = !empty($rewards_data) && isset($rewards_data['rewards_discount']) ? $rewards_data['rewards_discount'] : 0.00;
 				$is_rewards_applied = !empty($rewards_discount) && isset($rewards_discount['is_rewards_applied']) ? $rewards_discount['is_rewards_applied'] : '0';
 			}
@@ -412,6 +428,7 @@ class Common_model extends CI_Model {
 			$total_discount = $membership_discount + $rewards_discount + $giftcard_discount + $coupon_discount + $marketing_discount + $total_offer_discount;
 			
 			$sub_total = $total - $total_discount;
+			$sub_total = $sub_total >= 0 ? $sub_total : 0.00;
 
 			$gst_amount = $is_gst_applicable == '1' ? ((float)$sub_total * (float)$gst_rate) : 0.00;
 			$grand_total = $sub_total + $gst_amount;
@@ -430,18 +447,326 @@ class Common_model extends CI_Model {
 											'gst_no'            =>  $gst_no
 										),
 				'discount_details'  => array(       
-											'membership_data'           => $membership_data,       
-											'offers_data'               => $offers_data,     
-											'giftcard_data'             => $giftcard_data,       
-											'coupon_data'               => $coupon_data,          
-											'rewards_data'              => $rewards_data,      
+											'membership_data'           		=> $membership_data,     
 											'marketing_service_discount_data'   => $marketing_service_discount_data,     
-											'marketing_product_discount_data'   => $marketing_product_discount_data     
+											'marketing_product_discount_data'   => $marketing_product_discount_data,    
+											'offers_data'               		=> $offers_data,     
+											'giftcard_data'             		=> $giftcard_data,       
+											'coupon_data'               		=> $coupon_data,          
+											'rewards_data'              		=> $rewards_data      
 										)
 			);
 		}
 
 		return $return_data;
+	}
+
+	public function apply_services_automated_discounts($customer_id, $services_data, $branch_id, $salon_id){	
+		$final_is_automated_service_discount_applied = '0';
+		$automated_discount_type = null;
+		$marketing_service_discount = 0;
+		$marketing_service_rewards = 0;
+		$final_discount_head_text = null;
+		$final_discount_subhead_text = null;
+		$marketing_service_discount_data = array();  
+		$services_discount_data = array();
+
+		foreach ($services_data as $service) {
+			$service_price = $service['price'] != "" ? (float)$service['price'] : 0.00;
+			$added_from = $service['added_from'];
+													
+			$service_discount_rewards_type = '';
+			$discount_in = '';
+			$discount_type = '';
+			$discount_amount_value = '';
+			$discount_row_id = '';
+			$customer_criteria = '';
+			$is_discount_applied = '0';
+
+			$discount_amount = 0;
+			$slab_increment = '5';
+			$slab_consider = '';
+			$min_slab = '';
+			$max_slab = '';
+
+			$rewards_discount_amount = 0;
+			$rewards_slab_increment = '5';
+			$rewards_slab_consider = '';
+			$rewards_min_slab = '';
+			$rewards_max_slab = '';
+
+			$service_applied_discount = $this->Salon_model->get_customer_service_applied_discount($customer_id,$service['id']);
+			if($service_applied_discount['is_discount_applied'] == '1' && $added_from == '0'){
+				$is_discount_applied = '1';
+				$customer_criteria = $service_applied_discount['customer_criteria'];
+				$discount_type = $service_applied_discount['discount_type'];
+				$discount_in = $service_applied_discount['discount_in'];
+				$discount_amount_value = (float)$service_applied_discount['discount_amount'];
+				$min_slab = $service_applied_discount['min_flexible'];
+				$max_slab = $service_applied_discount['max_flexible'];
+				if($discount_type == '1'){    //Flexible
+					$customer_last_service_booking = $this->Salon_model->get_customer_last_service_booking($customer_id,$service['id']);
+					if(!empty($customer_last_service_booking)){                                                   
+						if($customer_criteria == '1'){                             
+							$prev_Applied_slab = $customer_last_service_booking->rewards_applied_flexible_slab;
+						}else{
+							$prev_Applied_slab = $customer_last_service_booking->applied_flexible_slab;
+						}   
+
+						if($prev_Applied_slab != ""){
+							$next_slab = $prev_Applied_slab + $slab_increment;
+						}else{
+							$next_slab = $min_slab + $slab_increment;
+						}
+
+						if($next_slab > $max_slab){
+							$slab_consider = $min_slab;
+						}else{
+							$slab_consider = $next_slab;
+						}
+					}else{
+						$slab_consider = $min_slab;
+					}
+
+					if($discount_in == '0'){  //percentage
+						$discount_amount = ((float)$slab_consider * (float)$service_price) / 100;
+						$discount_text = $slab_consider . '% Off';
+					}elseif($discount_in == '1'){ //flat
+						$discount_amount = (float)$slab_consider;
+						$discount_text = 'Flat Rs. ' . $slab_consider . ' Off';
+					}
+				}elseif($discount_type == '0'){   //Fixed
+					if($discount_in == '0'){  //percentage
+						$discount_amount = ((float)$discount_amount_value * (float)$service_price) / 100;
+						$discount_text = $discount_amount_value . '% Off';
+					}elseif($discount_in == '1'){ //flat
+						$discount_amount = (float)$discount_amount_value;
+						$discount_text = 'Flat Rs. ' . $discount_amount_value . ' Off';
+					}
+				}
+
+				$rewards_text = 'Earn ' . $discount_amount . ' Reward Points';
+			}
+
+			$discount_head_text = null;
+			$discount_subhead_text = null;
+			if($is_discount_applied == '1'){
+				if($customer_criteria == '1'){  //for regular customer rewards are given
+					$rewards_discount_amount = $discount_amount;
+					$rewards_slab_increment = $slab_increment;
+					$rewards_slab_consider = $slab_consider;
+					$rewards_min_slab = $min_slab;
+					$rewards_max_slab = $max_slab;
+
+					$discount_amount = 0;
+					$slab_increment = '5';
+					$slab_consider = '';
+					$min_slab = '';
+					$max_slab = '';
+
+					$service_discount_rewards_type = '1';   // rewards
+					$discount_subhead_text = $rewards_text;
+				}else{                                    
+					$service_discount_rewards_type = '0';   // discount
+					$discount_subhead_text = $discount_text;
+				}
+				
+				if($customer_criteria == '0'){
+					$discount_head_text = 'New Client Benefits Applied';
+				}elseif($customer_criteria == '1'){
+					$discount_head_text = 'Regular Client Benefits Applied';
+				}elseif($customer_criteria == '2'){
+					$discount_head_text = 'Lost Client Benefits Applied';
+				}elseif($customer_criteria == '3'){
+					$discount_head_text = 'Birthday Benefits Applied';
+				}elseif($customer_criteria == '4'){
+					$discount_head_text = 'Anniversary Benefits Applied';
+				}elseif($customer_criteria == '5'){
+					$discount_head_text = 'Products Marketing Benefits Applied';
+				}
+
+				$automated_discount_type = $final_is_automated_service_discount_applied == '0' ? $service_discount_rewards_type : $automated_discount_type;
+				$final_discount_head_text = $final_is_automated_service_discount_applied == '0' ? $discount_head_text : $final_discount_head_text;
+				$final_discount_subhead_text = $final_is_automated_service_discount_applied == '0' ? $discount_subhead_text : $final_discount_subhead_text;
+				$final_is_automated_service_discount_applied = $final_is_automated_service_discount_applied == '0' ? '1' : $final_is_automated_service_discount_applied;
+			}
+			
+			$services_discount_data[] = array(
+				'service_id'			=>	$service['id'],
+				'is_discount_applied'	=>	$is_discount_applied,
+
+				'original_price'		=>	$service_price,
+				'final_amount'			=>	$service_price - $discount_amount,
+				'discount_head_text'	=>	$discount_head_text,
+				'discount_subhead_text'	=>	$discount_subhead_text,
+
+				'service_discount_rewards_type'		=>	$service_discount_rewards_type,
+				'customer_criteria'		=>	$customer_criteria,
+				'discount_row_id'		=>	$discount_row_id,
+				'discount_in'			=>	$discount_in,
+				'discount_type'			=>	$discount_type,
+				'discount_amount_value'	=>	$discount_amount_value,
+
+				'discount_amount'		=>	$discount_amount,
+				'slab_increment'		=>	$slab_increment,
+				'slab_consider'			=>	$slab_consider,
+				'min_slab'				=>	$min_slab,
+				'max_slab'				=>	$max_slab,
+
+				'rewards_discount_amount'			=>	$rewards_discount_amount,
+				'rewards_slab_increment'			=>	$rewards_slab_increment,
+				'rewards_slab_consider'				=>	$rewards_slab_consider,
+				'rewards_min_slab'					=>	$rewards_min_slab,
+				'rewards_max_slab'					=>	$rewards_max_slab
+			);
+
+			$marketing_service_discount += $discount_amount;
+			$marketing_service_rewards += $rewards_discount_amount;
+		}
+
+		$marketing_service_discount_data = array(
+			'is_automated_service_discount_applied'	=>	$final_is_automated_service_discount_applied,
+			'automated_discount_type'				=>	$automated_discount_type,
+			'marketing_service_discount'			=>	$marketing_service_discount,
+			'marketing_service_rewards'				=>	$marketing_service_rewards,
+			'discount_head_text'					=>	$final_discount_head_text,
+			'discount_subhead_text'					=>	$final_discount_subhead_text,
+			'services_discount_data'				=>	$services_discount_data,
+		);
+
+		return $marketing_service_discount_data;
+	}
+
+	public function apply_products_automated_discounts($customer_id, $products_data, $branch_id, $salon_id){	
+		$final_is_automated_product_discount_applied = '0';
+		$marketing_product_discount = 0;
+		$final_discount_head_text = null;
+		$final_discount_subhead_text = null;
+		$marketing_product_discount_data = array();  
+		$products_discount_data = array();  
+		
+		if(!empty($products_data)){
+			foreach($products_data as $product){  
+				$added_from = $product['added_from'];
+				$this->db->where('id',$product['id']);
+        		$this->db->where('is_deleted', '0');
+				$products_result = $this->db->get('tbl_product')->row();
+				if(!empty($products_result) && $added_from == '0'){
+					$discount_in = $products_result->discount_in;
+					$discount = $products_result->discount != "" ? (float)$products_result->discount : 0;
+					$selling_price = $products_result->selling_price != "" ? (float)$products_result->selling_price : 0.00;
+					if($discount_in == '0'){
+						$selling_price = $selling_price - ($selling_price * $discount) / 100;
+					}elseif($discount_in == '1'){
+						$selling_price = $selling_price - $discount;
+					}else{
+						$selling_price = $selling_price;
+					}                                                        
+			
+					$product_discount_in = '';
+					$product_discount_type = '';
+					$product_discount_amount_value = '';
+					$product_discount_row_id = '';
+					$is_product_discount_applied = '0';
+
+					$product_discount_amount = 0;
+					$product_slab_increment = '5';
+					$product_slab_consider = '';
+					$product_min_slab = '';
+					$product_max_slab = '';
+					
+					$discount_head_text = null;
+					$discount_subhead_text = null;
+
+					$product_applied_discount = $this->Salon_model->get_customer_product_applied_discount($customer_id,$products_result->id);
+					if($product_applied_discount['is_discount_applied'] == '1'){
+						$is_product_discount_applied = '1';
+						$product_discount_row_id = $product_applied_discount['discount_row_id'];
+						$product_discount_type = $product_applied_discount['discount_type'];
+						$product_discount_in = $product_applied_discount['discount_in'];
+						$product_discount_amount_value = (float)$product_applied_discount['discount_amount'];
+						$product_min_slab = $product_applied_discount['min_flexible'];
+						$product_max_slab = $product_applied_discount['max_flexible'];
+						if($product_discount_type == '1'){    //Flexible
+							$customer_last_service_product_booking = $this->Salon_model->get_customer_last_service_product_booking($customer_id,$products_result->id);
+							if(!empty($customer_last_service_product_booking)){      
+								$prev_Applied_product_slab = $customer_last_service_product_booking->product_applied_flexible_slab;
+
+								if($prev_Applied_product_slab != ""){
+									$next_product_slab = $prev_Applied_product_slab + $product_slab_increment;
+								}else{
+									$next_product_slab = $product_min_slab + $product_slab_increment;
+								}
+
+								if($next_product_slab > $product_max_slab){
+									$product_slab_consider = $product_min_slab;
+								}else{
+									$product_slab_consider = $next_product_slab;
+								}
+							}else{
+								$product_slab_consider = $product_min_slab;
+							}
+
+							if($product_discount_in == '0'){  //percentage
+								$product_discount_amount = ((float)$product_slab_consider * (float)$selling_price) / 100;
+								$discount_subhead_text = $product_slab_consider . '% Off';
+							}elseif($product_discount_in == '1'){ //flat
+								$product_discount_amount = (float)$product_slab_consider;
+								$discount_subhead_text = 'Flat Rs. ' . $product_slab_consider . ' Off';
+							}
+						}elseif($product_discount_type == '0'){   //Fixed
+							if($product_discount_in == '0'){  //percentage
+								$product_discount_amount = ((float)$product_discount_amount_value * (float)$selling_price) / 100;
+								$discount_subhead_text = $product_discount_amount_value . '% Off';
+							}elseif($product_discount_in == '1'){ //flat
+								$product_discount_amount = (float)$product_discount_amount_value;
+								$discount_subhead_text = 'Flat Rs. ' . $product_discount_amount_value . ' Off';
+							}
+						}
+
+						$discount_head_text = 'Products Marketing Benefits Applied';
+
+						$final_discount_head_text = $final_is_automated_product_discount_applied == '0' ? $discount_head_text : $final_discount_head_text;
+						$final_discount_subhead_text = $final_is_automated_product_discount_applied == '0' ? $discount_subhead_text : $final_discount_subhead_text;
+						$final_is_automated_product_discount_applied = $final_is_automated_product_discount_applied == '0' ? '1' : $final_is_automated_product_discount_applied;
+					}
+			
+					$products_discount_data[] = array(
+						'product_id'			=>	$products_result->id,
+						'is_discount_applied'	=>	$is_product_discount_applied,
+
+						'original_price'		=>	$selling_price,
+						'final_amount'			=>	$selling_price - $product_discount_amount,
+						'discount_head_text'	=>	$discount_head_text,
+						'discount_subhead_text'	=>	$discount_subhead_text,
+
+						'customer_criteria'		=>	'5',
+						'discount_row_id'		=>	$product_discount_row_id,
+						'discount_in'			=>	$product_discount_in,
+						'discount_type'			=>	$product_discount_type,
+						'discount_amount_value'	=>	$product_discount_amount_value,
+
+						'discount_amount'		=>	$product_discount_amount,
+						'slab_increment'		=>	$product_slab_increment,
+						'slab_consider'			=>	$product_slab_consider,
+						'min_slab'				=>	$product_min_slab,
+						'max_slab'				=>	$product_max_slab
+					);
+
+					$marketing_product_discount += $product_discount_amount;
+				}
+			}
+		}
+
+		$marketing_product_discount_data = array(
+			'is_automated_product_discount_applied'	=>	$final_is_automated_product_discount_applied,
+			'marketing_product_discount'			=>	$marketing_product_discount,
+			'discount_head_text'					=>	$final_discount_head_text,
+			'discount_subhead_text'					=>	$final_discount_subhead_text,
+			'products_discount_data'				=>	$products_discount_data,
+		);
+
+		return $marketing_product_discount_data;
 	}
 
 	public function apply_membership($customer_id, $services_data, $products_data, $branch_id, $salon_id){
@@ -466,13 +791,15 @@ class Common_model extends CI_Model {
 		if(!empty($membership_details)){
 			$total_service_amount = 0;
 			foreach ($services_data as $service) {
-				$total_service_amount += $service['price'] != "" ? (float)$service['price'] : 0.00;
+				$added_from = $service['added_from'];
+				$total_service_amount += $added_from == '0' && $service['price'] != "" ? (float)$service['price'] : 0.00;
 			}
 
 			$total_product_amount = 0;
 			if(!empty($products_data)){
 				foreach ($products_data as $product) {
-					$total_product_amount += $product['price'] != "" ? (float)$product['price'] : 0.00;
+					$added_from = $product['added_from'];
+					$total_product_amount += $added_from == '0' && $product['price'] != "" ? (float)$product['price'] : 0.00;
 				}
 			}
 
@@ -545,26 +872,28 @@ class Common_model extends CI_Model {
 			}
 			
 			for($i=0;$i<count($services_data);$i++){
-				$is_offer_applied = '0';
-				$service_offer_discount_amount = 0;
-
-				if ($is_final_offer_applied == '1' && in_array($services_data[$i]['id'], $offer_services)) {
-					if($service_offer_discount_type == '0'){
-						$service_offer_discount_amount = ($services_data[$i]['price'] * $service_offer_discount) / 100;
-					}elseif($service_offer_discount_type == '1'){
-						$service_offer_discount_amount = $service_offer_discount;
+				$added_from = $services_data[$i]['added_from'];
+				if($added_from == '0'){
+					$is_offer_applied = '0';
+					$service_offer_discount_amount = 0;
+					if ($is_final_offer_applied == '1' && in_array($services_data[$i]['id'], $offer_services)) {
+						if($service_offer_discount_type == '0'){
+							$service_offer_discount_amount = ($services_data[$i]['price'] * $service_offer_discount) / 100;
+						}elseif($service_offer_discount_type == '1'){
+							$service_offer_discount_amount = $service_offer_discount;
+						}
+						$is_offer_applied = '1';
 					}
-					$is_offer_applied = '1';
+					$offer_services_data[] = array(
+						'service_id'        =>  $services_data[$i]['id'],
+						'is_offer_applied'  =>  $is_final_offer_applied == '1' ? $is_offer_applied : '0',
+						'price'             =>  $services_data[$i]['price'],
+						'discount'          =>  $is_final_offer_applied == '1' ? $service_offer_discount_amount : 0,
+						'final_price'       =>  $services_data[$i]['price'] - ($is_final_offer_applied == '1' ? $service_offer_discount_amount : 0),
+						'discount_text'     =>  $is_final_offer_applied == '1' ? $discount_text : ''
+					);
+					$total_offer_discount += ($is_final_offer_applied == '1' ? $service_offer_discount_amount : 0);
 				}
-				$offer_services_data[] = array(
-					'service_id'        =>  $services_data[$i]['id'],
-					'is_offer_applied'  =>  $is_final_offer_applied == '1' ? $is_offer_applied : '0',
-					'price'             =>  $services_data[$i]['price'],
-					'discount'          =>  $is_final_offer_applied == '1' ? $service_offer_discount_amount : 0,
-					'final_price'       =>  $services_data[$i]['price'] - ($is_final_offer_applied == '1' ? $service_offer_discount_amount : 0),
-					'discount_text'     =>  $is_final_offer_applied == '1' ? $discount_text : ''
-				);
-				$total_offer_discount += ($is_final_offer_applied == '1' ? $service_offer_discount_amount : 0);
 			}                  
 
 			$discount_subhead_text = null;
@@ -626,13 +955,15 @@ class Common_model extends CI_Model {
 
 			$total_service_amount = 0;
 			foreach ($services_data as $service) {
-				$total_service_amount += $service['price'] != "" ? (float)$service['price'] : 0.00;
+				$added_from = $service['added_from'];
+				$total_service_amount += $added_from == '0' && $service['price'] != "" ? (float)$service['price'] : 0.00;
 			}
 
 			$total_product_amount = 0;
 			if(!empty($products_data)){
 				foreach ($products_data as $product) {
-					$total_product_amount += $product['price'] != "" ? (float)$product['price'] : 0.00;
+					$added_from = $product['added_from'];
+					$total_product_amount += $added_from == '0' && $product['price'] != "" ? (float)$product['price'] : 0.00;
 				}
 			}
 
@@ -660,7 +991,7 @@ class Common_model extends CI_Model {
 		return $coupon_data;
 	}
 
-	public function apply_reward($customer_id, $gender, $services_data, $products_data, $branch_id, $salon_id){
+	public function apply_reward($customer_id, $gender, $services_data, $products_data, $branch_id, $salon_id, $is_user_rewards_applied){
 		$rewards_data = array();  
 		$is_rewards_applied = '0';
 
@@ -672,16 +1003,18 @@ class Common_model extends CI_Model {
 		$this->db->where('salon_id', $salon_id);
 		$this->db->where('CAST(rewards_balance AS DECIMAL(10,2)) >', 0);
 		$single = $this->db->get('tbl_salon_customer')->row();
-		if(!empty($single)){     
+		if(!empty($single) && $is_user_rewards_applied == '1'){     
 			$total_service_amount = 0;
 			foreach ($services_data as $service) {
-				$total_service_amount += $service['price'] != "" ? (float)$service['price'] : 0.00;
+				$added_from = $service['added_from'];
+				$total_service_amount += $added_from == '0' && $service['price'] != "" ? (float)$service['price'] : 0.00;
 			}
 
 			$total_product_amount = 0;
 			if(!empty($products_data)){
 				foreach ($products_data as $product) {
-					$total_product_amount += $product['price'] != "" ? (float)$product['price'] : 0.00;
+					$added_from = $product['added_from'];
+					$total_product_amount += $added_from == '0' && $product['price'] != "" ? (float)$product['price'] : 0.00;
 				}
 			}
 
@@ -759,13 +1092,15 @@ class Common_model extends CI_Model {
 			
 			$total_service_amount = 0;
 			foreach ($services_data as $service) {
-				$total_service_amount += $service['price'] != "" ? (float)$service['price'] : 0.00;
+				$added_from = $service['added_from'];
+				$total_service_amount += $added_from == '0' && $service['price'] != "" ? (float)$service['price'] : 0.00;
 			}
 
 			$total_product_amount = 0;
 			if(!empty($products_data)){
 				foreach ($products_data as $product) {
-					$total_product_amount += $product['price'] != "" ? (float)$product['price'] : 0.00;
+					$added_from = $product['added_from'];
+					$total_product_amount += $added_from == '0' && $product['price'] != "" ? (float)$product['price'] : 0.00;
 				}
 			}
 
