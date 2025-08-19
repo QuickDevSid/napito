@@ -152,6 +152,12 @@ include('header.php'); ?>
                                                     <input placeholder="Enter GST No" type="text" name="gst_no" id="gst_no" class="form-control" value="">
                                                 </td>
                                             </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="form-group col-lg-6 col-md-6 col-sm-12 col-xs-12" id="new_details_div">
+                                    <table class="table" border="1">
+                                        <tbody>
                                             <tr style="display:none;">
                                                 <th>IGST Amount <b class="require">*</b> <small id="igst_rate_text"></small></th>
                                                 <td>
@@ -191,12 +197,6 @@ include('header.php'); ?>
                                                     <input type="hidden" name="final_payment_hidden" id="final_payment_hidden" value="">
                                                 </td>
                                             </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="form-group col-lg-6 col-md-6 col-sm-12 col-xs-12" id="new_details_div">
-                                    <table class="table" border="1">
-                                        <tbody>
                                             <tr>
                                                 <th>New Coin Balance</th>
                                                 <td>
