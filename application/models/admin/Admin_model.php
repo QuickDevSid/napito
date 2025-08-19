@@ -2070,7 +2070,7 @@ class Admin_model extends CI_Model {
                 'closing_due'   =>  $closing_due,
                 'created_on'    =>  date('Y-m-d H:i:s')
             );
-            echo '<pre>'; print_r($data); exit;
+            // echo '<pre>'; print_r($data); exit;
             $this->db->insert('tbl_branch_payment_details',$data);
             $branch_payment_id = $this->db->insert_id();
             
