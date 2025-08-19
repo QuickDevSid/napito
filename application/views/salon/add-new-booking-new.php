@@ -592,9 +592,12 @@ if (!empty($close_setup)) {
                     <div class="x_panel">
                         <div class="x_content">
                             <div class="row">
-                                <div class="form-group col-md-12 col-sm-12 col-xs-12 mt-3" style="position: relative;">
-                                    <input autocomplete="off" maxlength="10" type="text" class="form-control" name="phone" id="phone" placeholder="Add/Search Customer"><a class="search-icon" href="#"><i class="fa fa-search"></i></a>
+                                <div class="form-group col-md-11 col-sm-11 col-xs-11 mt-3" style="position: relative;">
+                                    <input autocomplete="off" maxlength="10" type="text" class="form-control" name="phone" id="phone" placeholder="Search Customer"><a class="search-icon" href="#"><i class="fa fa-search"></i></a>
                                     <div id="phone_not_found" style="display:none; color: red;"></div>
+                                </div>
+                                <div class="form-group col-md-1 col-sm-1 col-xs-1 mt-3">
+                                    <button style="margin-left:-10px;margin-top:2px;" class="btn btn-primary" onclick="open_customer_model('outer')" title="Add New Customer"><i class="fa fa-plus"></i></button>
                                 </div>
                                 <div class="customer-info-by-search">
                                     <div id="customers"></div>
@@ -2142,7 +2145,7 @@ if(isset($_GET['stylist']) && $_GET['stylist'] != ""){
                     if(parsedData.customer.is_guest == '0'){
                         $('#customer_name_t').html(parsedData.customer.full_name + '<a style="float: right;" title="Edit" href="<?= base_url(); ?>add-customer/' + parsedData.customer.id + '" target="_blank"><i class="fa-solid fa-pen-to-square"></i></a>');
                     }else{
-                        $('#customer_name_t').html(parsedData.customer.full_name + '<a style="float: right;" title="Add Customer" onclick="open_customer_model(\'guest_to_parmanant\')"><i style="color:green;font-size: 15px;" class="fa-solid fa-plus"></i></a>');
+                        $('#customer_name_t').html(parsedData.customer.full_name + '<a style="float: right;" title="Add as Regular Customer" onclick="open_customer_model(\'guest_to_parmanant\')"><i style="color:green;font-size: 15px;" class="fa-solid fa-plus"></i></a>');
                     }
 
                     $('#phone').val('')
