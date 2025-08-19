@@ -11863,59 +11863,6 @@ class Api_model extends CI_Model {
                 $salon_id = $request['salon_id'];
                 $branch_id = $request['branch_id'];                   
                 
-                $this->db->select('tbl_store_profile.*,tbl_salon.is_gst_applicable,tbl_salon.gst_no');
-                $this->db->join('tbl_salon','tbl_store_profile.salon_id = tbl_salon.id');
-                $this->db->where('tbl_store_profile.is_deleted', '0');
-                $this->db->where('tbl_store_profile.branch_id', $branch_id);
-                $this->db->where('tbl_store_profile.salon_id', $salon_id);
-                $this->db->order_by('tbl_store_profile.id', 'DESC');
-                $result = $this->db->get('tbl_store_profile');
-                $result = $result->row();
-                if(empty($result)){
-                    $json_arr['status'] = 'false';
-                    $json_arr['message'] = 'Store details not found';
-                    $json_arr['data'] = [];
-                    echo json_encode($json_arr, JSON_UNESCAPED_UNICODE);
-                    exit;
-                }
-
-                $gst_rate = '0';
-                $setup = $this->Master_model->get_backend_setups();	
-                if(!empty($setup)){
-                    $gst_rate = $setup->gst_rate;
-                }
-                $is_gst_applicable = $result->is_gst_applicable == '1' ? '1' : '0';
-                $gst_no = $is_gst_applicable == '1' ? ($result->gst_no != "" ? $result->gst_no : '') : '';
-                
-                if($is_gst_applicable == '0'){
-                    $gst_rate = '0';
-                }
-
-                $gst_data = array(
-                    'is_gst_applicable' =>  $is_gst_applicable,
-                    'gst_rate'          =>  $gst_rate,
-                    'gst_no'            =>  $gst_no
-                );
-                
-                $total = 0;
-
-                $membership_discount = 0;
-                $membership_data = array(); 
-
-                $rewards_discount = 0;
-                $rewards_data = array(); 
-
-                $giftcard_discount = 0;
-                $giftcard_data = array();  
-
-                $coupon_discount = 0;                
-                $coupon_data = array();  
-
-                $marketing_discount = 0;
-                $marketing_discount_data = array();  
-                
-                $input_service_ids = [];
-
                 $this->db->where('is_deleted','0');
                 $this->db->where('status','1');
                 $this->db->where('id',$customer_id);
@@ -11926,143 +11873,53 @@ class Api_model extends CI_Model {
                 if(!empty($single)){  
                     $services = $request['selected_services'];   
                     if(!empty($services)){ 
-                        foreach ($services as $srv) {
-                            $service_id = $srv['service_id'];
-                            $price = $srv['price'];
-                            if (!empty($service_id)) {
-                                $input_service_ids[] = $service_id;
-                                $total += $price != "" ? (float)$price : 0.00;
+                        $services_data = [];
+                        foreach($services as $service){
+                            $this->db->where('id',$service);
+                            $this->db->where('branch_id',$branch_id);
+                            $this->db->where('salon_id',$salon_id);
+                            $this->db->where('is_deleted','0');
+                            $service_details = $this->db->get('tbl_salon_emp_service')->row();
+                            if (!empty($service_details)) {
+                                $services_data[] = array(
+                                    'id'    =>  $service_details->id,
+                                    'price' =>  $service_details->final_price != "" ? (float)$service_details->final_price : 0.00
+                                );
+                                $service_ids[] = $service_details->id;
                             }
                         }
 
-                        $total_offer_discount = 0;
-                        $offers_data = array();  
-                        $is_final_offer_applied = '0';
-                        $is_offer_applied = isset($request['is_offer_applied']) ? $request['is_offer_applied'] : '0';
-                        if($is_offer_applied == '1'){ 
-                            $this->db->where('is_deleted','0');
-                            $this->db->where('status','1');
-                            $this->db->where('validity_status','1');
-                            $this->db->where('id',$request['applied_offer_id']);
-                            $this->db->where('gender',$single->gender);
-                            $this->db->where('branch_id', $branch_id);
-                            $this->db->where('salon_id', $salon_id);
-                            $offer_data = $this->db->get('tbl_offers')->row();
-                            if(empty($offer_data)){
-                                $json_arr['status'] = 'false';
-                                $json_arr['message'] = 'Offer details not found';
-                                $json_arr['data'] = [];
-                                echo json_encode($json_arr, JSON_UNESCAPED_UNICODE);
-                                exit;
-                            }
-
-                            $offer_services_data = [];
-
-                            $service_offer_discount = $offer_data->discount;
-                            $service_offer_discount_type = $offer_data->discount_in;
-                            if($service_offer_discount_type == '0'){
-                                $discount_text = $service_offer_discount . '% Off';
-                            }elseif($service_offer_discount_type == '1'){
-                                $discount_text = 'Flat Rs.' . $service_offer_discount . ' Off';
-                            }
-
-                            $offer_services = $offer_data->service_name != "" ? explode(',',$offer_data->service_name) : [];
-
-                            $diff = array_diff($offer_services, $input_service_ids);
-                            if (empty($diff)) {
-                                $is_final_offer_applied = '1';
-                            }
-                            
-                            for($i=0;$i<count($services);$i++){
-                                $service_id = $services[$i]['service_id'];
-                                $is_offer_applied = '0';
-                                $service_offer_discount_amount = 0;
-                                if($service_id != ""){
-                                    if ($is_final_offer_applied == '1' && in_array($service_id, $offer_services)) {
-                                        if($service_offer_discount_type == '0'){
-                                            $service_offer_discount_amount = ($services[$i]['price'] * $service_offer_discount) / 100;
-                                        }elseif($service_offer_discount_type == '1'){
-                                            $service_offer_discount_amount = $service_offer_discount;
-                                        }
-                                        $is_offer_applied = '1';
-                                    }
-                                    $offer_services_data[] = array(
-                                        'service_id'        =>  $service_id,
-                                        'is_offer_applied'  =>  $is_final_offer_applied == '1' ? $is_offer_applied : '0',
-                                        'price'             =>  $services[$i]['price'],
-                                        'discount'          =>  $is_final_offer_applied == '1' ? $service_offer_discount_amount : 0,
-                                        'final_price'       =>  $services[$i]['price'] - ($is_final_offer_applied == '1' ? $service_offer_discount_amount : 0),
-                                        'discount_text'     =>  $is_final_offer_applied == '1' ? $discount_text : ''
+			            $products = isset($request['selected_products']) ? $request['selected_products'] : [];
+                        $products_data = [];
+                        if(!empty($products)){
+                            foreach($products as $product){
+                                $this->db->where('id',$product);
+                                $this->db->where('branch_id',$branch_id);
+                                $this->db->where('salon_id',$salon_id);
+                                $this->db->where('is_deleted','0');
+                                $product_details = $this->db->get('tbl_product')->row();
+                                if (!empty($product_details)) {
+                                    $products_data[] = array(
+                                        'id'    =>  $product_details->id,
+                                        'price' =>  $product_details->selling_price != "" ? (float)$product_details->selling_price : 0.00
                                     );
-                                }
-                                $total_offer_discount += ($is_final_offer_applied == '1' ? $service_offer_discount_amount : 0);
-                            }                            
-
-                            $not_applied_text = '';
-                            if ($is_final_offer_applied == '1') {
-                                $offer_text = $offer_data->offers_name . ' offer applied.';
-                            } else {
-                                $offer_text = $offer_data->offers_name . ' offer not eligible.';
-
-                                $missing_service_names = [];
-                                $missing_count = count($diff);
-
-                                if ($missing_count > 0) {
-                                    $this->db->select('service_name');
-                                    $this->db->from('tbl_salon_emp_service');
-                                    $this->db->where_in('id', $diff);
-                                    $this->db->where('is_deleted', '0');
-                                    $this->db->where('branch_id', $branch_id);
-                                    $this->db->where('salon_id', $salon_id);
-                                    $missing_services = $this->db->get()->result();
-
-                                    foreach ($missing_services as $ms) {
-                                        $missing_service_names[] = $ms->service_name;
-                                    }
-
-                                    $not_applied_text = 'Add ' . $missing_count . ' more ' . ($missing_count > 1 ? 'services' : 'service') .
-                                                        ' to unlock ' . $offer_data->offers_name . ': ' .
-                                                        implode(', ', $missing_service_names) . '.';
+                                    $product_ids[] = $product_details->id;
                                 }
                             }
+                        }
 
-                            $offers_data = array(
-                                'is_offer_applied'      =>  $is_final_offer_applied,
-                                'offer_id'              =>  $offer_data->id,
-                                'total_offer_discount'  =>  $is_final_offer_applied == '1' ? $total_offer_discount : 0,
-                                'discount_text'         =>  $is_final_offer_applied == '1' ? $discount_text : '',
-                                'offer_text'            =>  $offer_text,
-                                'not_applied_text'      =>  $not_applied_text,
-                                'offer_services_data'   =>  $offer_services_data
-                            );
-                        } 
+			            $is_offer_applied = isset($request['is_offer_applied']) ? $request['is_offer_applied'] : '0';
+			            $applied_offer_id = $is_offer_applied == '1' && isset($request['applied_offer_id']) ? $request['applied_offer_id'] : null;
                         
-                        $total_discount = $membership_discount + $rewards_discount + $giftcard_discount + $coupon_discount + $marketing_discount + $total_offer_discount;
+			            $is_coupon_applied = isset($request['is_coupon_applied']) ? $request['is_coupon_applied'] : '0';
+			            $applied_coupon_id = $is_coupon_applied == '1' && isset($request['applied_coupon_id']) ? $request['applied_coupon_id'] : null;
                         
-                        $sub_total = $total - $total_discount;
-                        $gst_amount = $is_gst_applicable == '1' ? ((float)$sub_total * (float)$gst_rate) : 0.00;
-                        $grand_total = $sub_total + $gst_amount;
-
-                        $response_data = array(
-                            'total'             => $total, 
-                            'total_discount'    => $total_discount,
-                            'sub_total'         => $sub_total,
-                            'gst_amount'        => $gst_amount,
-                            'grand_total'       => $grand_total,
-                            'details'           => array(
-                                                        'gst_data'                  => $gst_data,       
-                                                        'membership_data'           => $membership_data,       
-                                                        'offers_data'               => $offers_data,       
-                                                        'rewards_data'              => $rewards_data,       
-                                                        'giftcard_data'             => $giftcard_data,       
-                                                        'coupon_data'               => $coupon_data,       
-                                                        'marketing_discount_data'   => $marketing_discount_data     
-                                                    )
-                        );
+			            $is_giftcard_applied = isset($request['is_giftcard_applied']) ? $request['is_giftcard_applied'] : '0';
+			            $applied_giftcard_no = $is_giftcard_applied == '1' && isset($request['applied_giftcard_no']) ? $request['applied_giftcard_no'] : null;
 
                         $json_arr['status'] = 'true';
                         $json_arr['message'] = 'success';
-                        $json_arr['data'] = $response_data;
+                        $json_arr['data'] = $this->Common_model->calculate_discounts($customer_id, $service_ids, $services_data, $product_ids, $products_data, $branch_id, $salon_id, $applied_offer_id, $applied_coupon_id, $applied_giftcard_no);
                     }else{
                         $json_arr['status'] = 'false';
                         $json_arr['message'] = 'Services not selected';
