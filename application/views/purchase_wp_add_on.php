@@ -45,7 +45,7 @@
         </div>
         <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 form-group">
             <div class="form-group">
-                <label for="fullname" id="gst_no_label">GST No. <b class="require">*</b></label>
+                <label for="fullname" id="gst_no_label">GST No.</label>
                 <input readonly placeholder="Enter GST No" type="text" name="gst_no" id="gst_no" class="form-control" value="">
             </div>
         </div>
@@ -100,7 +100,7 @@
         });
         $("#is_gst_applicable").change(function() {
             if($("#is_gst_applicable").val() == '1'){
-                $('#gst_no').attr('readonly',false).attr('required',true);
+                $('#gst_no').attr('readonly',false).attr('required',false);
                 $('#gst_no_label').html('GST No. <b class="require">*</b>');
             }else{
                 $('#gst_no').attr('readonly',true).val('').attr('required',false);
@@ -172,9 +172,9 @@
                 add_on_plan: 'required',
                 payment_mode: 'required',
                 gst_no: {
-                    required: function(element) {
-                        return $('#is_gst_applicable').val() === '1';
-                    },
+                    // required: function(element) {
+                    //     return $('#is_gst_applicable').val() === '1';
+                    // },
                     maxlength: 15,
                     minlength: 15,
                     alphanumeric: true,
@@ -189,7 +189,7 @@
                         required: "Please select payment mode!",
                     },
                 gst_no:{
-                    required: "Please enter GST No.",
+                    // required: "Please enter GST No.",
                     maxlength: "Please enter max 15 digits",
                     minlength: "Please enter min 15 digits",
                     alphanumeric: "Please enter valid GST no",

@@ -147,7 +147,7 @@ include('header.php'); ?>
                                                 </td>
                                             </tr>
                                             <tr>
-                                                <th id="gst_no_label">Branch GST No. <b class="require">*</b></th>
+                                                <th id="gst_no_label">Branch GST No.</th>
                                                 <td>                                                    
                                                     <input placeholder="Enter GST No" type="text" name="gst_no" id="gst_no" class="form-control" value="">
                                                 </td>
@@ -249,7 +249,7 @@ include('header.php'); ?>
         });
         $("#is_gst_applicable").change(function() {
             if($("#is_gst_applicable").val() == '1'){
-                $('#gst_no').attr('readonly',false).attr('required',true);
+                $('#gst_no').attr('readonly',false).attr('required',false);
                 $('#gst_no_label').html('Branch GST No. <b class="require">*</b>');
             }else{
                 $('#gst_no').attr('readonly',true).val('').attr('required',false);
@@ -326,9 +326,9 @@ include('header.php'); ?>
                 },
                 payment_date: 'required',
                 gst_no: {
-                    required: function(element) {
-                        return $('#is_gst_applicable').val() === '1';
-                    },
+                    // required: function(element) {
+                    //     return $('#is_gst_applicable').val() === '1';
+                    // },
                     maxlength: 15,
                     minlength: 15,
                     alphanumeric: true,
@@ -350,7 +350,7 @@ include('header.php'); ?>
                 },
                 payment_date: 'Please select payment date!',
                 gst_no:{
-                    required: "Please enter GST No.",
+                    // required: "Please enter GST No.",
                     maxlength: "Please enter max 15 digits",
                     minlength: "Please enter min 15 digits",
                     alphanumeric: "Please enter valid GST no",

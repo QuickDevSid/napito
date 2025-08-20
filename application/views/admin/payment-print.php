@@ -182,7 +182,7 @@
                           <?='₹ ' . number_format((float)($single_payment_details->coin_balance_used_in_rs), 2, '.', ',');?><br>
                           <?=$single_payment_details->coin_balance_used != "" && $single_payment_details->coin_balance_used > 0 ? '<small>(' . $single_payment_details->coin_balance_used . ' Coins Used)</small>' : '';?>
                         </th>
-                        <th class="tm_width_2" style="width:15%;text-align:left;"><?='₹ ' . number_format((float)($single_payment_details->payment_amount), 2, '.', ',');?></th>
+                        <th class="tm_width_3 tm_primary_color tm_bold tm_text_right" style="width:15%;text-align:left;"><?='₹ ' . number_format((float)($single_payment_details->payment_amount), 2, '.', ',');?></th>
                       </tr> 
                     </tbody>
                     <?php }else{ ?>
@@ -199,7 +199,7 @@
                           <?='₹ ' . $single_payment_details->coin_balance_used_in_rs;?><br>
                           <?=$single_payment_details->coin_balance_used != "" && $single_payment_details->coin_balance_used > 0 ? '<small>(' . $single_payment_details->coin_balance_used . ' Coins Used)</small>' : '';?>
                         </th>
-                        <th class="tm_width_2" style="width:15%;text-align:left;"><?='₹ ' . number_format((float)($single_payment_details->payment_amount), 2, '.', ',');?></th>
+                        <th class="tm_width_3 tm_primary_color tm_bold tm_text_right" style="width:15%;text-align:left;"><?='₹ ' . number_format((float)($single_payment_details->payment_amount), 2, '.', ',');?></th>
                       </tr> 
                     </tbody>
                     <?php } ?>
@@ -214,7 +214,7 @@
                 <p class="tm_m0">Mode: </p>
                 <p class="tm_m0">Transaction ID: </p>
               </div>
-              <div class="tm_right_footer" style="width:50% ;margin-top:50px ;">
+              <div class="tm_right_footer" style="width:50%;">
                 <table class="tm_mb15">
                   <tbody>
                     <?php if($single_payment_details->is_gst_applicable == '1'){ ?>
@@ -239,7 +239,15 @@
                     <?php } ?>
                     <tr class="tm_accent_bg">
                         <td class="tm_width_3 tm_border_top_0 tm_bold tm_f16 tm_white_color">Total Amount<br><small>(Inc. Taxes)</small></td>
-                        <td class="tm_width_3 tm_border_top_0 tm_bold tm_f16 tm_white_color tm_text_right"><?='₹ ' . ($single_payment_details->final_amount != "" ? number_format((float)($single_payment_details->final_amount), 2, '.', ',') : number_format((float)($single_payment_details->payment_amount), 2, '.', ',')); ?></td>
+                        <td class="tm_width_3 tm_primary_color tm_bold tm_text_right tm_white_color"><?='₹ ' . ($single_payment_details->final_amount != "" ? number_format((float)($single_payment_details->final_amount), 2, '.', ',') : number_format((float)($single_payment_details->payment_amount), 2, '.', ',')); ?></td>
+                    </tr>
+                    <!-- <tr class="tm_gray_bg">
+                        <td class="tm_width_3 tm_primary_color tm_bold">Opening Due Amount</td>
+                        <td class="tm_width_3 tm_primary_color tm_bold tm_text_right"><?='₹ ' . number_format((float)($single_payment_details->opening_due), 2, '.', ',');?></td>
+                    </tr> -->
+                    <tr class="tm_gray_bg">
+                        <td class="tm_width_3 tm_primary_color tm_bold">Closing Due Amount</td>
+                        <td class="tm_width_3 tm_primary_color tm_bold tm_text_right"><?='₹ ' . number_format((float)($single_payment_details->closing_due), 2, '.', ',');?></td>
                     </tr>
                   </tbody>
                 </table>
