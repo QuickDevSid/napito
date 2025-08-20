@@ -232,8 +232,15 @@ class Api_controller extends CI_Controller {
         $this->Api_model->get_customer_membership();
     }
     public function set_booking(){
-        $this->Api_model->set_booking();
-    }
+        $request = json_decode(file_get_contents('php://input'), true);
+        if(!empty($request) && isset($request['branch_id'])){
+            if($request['branch_id'] == '1'){
+                $this->Api_model->set_booking_new();
+            }else{            
+                $this->Api_model->set_booking();
+            }
+        }
+    }   
     public function buy_membership(){
         $this->Api_model->buy_membership();
     }
