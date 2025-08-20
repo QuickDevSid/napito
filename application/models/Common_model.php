@@ -314,7 +314,7 @@ class Common_model extends CI_Model {
 		return $single_id;
 	}
 
-	public function calculate_discounts($customer_id, $service_ids, $services_data, $product_ids, $products_data, $branch_id, $salon_id, $applied_offer_id, $applied_coupon_id, $applied_giftcard_no, $is_user_rewards_applied){		
+	public function booking_calculations($customer_id, $service_ids, $services_data, $product_ids, $products_data, $branch_id, $salon_id, $applied_offer_id, $applied_coupon_id, $applied_giftcard_no, $is_user_rewards_applied, $selected_package_details, $selected_membership_details){		
 		$return_data = array();
 				
 		$this->db->select('tbl_salon_customer.*,tbl_salon.is_gst_applicable,tbl_salon.gst_no');
@@ -358,14 +358,9 @@ class Common_model extends CI_Model {
 				}
 			}
 
-			$is_automated_service_discount_applied = '0';
-			$automated_service_discount_type = null;
-			$is_automated_product_discount_applied = '0';
-			$is_offer_applied      = '0';
 			$is_offer_applied      = '0';
 			$is_coupon_applied     = '0';
 			$is_giftcard_applied   = '0';
-			$is_rewards_applied    = '0';
 			
 			// Apply Automated Services Start
 			$marketing_service_discount_data = $this->apply_services_automated_discounts($customer_id, $services_data, $branch_id, $salon_id);
@@ -380,14 +375,19 @@ class Common_model extends CI_Model {
 			$marketing_product_discount = !empty($marketing_product_discount_data) && isset($marketing_product_discount_data['marketing_product_discount']) ? $marketing_product_discount_data['marketing_product_discount'] : 0.00;
 			$is_automated_product_discount_applied = !empty($marketing_product_discount_data) && isset($marketing_product_discount_data['is_automated_product_discount_applied']) ? $marketing_product_discount_data['is_automated_product_discount_applied'] : '0';
 			// Apply Automated Products End
-			
+						
 			// Apply Membership Start
-			$membership_data = $this->apply_membership($customer_id, $services_data, $products_data, $branch_id, $salon_id);
+			$membership_data = $this->apply_membership($customer_id, $services_data, $products_data, $branch_id, $salon_id, $selected_membership_details);
 			$membership_service_discount = !empty($membership_data) && isset($membership_data['membership_service_discount']) ? $membership_data['membership_service_discount'] : 0.00;
 			$membership_product_discount = !empty($membership_data) && isset($membership_data['membership_product_discount']) ? $membership_data['membership_product_discount'] : 0.00;
-			$is_membership_applied = !empty($membership_data) && isset($membership_data['is_membership_applied']) ? $membership_data['is_membership_applied'] : '0';
+			$membership_price = !empty($membership_data) && isset($membership_data['membership_price']) ? $membership_data['membership_price'] : 0.00;
 			// Apply Membership End
 			
+			// Apply Package Start
+			$package_data = $this->apply_package($customer_id, $branch_id, $salon_id, $selected_package_details);
+			$package_price = !empty($package_data) && isset($package_data['package_price']) ? $package_data['package_price'] : 0.00;
+			// Apply Package End
+
 			// Apply Offer Start
 			if ($is_automated_service_discount_applied == '0' && $is_automated_product_discount_applied == '0'){
 				$offers_data = $this->apply_offer($customer_id, $single->gender, $service_ids, $services_data, $branch_id, $salon_id, $applied_offer_id);
@@ -416,11 +416,10 @@ class Common_model extends CI_Model {
 			if ($is_automated_service_discount_applied == '0' && $is_automated_product_discount_applied == '0' && $is_offer_applied == '0' && $is_coupon_applied == '0' && $is_giftcard_applied == '0'){
 				$rewards_data = $this->apply_reward($customer_id, $single->gender, $services_data, $products_data, $branch_id, $salon_id, $is_user_rewards_applied);
 				$rewards_discount = !empty($rewards_data) && isset($rewards_data['rewards_discount']) ? $rewards_data['rewards_discount'] : 0.00;
-				$is_rewards_applied = !empty($rewards_discount) && isset($rewards_discount['is_rewards_applied']) ? $rewards_discount['is_rewards_applied'] : '0';
 			}
 			// Apply Rewards End
 
-			$total = $service_total + $product_total;
+			$total = $service_total + $product_total + $membership_price + $package_price;
 
 			$membership_discount = $membership_service_discount + $membership_product_discount;
 			$marketing_discount = $marketing_service_discount + $marketing_product_discount;
@@ -436,6 +435,8 @@ class Common_model extends CI_Model {
 			$return_data = array(
 				'service_total'     => $service_total, 
 				'product_total'     => $product_total, 
+				'membership_price'  => $membership_price, 
+				'package_price'     => $package_price, 
 				'total'             => $total, 
 				'total_discount'    => $total_discount,
 				'sub_total'         => $sub_total,
@@ -454,7 +455,8 @@ class Common_model extends CI_Model {
 											'giftcard_data'             		=> $giftcard_data,       
 											'coupon_data'               		=> $coupon_data,          
 											'rewards_data'              		=> $rewards_data      
-										)
+										),
+				'package_details'	=> $package_data	
 			);
 		}
 
@@ -468,6 +470,11 @@ class Common_model extends CI_Model {
 		$marketing_service_rewards = 0;
 		$final_discount_head_text = null;
 		$final_discount_subhead_text = null;
+		$final_customer_criteria = null;
+		$final_discount_row_id = null;
+		$final_discount_in = null;
+		$final_discount_type = null;
+		$final_discount_amount_value = null;
 		$marketing_service_discount_data = array();  
 		$services_discount_data = array();
 
@@ -588,6 +595,13 @@ class Common_model extends CI_Model {
 				$automated_discount_type = $final_is_automated_service_discount_applied == '0' ? $service_discount_rewards_type : $automated_discount_type;
 				$final_discount_head_text = $final_is_automated_service_discount_applied == '0' ? $discount_head_text : $final_discount_head_text;
 				$final_discount_subhead_text = $final_is_automated_service_discount_applied == '0' ? $discount_subhead_text : $final_discount_subhead_text;
+				
+				$final_customer_criteria = $final_is_automated_service_discount_applied == '0' ? $customer_criteria : $final_customer_criteria;
+				$final_discount_row_id = $final_is_automated_service_discount_applied == '0' ? $discount_row_id : $final_discount_row_id;
+				$final_discount_in = $final_is_automated_service_discount_applied == '0' ? $discount_in : $final_discount_in;
+				$final_discount_type = $final_is_automated_service_discount_applied == '0' ? $discount_type : $final_discount_type;
+				$final_discount_amount_value = $final_is_automated_service_discount_applied == '0' ? $discount_amount_value : $final_discount_amount_value;
+
 				$final_is_automated_service_discount_applied = $final_is_automated_service_discount_applied == '0' ? '1' : $final_is_automated_service_discount_applied;
 			}
 			
@@ -631,6 +645,11 @@ class Common_model extends CI_Model {
 			'marketing_service_rewards'				=>	$marketing_service_rewards,
 			'discount_head_text'					=>	$final_discount_head_text,
 			'discount_subhead_text'					=>	$final_discount_subhead_text,
+			'customer_criteria'						=>	$final_customer_criteria,
+			'discount_row_id'						=>	$final_discount_row_id,
+			'discount_in'							=>	$final_discount_in,
+			'discount_type'							=>	$final_discount_type,
+			'discount_amount_value'					=>	$final_discount_amount_value,
 			'services_discount_data'				=>	$services_discount_data,
 		);
 
@@ -642,6 +661,10 @@ class Common_model extends CI_Model {
 		$marketing_product_discount = 0;
 		$final_discount_head_text = null;
 		$final_discount_subhead_text = null;
+		$final_discount_row_id = null;
+		$final_discount_in = null;
+		$final_discount_type = null;
+		$final_discount_amount_value = null;
 		$marketing_product_discount_data = array();  
 		$products_discount_data = array();  
 		
@@ -728,6 +751,12 @@ class Common_model extends CI_Model {
 
 						$final_discount_head_text = $final_is_automated_product_discount_applied == '0' ? $discount_head_text : $final_discount_head_text;
 						$final_discount_subhead_text = $final_is_automated_product_discount_applied == '0' ? $discount_subhead_text : $final_discount_subhead_text;
+						
+						$final_discount_row_id = $final_is_automated_product_discount_applied == '0' ? $product_discount_row_id : $final_discount_row_id;
+						$final_discount_in = $final_is_automated_product_discount_applied == '0' ? $product_discount_in : $final_discount_in;
+						$final_discount_type = $final_is_automated_product_discount_applied == '0' ? $product_discount_type : $final_discount_type;
+						$final_discount_amount_value = $final_is_automated_product_discount_applied == '0' ? $product_discount_amount_value : $final_discount_amount_value;
+
 						$final_is_automated_product_discount_applied = $final_is_automated_product_discount_applied == '0' ? '1' : $final_is_automated_product_discount_applied;
 					}
 			
@@ -763,76 +792,187 @@ class Common_model extends CI_Model {
 			'marketing_product_discount'			=>	$marketing_product_discount,
 			'discount_head_text'					=>	$final_discount_head_text,
 			'discount_subhead_text'					=>	$final_discount_subhead_text,
+			
+			'customer_criteria'						=>	$final_is_automated_product_discount_applied == '1' ? '5' : null,
+			'discount_row_id'						=>	$final_discount_row_id,
+			'discount_in'							=>	$final_discount_in,
+			'discount_type'							=>	$final_discount_type,
+			'discount_amount_value'					=>	$final_discount_amount_value,
+
 			'products_discount_data'				=>	$products_discount_data,
 		);
 
 		return $marketing_product_discount_data;
 	}
 
-	public function apply_membership($customer_id, $services_data, $products_data, $branch_id, $salon_id){
+	public function apply_package($customer_id, $branch_id, $salon_id, $selected_package_details){
+		$package_data = array();  
+
+		if($selected_package_details != "" && is_array($selected_package_details) && !empty($selected_package_details)){
+			$this->db->where('tbl_package.id',$selected_package_details['selected_package_id']);
+			$this->db->where('tbl_package.branch_id',$branch_id);
+			$this->db->where('tbl_package.salon_id',$salon_id);
+			$this->db->where('tbl_package.is_deleted','0');
+			$single_package_details = $this->db->get('tbl_package');
+			$single_package_details = $single_package_details->row();
+			if(!empty($single_package_details)){
+				if($selected_package_details['is_old_package'] == '1'){					
+					$this->db->select('tbl_customer_package_allocations.*, tbl_package.package_name, tbl_package.bg_color, tbl_package.text_color');
+					$this->db->join('tbl_package', 'tbl_package.id = tbl_customer_package_allocations.package_id');
+					$this->db->where('tbl_customer_package_allocations.id',$selected_package_details['selected_package_allocation_id']);
+					$this->db->where('tbl_customer_package_allocations.package_id',$single_package_details->id);
+					$this->db->where('tbl_customer_package_allocations.customer_name',$customer_id);
+					$this->db->where('tbl_customer_package_allocations.is_deleted','0');
+					$single_package = $this->db->get('tbl_customer_package_allocations');
+					$single_package = $single_package->row();
+					if(!empty($single_package)){
+						$package_data = array(
+							'is_package_applied' 			=>  '1',
+							'is_old_package'				=>	'1',
+							'package_id'     				=>  $single_package_details->id,
+							'payment_status'				=>	$single_package->is_booking_done,
+							'is_package_payment_included'	=>  $single_package->is_booking_done == '0' ? '1' : '0',
+							'package_price'					=>	$single_package->is_booking_done == '0' ? $single_package->package_amount : 0.00,
+							'package_allocation_id'			=>	$single_package->id
+						);
+					}
+				}else{
+					$package_data = array(
+						'is_package_applied' 			=>  '1',
+						'is_old_package'				=>	'0',
+						'package_id'     				=>  $single_package_details->id,
+						'payment_status'				=>	'0',
+						'is_package_payment_included'	=>  '1',
+						'package_price'					=>	$single_package_details->amount,
+						'package_allocation_id'			=>	null
+					);
+				}
+			}
+		}
+
+		return $package_data;
+	}	
+
+	public function apply_membership($customer_id, $services_data, $products_data, $branch_id, $salon_id, $selected_membership_details){
 		$membership_data = array();  
+		
+		$total_service_amount = 0;
+		foreach ($services_data as $service) {
+			$added_from = $service['added_from'];
+			$total_service_amount += $added_from == '0' && $service['price'] != "" ? (float)$service['price'] : 0.00;
+		}
 
-		$this->db->select('tbl_customer_membership_history.service_discount, tbl_customer_membership_history.discount_in, tbl_customer_membership_history.product_discount, tbl_customer_membership_history.membership_id as applied_membership_id, tbl_memebership.membership_name');
-		$this->db->join('tbl_customer_membership_history', 'tbl_customer_membership_history.id = tbl_salon_customer.membership_pkey');
-		$this->db->join('tbl_memebership', 'tbl_memebership.id = tbl_customer_membership_history.membership_id');
-		$this->db->where('tbl_salon_customer.is_deleted','0');
-		$this->db->where('tbl_salon_customer.status','1');
-		$this->db->where('tbl_salon_customer.id',$customer_id);
-		$this->db->where('tbl_salon_customer.branch_id', $branch_id);
-		$this->db->where('tbl_salon_customer.salon_id', $salon_id);
-		$this->db->where('tbl_customer_membership_history.customer_id', $customer_id);
-		$this->db->where('DATE(tbl_customer_membership_history.membership_start) <=', date('Y-m-d'));
-		$this->db->where('DATE(tbl_customer_membership_history.membership_end) >=', date('Y-m-d'));
-		$this->db->where('tbl_customer_membership_history.is_deleted','0');
-		$this->db->where('tbl_customer_membership_history.membership_status','0');
-		$this->db->where('tbl_customer_membership_history.payment_status','1');
-		$membership_details = $this->db->get('tbl_salon_customer')->row();
-
-		if(!empty($membership_details)){
-			$total_service_amount = 0;
-			foreach ($services_data as $service) {
-				$added_from = $service['added_from'];
-				$total_service_amount += $added_from == '0' && $service['price'] != "" ? (float)$service['price'] : 0.00;
+		$total_product_amount = 0;
+		if(!empty($products_data)){
+			foreach ($products_data as $product) {
+				$added_from = $product['added_from'];
+				$total_product_amount += $added_from == '0' && $product['price'] != "" ? (float)$product['price'] : 0.00;
 			}
+		}
 
-			$total_product_amount = 0;
-			if(!empty($products_data)){
-				foreach ($products_data as $product) {
-					$added_from = $product['added_from'];
-					$total_product_amount += $added_from == '0' && $product['price'] != "" ? (float)$product['price'] : 0.00;
+		if($selected_membership_details != "" && is_array($selected_membership_details) && !empty($selected_membership_details)){
+			if($selected_membership_details['is_old_member'] == '1'){
+				$this->db->select('tbl_customer_membership_history.id, tbl_customer_membership_history.payment_status, tbl_customer_membership_history.membership_price, tbl_customer_membership_history.service_discount, tbl_customer_membership_history.discount_in, tbl_customer_membership_history.product_discount, tbl_customer_membership_history.membership_id as applied_membership_id, tbl_memebership.membership_name');
+				$this->db->join('tbl_customer_membership_history', 'tbl_customer_membership_history.id = tbl_salon_customer.membership_pkey');
+				$this->db->join('tbl_memebership', 'tbl_memebership.id = tbl_customer_membership_history.membership_id');
+				$this->db->where('tbl_salon_customer.is_deleted','0');
+				$this->db->where('tbl_salon_customer.status','1');
+				$this->db->where('tbl_salon_customer.id',$customer_id);
+				$this->db->where('tbl_salon_customer.branch_id', $branch_id);
+				$this->db->where('tbl_salon_customer.salon_id', $salon_id);
+				$this->db->where('tbl_customer_membership_history.customer_id', $customer_id);
+				$this->db->where('DATE(tbl_customer_membership_history.membership_start) <=', date('Y-m-d'));
+				$this->db->where('DATE(tbl_customer_membership_history.membership_end) >=', date('Y-m-d'));
+				$this->db->where('tbl_customer_membership_history.is_deleted','0');
+				$this->db->where('tbl_customer_membership_history.membership_status','0');
+				$this->db->where('tbl_customer_membership_history.payment_status','1');
+				$membership_details = $this->db->get('tbl_salon_customer')->row();
+				if(!empty($membership_details)){
+					$membership_discount_type = $membership_details->discount_in;
+					$membership_service_discount = $membership_details->service_discount;
+					$membership_product_discount = $membership_details->product_discount;
+					if($membership_discount_type == '0'){
+						$membership_service_discount_amount = ($total_service_amount * $membership_service_discount) / 100;
+						$membership_product_discount_amount = ($total_product_amount * $membership_product_discount) / 100;
+						if(!empty($products_data)){
+							$discount_subhead_text = $membership_service_discount . ' % off on all Services and Products';
+						}else{					
+							$discount_subhead_text = $membership_service_discount . ' % off on all Services';
+						}
+					}elseif($membership_discount_type == '1'){
+						$membership_service_discount_amount = $membership_service_discount;
+						$membership_product_discount_amount = $membership_product_discount;
+						if(!empty($products_data)){
+							$discount_subhead_text = 'Flat Rs. ' . $membership_service_discount . ' off on all Services and Products';
+						}else{					
+							$discount_subhead_text = 'Flat Rs. ' . $membership_service_discount . ' off on all Services';
+						}
+					}
+
+					$membership_data = array(
+						'is_membership_applied' 		=>  '1',
+						'is_old_member'					=>	'1',
+						'membership_id'     			=>  $membership_details->applied_membership_id,
+						'discount_head_text'			=>	$membership_details->membership_name . ' Membership applied',
+						'discount_subhead_text'			=>	$discount_subhead_text,
+						'membership_service_discount'	=>	$membership_service_discount_amount,
+						'membership_product_discount'	=>	$membership_product_discount_amount,
+						'membership_service_discount_value'	=>	$membership_service_discount,
+						'membership_product_discount_value'	=>	$membership_product_discount,
+						'membership_discount_type'			=>	$membership_discount_type,
+						'payment_status'				=>	$membership_details->payment_status,
+						'membership_allocation_id'		=>	$membership_details->id,
+						'is_membership_payment_included'=>  $membership_details->payment_status == '0' ? '1' : '0',
+						'membership_price'				=>	$membership_details->payment_status == '0' ? $membership_details->membership_price : 0.00
+					);
+				}
+			}else{
+				$this->db->where('is_deleted','0');
+				$this->db->where('status','1');
+				$this->db->where('id',$selected_membership_details['membership_id']);
+				$this->db->where('branch_id', $branch_id);
+				$this->db->where('salon_id', $salon_id);
+				$membership_details = $this->db->get('tbl_memebership')->row();
+				if(!empty($membership_details)){ 
+					$membership_discount_type = $membership_details->discount_in;
+					$membership_service_discount = $membership_details->service_discount;
+					$membership_product_discount = $membership_details->product_discount;
+					if($membership_discount_type == '0'){
+						$membership_service_discount_amount = ($total_service_amount * $membership_service_discount) / 100;
+						$membership_product_discount_amount = ($total_product_amount * $membership_product_discount) / 100;
+						if(!empty($products_data)){
+							$discount_subhead_text = $membership_service_discount . ' % off on all Services and Products';
+						}else{					
+							$discount_subhead_text = $membership_service_discount . ' % off on all Services';
+						}
+					}elseif($membership_discount_type == '1'){
+						$membership_service_discount_amount = $membership_service_discount;
+						$membership_product_discount_amount = $membership_product_discount;
+						if(!empty($products_data)){
+							$discount_subhead_text = 'Flat Rs. ' . $membership_service_discount . ' off on all Services and Products';
+						}else{					
+							$discount_subhead_text = 'Flat Rs. ' . $membership_service_discount . ' off on all Services';
+						}
+					}
+
+					$membership_data = array(
+						'is_membership_applied' 		=>  '1',
+						'is_old_member'					=>	'0',
+						'membership_id'     			=>  $membership_details->applied_membership_id,
+						'discount_head_text'			=>	$membership_details->membership_name . ' Membership applied',
+						'discount_subhead_text'			=>	$discount_subhead_text,
+						'membership_service_discount'	=>	$membership_service_discount_amount,
+						'membership_product_discount'	=>	$membership_product_discount_amount,
+						'membership_service_discount_value'	=>	$membership_service_discount,
+						'membership_product_discount_value'	=>	$membership_product_discount,
+						'membership_discount_type'			=>	$membership_discount_type,
+						'payment_status'				=>	'0',
+						'membership_allocation_id'		=>	null,
+						'is_membership_payment_included'=>  '1',
+						'membership_price'				=>	$membership_details->membership_price
+					);
 				}
 			}
-
-			$membership_discount_type = $membership_details->discount_in;
-			$membership_service_discount = $membership_details->service_discount;
-			$membership_product_discount = $membership_details->product_discount;
-			if($membership_discount_type == '0'){
-				$membership_service_discount_amount = ($total_service_amount * $membership_service_discount) / 100;
-				$membership_product_discount_amount = ($total_product_amount * $membership_product_discount) / 100;
-				if(!empty($products_data)){
-					$discount_subhead_text = $membership_service_discount . ' % off on all Services and Products';
-				}else{					
-					$discount_subhead_text = $membership_service_discount . ' % off on all Services';
-				}
-			}elseif($membership_discount_type == '1'){
-				$membership_service_discount_amount = $membership_service_discount;
-				$membership_product_discount_amount = $membership_product_discount;
-				if(!empty($products_data)){
-					$discount_subhead_text = 'Flat Rs. ' . $membership_service_discount . ' off on all Services and Products';
-				}else{					
-					$discount_subhead_text = 'Flat Rs. ' . $membership_service_discount . ' off on all Services';
-				}
-			}
-
-			$membership_data = array(
-				'is_membership_applied' 		=>  '1',
-				'membership_id'     			=>  $membership_details->applied_membership_id,
-				'discount_head_text'			=>	$membership_details->membership_name . ' Membership applied',
-				'discount_subhead_text'			=>	$discount_subhead_text,
-				'membership_service_discount'	=>	$membership_service_discount_amount,
-				'membership_product_discount'	=>	$membership_product_discount_amount
-			);
-
 		}
 
 		return $membership_data;
@@ -931,6 +1071,8 @@ class Common_model extends CI_Model {
 				'discount_head_text'    =>  $discount_head_text,
 				'discount_subhead_text' =>  $discount_subhead_text,
 				'total_offer_discount' 	=>  $is_final_offer_applied == '1' ? $total_offer_discount : 0,
+				'service_offer_discount_value' 	=>  $is_final_offer_applied == '1' ? $service_offer_discount : 0,
+				'service_offer_discount_type' 	=>  $is_final_offer_applied == '1' ? $service_offer_discount_type : 0,
 				'offer_services_data'   =>  $offer_services_data
 			);    
 		} 
@@ -1052,6 +1194,7 @@ class Common_model extends CI_Model {
 			}else{
 				$is_rewards_applied = '0';
 				$rewards_discount = 0.00;
+				$consider_rewards = 0;
 				$discount_head_text = 'Requires Minimum ' . $minimum_reward_required .' Reward Points';
 				$discount_subhead_text = null;
 			}
@@ -1060,7 +1203,8 @@ class Common_model extends CI_Model {
 				'is_rewards_applied'	=>	$is_rewards_applied,
 				'rewards_discount'      =>  $rewards_discount,
 				'discount_head_text'    =>  $discount_head_text,
-				'discount_subhead_text' =>  $discount_subhead_text
+				'discount_subhead_text' =>  $discount_subhead_text,
+				'used_rewards'			=>	$consider_rewards
 			);
 		}
 
@@ -1070,6 +1214,7 @@ class Common_model extends CI_Model {
 	public function apply_giftcard($customer_id, $gender, $services_data, $products_data, $branch_id, $salon_id, $applied_giftcard_no){
 		$giftcard_data = array();  
 		$is_giftcard_applied = '0';
+		$is_new_giftcard_applied = '0';
                     
 		$this->db->select('tbl_booking_payment_entry.*, tbl_gift_card.gender, tbl_gift_card.gift_card_code, tbl_gift_card.gift_name, tbl_gift_card.discount, tbl_gift_card.discount_in, tbl_gift_card.regular_price, tbl_gift_card.gift_price, tbl_gift_card.bg_color_input, tbl_gift_card.bg_color, tbl_gift_card.text_color_input, tbl_gift_card.text_color, tbl_gift_card.min_booking_amt');
 		$this->db->join('tbl_gift_card', 'tbl_gift_card.id = tbl_booking_payment_entry.giftcard_id');
@@ -1084,6 +1229,7 @@ class Common_model extends CI_Model {
 
 		if(!empty($result)){
 			$gift_card_balance = $result->gift_card_balance != "" ? $result->gift_card_balance : 0.00;
+			$gift_card_price = $result->gift_card_price != "" ? $result->gift_card_price : 0.00;
 			$min_amount = $result->giftcard_min_amount != "" ? $result->giftcard_min_amount : 0.00;
 			$giftcard_redemption_id = $result->id;                        
 			$giftcard_id = $result->giftcard_id;
@@ -1111,17 +1257,20 @@ class Common_model extends CI_Model {
 				$giftcard_discount = $total >= $gift_card_balance ? $gift_card_balance : $total;
 				$discount_head_text = 'Giftcard applied';
 				$discount_subhead_text = 'Flat Rs. ' . $giftcard_discount . ' off';
+				$is_new_giftcard_applied = $gift_card_price == $gift_card_balance ? '1' : '0';
 			}else{
 				$is_giftcard_applied = '0';
 				$giftcard_discount = 0.00;
 				$discount_head_text = 'Requires Minimum amount of Rs. ' . $min_amount;
 				$discount_subhead_text = null;
+				$is_new_giftcard_applied = '0';
 			}
 
 		}
 
 		$giftcard_data = array(
 			'is_giftcard_applied'		=>	$is_giftcard_applied,
+			'is_new_giftcard_applied'	=>	$is_new_giftcard_applied,
 			'discount_head_text'		=>	$discount_head_text,
 			'discount_subhead_text'		=>	$discount_subhead_text,
 			'giftcard_discount'  		=>  $giftcard_discount,

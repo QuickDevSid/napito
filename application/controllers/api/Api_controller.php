@@ -87,8 +87,8 @@ class Api_controller extends CI_Controller {
     public function set_new_store(){
         $this->Api_model->set_new_store();
     }
-    public function calculate_discounts(){
-        $this->Api_model->calculate_discounts();
+    public function booking_calculations(){
+        $this->Api_model->booking_calculations();
     }
     public function get_store_genders(){
         $this->Api_model->get_store_genders();
