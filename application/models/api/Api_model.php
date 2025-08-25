@@ -4754,8 +4754,13 @@ class Api_model extends CI_Model {
                                 
                                 $is_automated_service_discount_applied = $calculations['discount_details']['marketing_service_discount_data']['is_automated_service_discount_applied'] ?? '0';
                                 $automated_discount_type = $calculations['discount_details']['marketing_service_discount_data']['automated_discount_type'] ?? null;
-                                $marketing_service_discount = $calculations['discount_details']['marketing_service_discount_data']['marketing_service_discount'] ?? null;
-                                $marketing_service_rewards = $calculations['discount_details']['marketing_service_discount_data']['marketing_service_rewards'] ?? null;
+                                if($is_offer_applied == '1' || $is_coupon_applied == '1' || $is_giftcard_applied == '1' || $is_reward_applied == '1'){
+                                    if($automated_discount_type == '1'){
+                                        $is_automated_service_discount_applied = '0';
+                                    }
+                                }
+                                $marketing_service_discount = $is_automated_service_discount_applied == '1' ? ($calculations['discount_details']['marketing_service_discount_data']['marketing_service_discount'] ?? null) : null;
+                                $marketing_service_rewards = $is_automated_service_discount_applied == '1' ? ($calculations['discount_details']['marketing_service_discount_data']['marketing_service_rewards'] ?? null) : null;
                                 $marketing_service_discount_customer_criteria = $calculations['discount_details']['marketing_service_discount_data']['customer_criteria'] ?? null;
                                 $marketing_service_discount_row_id = $calculations['discount_details']['marketing_service_discount_data']['discount_row_id'] ?? null;
                                 $marketing_service_discount_in = $calculations['discount_details']['marketing_service_discount_data']['discount_in'] ?? null;
@@ -4939,6 +4944,15 @@ class Api_model extends CI_Model {
                                         }
             
                                         if($services != "" && is_array($services) && !empty($services)){
+                                            $offer_services = [];
+                                            if($is_offer_applied == '1'){
+                                                $this->db->where('id',$applied_offer_id);
+                                                $this->db->where('is_deleted','0');
+                                                $single_offer = $this->db->get('tbl_offers')->row();
+                                                if(!empty($single_offer)){
+                                                    $offer_services = explode(',',$single_offer->service_name);                        
+                                                }
+                                            }
                                             for($i=0;$i<count($services);$i++){
                                                 $service_id = $services[$i]['service_id'];
                                                 $this->db->where('tbl_salon_emp_service.branch_id',$branch_id);
@@ -5043,9 +5057,9 @@ class Api_model extends CI_Model {
                                                                     $min_slab = '';
                                                                     $max_slab = '';
 
-                                                                    $service_discount_rewards_type = $is_offer_applied == '0' ? '1' : null;   // rewards
+                                                                    $service_discount_rewards_type = '1';   // rewards
                                                                 }else{                                    
-                                                                    $service_discount_rewards_type = $is_offer_applied == '0' ? '0' : null;   // discount
+                                                                    $service_discount_rewards_type = '0';   // discount
                                                                 }
                                                             }
                                                         }
@@ -5058,10 +5072,8 @@ class Api_model extends CI_Model {
                                                         if($received_total_service != "" && $received_total_service != "0.00" && $received_total_service != null && $received_total_service != 0){
                                                             $price_share_in_total_service = (float)(($service_price/$received_total_service) * 100);
                                                             $discount_share_membership_amount = (float)(($mem_service_discount_amt * $price_share_in_total_service) / 100);
-                                                            $service_offer_discount_amount = (float)(($total_offer_discount * $price_share_in_total_service) / 100);
                                                         }else{
                                                             $discount_share_membership_amount = 0;
-                                                            $service_offer_discount_amount = 0;
                                                         }
             
                                                         $received_total = $total_product_amount + $total_service_amount;
@@ -5074,6 +5086,19 @@ class Api_model extends CI_Model {
                                                             $discount_share_coupon_amount = 0;
                                                             $discount_share_reward_amount = 0;
                                                             $discount_share_giftcard_amount = 0;
+                                                        }
+
+                                                        $service_offer_discount_amount = 0;
+                                                        if($is_offer_applied == '1'){
+                                                            if(in_array($service_id,$offer_services)){
+                                                                $received_total_service = $total_service_amount;
+                                                                if($received_total_service != "" && $received_total_service != "0.00" && $received_total_service != null && $received_total_service != 0){
+                                                                    $price_share_in_total_service = (float)(($service_price/$received_total_service) * 100);
+                                                                    $service_offer_discount_amount = (float)(($total_offer_discount * $price_share_in_total_service) / 100);
+                                                                }else{
+                                                                    $service_offer_discount_amount = 0;
+                                                                }
+                                                            }
                                                         }
                                         
                                                         $total_single_service_discount = $discount_share_membership_amount + $discount_share_reward_amount + $discount_share_coupon_amount + $discount_share_giftcard_amount + $service_offer_discount_amount + $discount_amount;
@@ -5130,7 +5155,7 @@ class Api_model extends CI_Model {
                                                             'rewards_discount_slab_max'     	            => $rewards_max_slab,
                                                             'rewards_slab_increment'     	                => $rewards_slab_increment,
                                                             'rewards_applied_flexible_slab'     	        => $rewards_slab_consider,
-                                                            'rewards_received_discount'     	            => $is_offer_applied == "0" ? $rewards_discount_amount : null,
+                                                            'rewards_received_discount'     	            => $rewards_discount_amount,
 
                                                             'service_duration'                              => $service_duration
                                                         );
@@ -13031,10 +13056,11 @@ class Api_model extends CI_Model {
 			        $services = isset($request['selected_services']) ? $request['selected_services'] : [];
                     if(!empty($services)){ 
                         $services_data = [];
+                        $service_ids = [];
                         $selected_package_details = array();
                         $i = 0;
                         foreach($services as $service){
-                            $this->db->where('id',$service['id']);
+                            $this->db->where('id',$service['service_id']);
                             $this->db->where('branch_id',$branch_id);
                             $this->db->where('salon_id',$salon_id);
                             $this->db->where('is_deleted','0');
@@ -13062,6 +13088,7 @@ class Api_model extends CI_Model {
 
 			            $products = isset($request['selected_products']) ? $request['selected_products'] : [];
                         $products_data = [];
+                        $product_ids = [];
                         if(!empty($products)){
                             foreach($products as $product){
                                 $this->db->where('id',$product['id']);
@@ -13075,7 +13102,7 @@ class Api_model extends CI_Model {
                                         'price'         =>  $product_details->selling_price != "" ? (float)$product_details->selling_price : 0.00,
                                         'added_from'    =>  $product['product_added_from']
                                     );
-                                    if($product['added_from'] == '0'){
+                                    if($product['product_added_from'] == '0'){
                                         $product_ids[] = $product_details->id;
                                     }
                                 }
@@ -13083,17 +13110,22 @@ class Api_model extends CI_Model {
                         }
 
                         $selected_membership_details = isset($request['membership_details']) ? $request['membership_details'] : [];
+                        $offer_details = isset($request['offer_details']) ? $request['offer_details'] : [];
+                        $coupon_details = isset($request['coupon_details']) ? $request['coupon_details'] : [];
+                        $giftcard_details = isset($request['giftcard_details']) ? $request['giftcard_details'] : [];
+                        $reward_details = isset($request['reward_details']) ? $request['reward_details'] : [];
 
-			            $is_offer_applied = isset($request['is_offer_applied']) ? $request['is_offer_applied'] : '0';
-			            $applied_offer_id = $is_offer_applied == '1' && isset($request['applied_offer_id']) ? $request['applied_offer_id'] : null;
+			            $is_offer_applied = !empty($offer_details) && isset($offer_details['is_offer_applied']) ? $offer_details['is_offer_applied'] : '0';
+			            $applied_offer_id = $is_offer_applied == '1' && isset($offer_details['applied_offer_id']) ? $offer_details['applied_offer_id'] : null;
                         
-			            $is_coupon_applied = isset($request['is_coupon_applied']) ? $request['is_coupon_applied'] : '0';
-			            $applied_coupon_id = $is_coupon_applied == '1' && isset($request['applied_coupon_id']) ? $request['applied_coupon_id'] : null;
+			            $is_coupon_applied = !empty($coupon_details) && isset($coupon_details['is_coupon_applied']) ? $coupon_details['is_coupon_applied'] : '0';
+			            $applied_coupon_id = $is_coupon_applied == '1' && isset($coupon_details['applied_coupon_id']) ? $coupon_details['applied_coupon_id'] : null;
                         
-			            $is_giftcard_applied = isset($request['is_giftcard_applied']) ? $request['is_giftcard_applied'] : '0';
-			            $applied_giftcard_no = $is_giftcard_applied == '1' && isset($request['applied_giftcard_no']) ? $request['applied_giftcard_no'] : null;
+			            $is_giftcard_applied = !empty($giftcard_details) && isset($giftcard_details['is_giftcard_applied']) ? $giftcard_details['is_giftcard_applied'] : '0';
+			            $applied_giftcard_no = $is_giftcard_applied == '1' && isset($giftcard_details['applied_giftcard_no']) ? $giftcard_details['applied_giftcard_no'] : null;
                         
-			            $is_user_rewards_applied = isset($request['is_rewards_applied']) ? $request['is_rewards_applied'] : '0';
+                        $reward_details = isset($request['reward_details']) ? $request['reward_details'] : [];
+			            $is_user_rewards_applied = !empty($reward_details) && isset($reward_details['is_rewards_applied']) ? $reward_details['is_rewards_applied'] : '0';
 
                         $json_arr['status'] = 'true';
                         $json_arr['message'] = 'success';

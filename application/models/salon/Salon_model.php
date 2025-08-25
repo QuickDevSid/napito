@@ -4012,6 +4012,13 @@ class Salon_model extends CI_Model{
                 $membership_service_discount = $this->input->post('m_service_discount_' . $booking_id);
                 $membership_product_discount = $this->input->post('m_product_discount_' . $booking_id);
 
+                $credit_rewards = '1';
+                if($is_offer_applied == '0' && $is_giftcard_applied == '0' && $selected_coupon_id == '' && (int)$used_rewards > 0){
+                    $credit_rewards == '0';
+                }
+
+                // echo $credit_rewards; exit;
+
                 $booking_data = array(
                     'is_products_added'     => !empty($product_values) ? '1' : '0',
                     'branch_id' 			=> $this->session->userdata('branch_id'),
@@ -4253,6 +4260,7 @@ class Salon_model extends CI_Model{
                         if(!empty($single_service_details)){
                             $old_stylist = $this->input->post('old_stylist_' . $services_details_ids[$i]);
                             $new_stylist = $this->input->post('new_stylist_' . $services_details_ids[$i]);
+                            $automated_marketing_discount = $this->input->post('received_discount_' . $services_details_ids[$i]) != "" ? (float)$this->input->post('received_discount_' . $services_details_ids[$i]) : 0.00;
 
                             $product_details_ids = array();
                             $single_service_products = array();
@@ -4281,24 +4289,14 @@ class Salon_model extends CI_Model{
                                 $discount_share_coupon_amount = (float)(($coupon_discount_amount * $price_share_in_total) / 100);
                                 $discount_share_reward_amount = (float)(($reward_discount_hidden * $price_share_in_total) / 100);
                                 $discount_share_extra_amount = (float)(($extra_discount_amount * $price_share_in_total) / 100);
+                                $discount_share_giftcard_amount = (float)(($giftcard_discount * $price_share_in_total) / 100);
                             }else{
                                 $discount_share_coupon_amount = 0;
                                 $discount_share_reward_amount = 0;
                                 $discount_share_extra_amount = 0;
+                                $discount_share_giftcard_amount = 0;
                             }
 
-                            $discount_share_giftcard_amount = 0 ;
-                            $received_total = $total_product_amount + $total_service_amount;
-                            if($is_giftcard_applied == '1'){
-                                if($received_total != "" && $received_total != "0.00" && $received_total != null && $received_total != 0){
-                                    $price_share_in_total_giftcard_service_amount = (float)(($service_price/$received_total) * 100);
-                                    $discount_share_giftcard_amount = (float)(($giftcard_discount * $price_share_in_total_giftcard_service_amount) / 100);
-                                }else{
-                                    $discount_share_giftcard_amount = 0;
-                                }
-                            }
-
-                            $discount_share_offer_amount = 0;
                             $calculated_discount_share_offer_amount = 0;
                             if($is_offer_applied == '1'){
                                 if(in_array($service_id,$offer_services)){
@@ -4319,7 +4317,7 @@ class Salon_model extends CI_Model{
                             $discount_share_offer_amount = $this->input->post('service_offer_discount_amount_' . $services_details_ids[$i]);
                             $discount_share_offer_amount = $discount_share_offer_amount != "" ? $discount_share_offer_amount : $calculated_discount_share_offer_amount;
 
-                            $total_single_service_discount = $discount_share_membership_amount + $discount_share_coupon_amount + $discount_share_offer_amount + $discount_share_reward_amount + $discount_share_giftcard_amount + $discount_share_extra_amount;
+                            $total_single_service_discount = $discount_share_membership_amount + $discount_share_coupon_amount + $discount_share_offer_amount + $discount_share_reward_amount + $discount_share_giftcard_amount + $discount_share_extra_amount + $automated_marketing_discount;
                             $single_service_discounted_amount = $service_price - $total_single_service_discount;
 
                             $payment_data = array(
@@ -4391,6 +4389,7 @@ class Salon_model extends CI_Model{
                                     if(!empty($single_product_details)){
                                         $product_price = $single_product_details->product_price;
                                         $used_barcode = $this->input->post('used_product_barcodes_' . $booking_service_details_id . '_' . $products_single[$j]);
+                                        $product_received_discount = $single_product_details->product_received_discount != "" ? (float)$single_product_details->product_received_discount : 0.00;
 
                                         $received_total_product = $total_product_amount;
                                         if($received_total_product != "" && $received_total_product != "0.00" && $received_total_product != null && $received_total_product != 0){
@@ -4406,24 +4405,15 @@ class Salon_model extends CI_Model{
                                             $discount_share_coupon_amount = (float)(($coupon_discount_amount * $price_share_in_total) / 100);
                                             $discount_share_reward_amount = (float)(($reward_discount_hidden * $price_share_in_total) / 100);
                                             $discount_share_extra_amount = (float)(($extra_discount_amount * $price_share_in_total) / 100);
+                                            $discount_share_giftcard_amount = (float)(($giftcard_discount * $price_share_in_total) / 100);
                                         }else{
                                             $discount_share_coupon_amount = 0;
                                             $discount_share_reward_amount = 0;
                                             $discount_share_extra_amount = 0;
-                                        }
-                                        
-                                        $discount_share_giftcard_amount = 0 ;
-                                        $received_total = $total_product_amount + $total_service_amount;
-                                        if($is_giftcard_applied == '1'){
-                                            if($received_total != "" && $received_total != "0.00" && $received_total != null && $received_total != 0){
-                                                $price_share_in_total_giftcard_service_amount = (float)(($product_price/$received_total) * 100);
-                                                $discount_share_giftcard_amount = (float)(($giftcard_discount * $price_share_in_total_giftcard_service_amount) / 100);
-                                            }else{
-                                                $discount_share_giftcard_amount = 0;
-                                            }
+                                            $discount_share_giftcard_amount = 0;
                                         }
 
-                                        $total_single_product_discount = $discount_share_membership_amount + $discount_share_coupon_amount + $discount_share_reward_amount + $discount_share_giftcard_amount + $discount_share_extra_amount;
+                                        $total_single_product_discount = $discount_share_membership_amount + $discount_share_coupon_amount + $discount_share_reward_amount + $discount_share_giftcard_amount + $discount_share_extra_amount + $product_received_discount;
                                         $single_product_discounted_amount = $product_price - $total_single_product_discount;
     
                                         $service_product_data = array(
@@ -4536,7 +4526,7 @@ class Salon_model extends CI_Model{
 
                             $used_barcodes = $this->input->post('used_product_barcodes_' . $productID);
                             $employee_product_incentive = $this->input->post('employee_product_incentive_' . $productID);
-                            $product_price = $this->input->post('single_product_price_' . $productID);
+                            $product_price = $this->input->post('product_original_price_' . $productID);
                             $product_original_price = $this->input->post('product_original_price_' . $productID); 
                             $is_discount_applied = $this->input->post('is_discount_applied_' . $productID); 
                             $product_quantity = $this->input->post('product_quantity_' . $productID); 
@@ -4572,21 +4562,12 @@ class Salon_model extends CI_Model{
                                 $discount_share_coupon_amount = (float)(($coupon_discount_amount * $price_share_in_total) / 100);
                                 $discount_share_reward_amount = (float)(($reward_discount_hidden * $price_share_in_total) / 100);
                                 $discount_share_extra_amount = (float)(($extra_discount_amount * $price_share_in_total) / 100);
+                                $discount_share_giftcard_amount = (float)(($giftcard_discount * $price_share_in_total) / 100);
                             }else{
                                 $discount_share_coupon_amount = 0;
                                 $discount_share_reward_amount = 0;
                                 $discount_share_extra_amount = 0;
-                            }
-                            
-                            $discount_share_giftcard_amount = 0 ;
-                            $received_total = $total_product_amount + $total_service_amount;
-                            if($is_giftcard_applied == '1'){
-                                if($received_total != "" && $received_total != "0.00" && $received_total != null && $received_total != 0){
-                                    $price_share_in_total_giftcard_service_amount = (float)(($total_single_product_price/$received_total) * 100);
-                                    $discount_share_giftcard_amount = (float)(($giftcard_discount * $price_share_in_total_giftcard_service_amount) / 100);
-                                }else{
-                                    $discount_share_giftcard_amount = 0;
-                                }
+                                $discount_share_giftcard_amount = 0;
                             }
 
                             $discount_share_membership_amount_per_product = $discount_share_membership_amount/$product_quantity;
@@ -4594,10 +4575,12 @@ class Salon_model extends CI_Model{
                             $discount_share_reward_amount_per_product = $discount_share_reward_amount/$product_quantity;
                             $discount_share_extra_amount_per_product = $discount_share_extra_amount/$product_quantity;
                             $discount_share_giftcard_amount_per_product = $discount_share_giftcard_amount/$product_quantity;
+                            $discount_share_marketing_per_product = $product_received_discount;
+                            $marketing_discount = $product_received_discount * $product_quantity;
 
-                            $received_discount_amount_per_product_while_booking = $discount_share_membership_amount_per_product + $discount_share_coupon_amount_per_product + $discount_share_reward_amount_per_product + $discount_share_extra_amount_per_product + $discount_share_giftcard_amount_per_product;
+                            $received_discount_amount_per_product_while_booking = $discount_share_membership_amount_per_product + $discount_share_coupon_amount_per_product + $discount_share_reward_amount_per_product + $discount_share_extra_amount_per_product + $discount_share_giftcard_amount_per_product + $discount_share_marketing_per_product;
                             
-                            $total_single_product_discount = $discount_share_membership_amount + $discount_share_coupon_amount + $discount_share_reward_amount + $discount_share_giftcard_amount + $discount_share_extra_amount;
+                            $total_single_product_discount = $discount_share_membership_amount + $discount_share_coupon_amount + $discount_share_reward_amount + $discount_share_giftcard_amount + $discount_share_extra_amount + $marketing_discount;
                             $single_product_discounted_amount = $total_single_product_price - $total_single_product_discount;
 
                             $stylist_data = array(
@@ -4841,6 +4824,50 @@ class Salon_model extends CI_Model{
                     $this->db->where('id',$membership_history_id);
                     $this->db->update('tbl_customer_membership_history',$mem_data);   
                 }
+                
+                // Credit Rewards if any start
+                if($credit_rewards == '1'){
+                    $this->db->where('booking_id',$booking_id);
+                    $this->db->where('is_deleted','0');
+                    $this->db->where('service_status','1');
+                    $services = $this->db->get('tbl_booking_services_details')->result();
+                    if(!empty($services)){
+                        foreach($services as $single_service_details){
+                            if($single_service_details->is_service_discount_applied == '1' && $single_service_details->service_marketing_discount_type == '1'){ //earn rewards
+                                $this->db->where('id',$single->customer_name);
+                                $customer_rewards = $this->db->get('tbl_salon_customer')->row();
+                                if(!empty($customer_rewards)){
+                                    $rewards = $single_service_details->rewards_received_discount != "" && $single_service_details->rewards_received_discount != null ? (int)$single_service_details->rewards_received_discount : 0;
+                                    if($rewards > 0){
+                                        $pre_balance = $customer_rewards->rewards_balance != "" && $customer_rewards->rewards_balance != null ? (int)$customer_rewards->rewards_balance : 0;
+                                        $new_balance = $pre_balance + $rewards;
+
+                                        $reward_data = array(
+                                            'customer_id'                   =>  $single->customer_name,
+                                            'branch_id'                     =>  $this->session->userdata('branch_id'),
+                                            'salon_id'                      =>  $this->session->userdata('salon_id'),
+                                            'booking_id'                    =>  $booking_id,
+                                            'rewards_for'                   =>  '0',
+                                            'for_service'                   =>  $single_service_details->service_id,
+                                            'booking_service_details_id'    =>  $single_service_details->id,
+                                            'transaction_type'              =>  '0',
+                                            'remark'                        =>  'Reward points credited for service payment',
+                                            'previous_reward_balance'       =>  $pre_balance,
+                                            'reward_value'                  =>  $rewards,
+                                            'new_reward_balance'            =>  $new_balance,
+                                            'created_on'                    =>  date("Y-m-d H:i:s")
+                                        );
+                                        $this->db->insert('tbl_customer_rewards_history',$reward_data);
+
+                                        $this->db->where('id',$single->customer_name);
+                                        $this->db->update('tbl_salon_customer',array('rewards_balance'=>$new_balance));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // Credit Rewards if any end
 
                 if($this->input->post('payment_btn_' . $booking_id) == 'generate'){
                     //send WP message with receipt attached                    
@@ -5519,7 +5546,27 @@ class Salon_model extends CI_Model{
         }else{
             $giftcard = array();
         }
+        	
+		$is_automated_service_discount_applied = '0';
+		$automated_discount_type = null;
+		$marketing_service_discount = 0;
+		$marketing_service_rewards = 0;
+		$marketing_service_discount_customer_criteria = null;
+		$marketing_service_discount_row_id = null;
+		$marketing_service_discount_in = null;
+		$marketing_service_discount_type = null;
+		$marketing_service_discount_amount_value = 0;        
+        $service_data_set = false;
         
+		$is_automated_product_discount_applied = '0';
+		$marketing_product_discount = 0;
+		$marketing_product_discount_customer_criteria = null;
+		$marketing_product_discount_row_id = null;
+		$marketing_product_discount_in = null;
+		$marketing_product_discount_type = null;
+		$marketing_product_discount_amount_value = 0;
+        $product_data_set = false;
+
         if($services != "" && is_array($services) && !empty($services)){
             for($i=0;$i<count($services);$i++){
                 $products_single = $this->input->post('product_checkbox_' . $services[$i]);
@@ -5560,7 +5607,7 @@ class Salon_model extends CI_Model{
 
                 $received_total_service = $total_service_amount;
                 if($received_total_service != "" && $received_total_service != "0.00" && $received_total_service != null && $received_total_service != 0){
-                    $price_share_in_total_service = (float)(($service_price/$received_total_service) * 100);
+                    $price_share_in_total_service = (float)(($original_service_price/$received_total_service) * 100);
                     $discount_share_membership_amount = (float)(($membership_service_discount_amount * $price_share_in_total_service) / 100);
                 }else{
                     $discount_share_membership_amount = 0;
@@ -5568,26 +5615,18 @@ class Salon_model extends CI_Model{
 
                 $received_total = $total_product_amount + $total_service_amount;
                 if($received_total != "" && $received_total != "0.00" && $received_total != null && $received_total != 0){
-                    $price_share_in_total = (float)(($service_price/$received_total) * 100);
+                    $price_share_in_total = (float)(($original_service_price/$received_total) * 100);
                     $discount_share_coupon_amount = (float)(($coupon_discount_amount * $price_share_in_total) / 100);
                     $discount_share_reward_amount = (float)(($reward_discount_hidden * $price_share_in_total) / 100);
+                    $discount_share_giftcard_amount = (float)(($giftcard_discount * $price_share_in_total) / 100);
                 }else{
                     $discount_share_coupon_amount = 0;
                     $discount_share_reward_amount = 0;
-                }
-                $discount_share_giftcard_amount = 0 ;
-                if($is_giftcard_applied == '1' && !empty($giftcard)){
-                    $giftcard_services = explode(',',$giftcard->service_name);
-                    if(in_array($services[$i],$giftcard_services)){
-                        if($applicable_giftcard_total_service_amount != "" && $applicable_giftcard_total_service_amount != "0.00" && $applicable_giftcard_total_service_amount != null && $applicable_giftcard_total_service_amount != 0){
-                            $price_share_in_total_giftcard_service_amount = (float)(($service_price/$applicable_giftcard_total_service_amount) * 100);
-                            $discount_share_giftcard_amount = (float)(($giftcard_discount * $price_share_in_total_giftcard_service_amount) / 100);
-                        }
-                    }
+                    $discount_share_giftcard_amount = 0 ;
                 }
 
-                $total_single_service_discount = $discount_share_membership_amount + $discount_share_coupon_amount + $discount_share_reward_amount + $discount_share_giftcard_amount;
-                $single_service_discounted_amount = $service_price - $total_single_service_discount;
+                $total_single_service_discount = $discount_share_membership_amount + $discount_share_coupon_amount + $discount_share_reward_amount + $discount_share_giftcard_amount + $service_received_discount;
+                $single_service_discounted_amount = $original_service_price - $total_single_service_discount;
 
                 $service_stylist_id = explode('@@@',$this->input->post('service_stylist_id_' . $services[$i]));
                 $stylist_for_calender = isset($service_stylist_id[0]) ? $service_stylist_id[0] : '';
@@ -5597,6 +5636,19 @@ class Salon_model extends CI_Model{
                 $service_from = isset(explode('@@@',$this->input->post('service_stylist_timeslot_hidden_' . $services[$i]))[0]) ? explode('@@@',$this->input->post('service_stylist_timeslot_hidden_' . $services[$i]))[0] : '';
                 $service_to = isset(explode('@@@',$this->input->post('service_stylist_timeslot_hidden_' . $services[$i]))[1]) ? explode('@@@',$this->input->post('service_stylist_timeslot_hidden_' . $services[$i]))[1] : '';
                 
+                if($is_service_discount_applied == '1' && !$service_data_set){
+                    $is_automated_service_discount_applied = '1';
+                    $automated_discount_type = $service_discount_customer_criteria == '1' ? '1' : '0';
+                    $marketing_service_discount = $service_received_discount;
+                    $marketing_service_rewards = $service_rewards_received_discount;
+                    $marketing_service_discount_customer_criteria = $service_discount_customer_criteria;
+                    $marketing_service_discount_row_id = $service_discount_row_id;
+                    $marketing_service_discount_in = $service_discount_in;
+                    $marketing_service_discount_type = $service_discount_type;
+                    $marketing_service_discount_amount_value = $service_discount_value;
+                    $service_data_set = true;
+                }
+
                 $stylist_data = array(
                     'booking_id' 		    => $booking_id,
                     'branch_id' 			=> $this->session->userdata('branch_id'),
@@ -5604,7 +5656,7 @@ class Salon_model extends CI_Model{
                     'customer_name' 		=> $customer_id,
                     'service_added_from'	=> '0', //single
                     'service_id'     		=> $services[$i],
-                    'service_price'     	=> $service_price,
+                    'service_price'     	=> $original_service_price,
                     'original_service_price'=> $original_service_price,
                     'product_ids'     		=> (!empty($products_single)) ? implode(',',$products_single) : null,
                     'service_reward_points' => $this->input->post('service_reward_points_' . $services[$i]),
@@ -5678,7 +5730,7 @@ class Salon_model extends CI_Model{
 
                         $received_total_product = $total_product_amount;
                         if($received_total_product != "" && $received_total_product != "0.00" && $received_total_product != null && $received_total_product != 0){
-                            $price_share_in_total_product = (float)(($product_price/$received_total_product) * 100);
+                            $price_share_in_total_product = (float)(($product_original_price/$received_total_product) * 100);
                             $discount_share_membership_amount = (float)(($membership_product_discount_amount * $price_share_in_total_product) / 100);
                         }else{
                             $discount_share_membership_amount = 0;
@@ -5686,16 +5738,29 @@ class Salon_model extends CI_Model{
 
                         $received_total = $total_product_amount + $total_service_amount;
                         if($received_total != "" && $received_total != "0.00" && $received_total != null && $received_total != 0){
-                            $price_share_in_total = (float)(($product_price/$received_total) * 100);
+                            $price_share_in_total = (float)(($product_original_price/$received_total) * 100);
                             $discount_share_coupon_amount = (float)(($coupon_discount_amount * $price_share_in_total) / 100);
                             $discount_share_reward_amount = (float)(($reward_discount_hidden * $price_share_in_total) / 100);
+                            $discount_share_giftcard_amount = (float)(($giftcard_discount * $price_share_in_total) / 100);
                         }else{
                             $discount_share_coupon_amount = 0;
                             $discount_share_reward_amount = 0;
+                            $discount_share_giftcard_amount = 0;
                         }
 
-                        $total_single_product_discount = $discount_share_membership_amount + $discount_share_coupon_amount + $discount_share_reward_amount;
-                        $single_product_discounted_amount = $product_price - $total_single_product_discount;
+                        $total_single_product_discount = $discount_share_membership_amount + $discount_share_coupon_amount + $discount_share_reward_amount + $product_received_discount + $discount_share_giftcard_amount;
+                        $single_product_discounted_amount = $product_original_price - $total_single_product_discount;
+
+                        if($is_product_discount_applied == '1' && !$product_data_set){
+                            $is_automated_product_discount_applied = '1';
+                            $marketing_product_discount = $product_received_discount;
+                            $marketing_product_discount_customer_criteria = '5';
+                            $marketing_product_discount_row_id = $product_discount_row_id;
+                            $marketing_product_discount_in = $product_discount_in;
+                            $marketing_product_discount_type = $product_discount_type;
+                            $marketing_product_discount_amount_value = $product_discount_value;
+                            $product_data_set = true;
+                        }
 
                         $service_product_data = array(
                             'booking_service_details_id'  => $booking_service_details_id,
@@ -5972,6 +6037,32 @@ class Salon_model extends CI_Model{
                 }
             }
         }
+
+        //Set Automated Marketing Discounts Start
+        if($is_automated_service_discount_applied == '1' || $is_automated_product_discount_applied == '1'){
+            $automated_marketing_data = array(            
+                'is_automated_service_discount_applied'         =>  $is_automated_service_discount_applied,
+                'automated_discount_type'                       =>  $automated_discount_type,
+                'marketing_service_discount'                    =>  $marketing_service_discount,
+                'marketing_service_rewards'                     =>  $marketing_service_rewards,
+                'marketing_service_discount_customer_criteria'  =>  $marketing_service_discount_customer_criteria,
+                'marketing_service_discount_row_id'             =>  $marketing_service_discount_row_id,  
+                'marketing_service_discount_in'                 =>  $marketing_service_discount_in,  
+                'marketing_service_discount_type'               =>  $marketing_service_discount_type,  
+                'marketing_service_discount_amount_value'       =>  $marketing_service_discount_amount_value,  
+
+                'is_automated_product_discount_applied'         =>  $is_automated_product_discount_applied,
+                'marketing_product_discount'                    =>  $marketing_product_discount,
+                'marketing_product_discount_customer_criteria'  =>  $marketing_product_discount_customer_criteria,
+                'marketing_product_discount_row_id'             =>  $marketing_product_discount_row_id,  
+                'marketing_product_discount_in'                 =>  $marketing_product_discount_in,  
+                'marketing_product_discount_type'               =>  $marketing_product_discount_type,  
+                'marketing_product_discount_amount_value'       =>  $marketing_product_discount_amount_value,  
+            );
+            $this->db->where('id',$booking_id);
+            $this->db->update('tbl_new_booking', $automated_marketing_data);
+        }
+        //Set Automated Marketing Discounts End
 
         $this->update_booking_service_end($booking_id);
 
@@ -13441,6 +13532,7 @@ public function get_student_courses($id)
     public function get_all_active_offers(){
         $this->db->where('is_deleted', '0');
         $this->db->where('status', '1');
+        $this->db->where('validity_status','1');
         $this->db->where('branch_id', $this->session->userdata('branch_id'));
         $this->db->where('salon_id', $this->session->userdata('salon_id'));
         $this->db->order_by('id', 'DESC');
@@ -13450,6 +13542,7 @@ public function get_student_courses($id)
     public function get_all_active_offers_all($branch_id,$salon_id){
         $this->db->where('is_deleted', '0');
         $this->db->where('status', '1');
+        $this->db->where('validity_status','1');
         $this->db->where('branch_id', $branch_id);
         $this->db->where('salon_id', $salon_id);
         $this->db->order_by('id', 'DESC');
@@ -20191,39 +20284,39 @@ public function get_student_courses($id)
                 $this->db->where('is_deleted','0');
                 $this->db->update('tbl_new_booking',$details_data);
 
-                foreach($services as $single_service_details){
-                    if($single_service_details->is_service_discount_applied == '1' && $single_service_details->service_marketing_discount_type == '1'){ //earn rewards
-                        $this->db->where('id',$single->customer_name);
-                        $customer_rewards = $this->db->get('tbl_salon_customer')->row();
-                        if(!empty($customer_rewards)){
-                            $rewards = $single_service_details->rewards_received_discount != "" && $single_service_details->rewards_received_discount != null ? (int)$single_service_details->rewards_received_discount : 0;
-                            if($rewards > 0){
-                                $pre_balance = $customer_rewards->rewards_balance != "" && $customer_rewards->rewards_balance != null ? (int)$customer_rewards->rewards_balance : 0;
-                                $new_balance = $pre_balance + $rewards;
+                // foreach($services as $single_service_details){
+                //     if($single_service_details->is_service_discount_applied == '1' && $single_service_details->service_marketing_discount_type == '1'){ //earn rewards
+                //         $this->db->where('id',$single->customer_name);
+                //         $customer_rewards = $this->db->get('tbl_salon_customer')->row();
+                //         if(!empty($customer_rewards)){
+                //             $rewards = $single_service_details->rewards_received_discount != "" && $single_service_details->rewards_received_discount != null ? (int)$single_service_details->rewards_received_discount : 0;
+                //             if($rewards > 0){
+                //                 $pre_balance = $customer_rewards->rewards_balance != "" && $customer_rewards->rewards_balance != null ? (int)$customer_rewards->rewards_balance : 0;
+                //                 $new_balance = $pre_balance + $rewards;
 
-                                $reward_data = array(
-                                    'customer_id'                   =>  $single->customer_name,
-                                    'branch_id'                     =>  $this->session->userdata('branch_id'),
-                                    'salon_id'                      =>  $this->session->userdata('salon_id'),
-                                    'booking_id'                    =>  $booking_id,
-                                    'rewards_for'                   =>  '0',
-                                    'for_service'                   =>  $single_service_details->service_id,
-                                    'booking_service_details_id'    =>  $single_service_details->id,
-                                    'transaction_type'              =>  '0',
-                                    'remark'                        =>  'Reward points credited for service payment',
-                                    'previous_reward_balance'       =>  $pre_balance,
-                                    'reward_value'                  =>  $rewards,
-                                    'new_reward_balance'            =>  $new_balance,
-                                    'created_on'                    =>  date("Y-m-d H:i:s")
-                                );
-                                $this->db->insert('tbl_customer_rewards_history',$reward_data);
+                //                 $reward_data = array(
+                //                     'customer_id'                   =>  $single->customer_name,
+                //                     'branch_id'                     =>  $this->session->userdata('branch_id'),
+                //                     'salon_id'                      =>  $this->session->userdata('salon_id'),
+                //                     'booking_id'                    =>  $booking_id,
+                //                     'rewards_for'                   =>  '0',
+                //                     'for_service'                   =>  $single_service_details->service_id,
+                //                     'booking_service_details_id'    =>  $single_service_details->id,
+                //                     'transaction_type'              =>  '0',
+                //                     'remark'                        =>  'Reward points credited for service payment',
+                //                     'previous_reward_balance'       =>  $pre_balance,
+                //                     'reward_value'                  =>  $rewards,
+                //                     'new_reward_balance'            =>  $new_balance,
+                //                     'created_on'                    =>  date("Y-m-d H:i:s")
+                //                 );
+                //                 $this->db->insert('tbl_customer_rewards_history',$reward_data);
 
-                                $this->db->where('id',$single->customer_name);
-                                $this->db->update('tbl_salon_customer',array('rewards_balance'=>$new_balance));
-                            }
-                        }
-                    }
-                }
+                //                 $this->db->where('id',$single->customer_name);
+                //                 $this->db->update('tbl_salon_customer',array('rewards_balance'=>$new_balance));
+                //             }
+                //         }
+                //     }
+                // }
 
                 $this->update_booking_service_end($single->id);
 
@@ -26621,7 +26714,7 @@ public function get_student_courses($id)
                 if($services != "" && is_array($services) && !empty($services)){
                     for($i=0;$i<count($services);$i++){
                         $products_single = $this->input->post('add_service_product_checkbox_' . $booking_details_id . '_' . $services[$i]);
-                        $service_price = $this->input->post('service_price_' . $booking_details_id . '_' . $services[$i]); 
+                        $service_price = $this->input->post('service_original_price_' . $booking_details_id . '_' . $services[$i]); 
                         $original_service_price = $this->input->post('service_original_price_' . $booking_details_id . '_' . $services[$i]); 
 
                         $is_offer_applied = $this->input->post('is_offer_applied_' . $booking_details_id . '_' . $services[$i]);    
@@ -26644,7 +26737,7 @@ public function get_student_courses($id)
                         $service_discount_slab_max = $this->input->post('service_discount_slab_max_' . $booking_details_id . '_' . $services[$i]);    
                         $service_slab_increment = $this->input->post('service_slab_increment_' . $booking_details_id . '_' . $services[$i]);    
                         $service_applied_flexible_slab = $this->input->post('service_applied_flexible_slab_' . $booking_details_id . '_' . $services[$i]);    
-                        $service_received_discount = $this->input->post('service_received_discount_' . $booking_details_id . '_' . $services[$i]);  
+                        $service_received_discount = $this->input->post('service_received_discount_' . $booking_details_id . '_' . $services[$i]) != "" ? (float)$this->input->post('service_received_discount_' . $booking_details_id . '_' . $services[$i]) : 0.00;  
                         
                         $service_rewards_discount_slab_min = $this->input->post('service_rewards_discount_slab_min_' . $booking_details_id . '_' . $services[$i]);    
                         $service_rewards_discount_slab_max = $this->input->post('service_rewards_discount_slab_max_' . $booking_details_id . '_' . $services[$i]);    
@@ -26661,7 +26754,7 @@ public function get_student_courses($id)
                             $discount_share_membership_amount = 0;
                         }
 
-                        $total_single_service_discount = $discount_share_membership_amount;
+                        $total_single_service_discount = $discount_share_membership_amount + $service_received_discount;
                         $single_service_discounted_amount = $service_price - $total_single_service_discount;
 
                         $service_stylist_id = explode('@@@',$this->input->post('service_stylist_id_' . $booking_details_id . '_' . $services[$i]));
@@ -26725,7 +26818,7 @@ public function get_student_courses($id)
         
                         if($products_single != "" && is_array($products_single) && !empty($products_single)){
                             for($j=0;$j<count($products_single);$j++){
-                                $product_price = $this->input->post('service_product_price_' . $booking_details_id . '_' . $services[$i] . '_' . $products_single[$j]);
+                                $product_price = $this->input->post('product_original_price_' . $booking_details_id . '_' . $services[$i] . '_' . $products_single[$j]);
                                 $product_original_price = $this->input->post('product_original_price_' . $booking_details_id . '_' . $services[$i] . '_' . $products_single[$j]);                                      
                         
                                 ////product discount related start
@@ -26741,7 +26834,7 @@ public function get_student_courses($id)
                                 $product_discount_slab_max = $this->input->post('product_discount_slab_max_' . $booking_details_id . '_' . $services[$i] . '_' . $products_single[$j]);
                                 $product_slab_increment = $this->input->post('product_slab_increment_' . $booking_details_id . '_' . $services[$i] . '_' . $products_single[$j]);
                                 $product_applied_flexible_slab = $this->input->post('product_applied_flexible_slab_' . $booking_details_id . '_' . $services[$i] . '_' . $products_single[$j]);
-                                $product_received_discount = $this->input->post('product_received_discount_' . $booking_details_id . '_' . $services[$i] . '_' . $products_single[$j]);
+                                $product_received_discount = $this->input->post('product_received_discount_' . $booking_details_id . '_' . $services[$i] . '_' . $products_single[$j]) != "" ? (float)$this->input->post('product_received_discount_' . $booking_details_id . '_' . $services[$i] . '_' . $products_single[$j]) : 0.00;
 
                                 ////product discount related end
 
@@ -26752,7 +26845,7 @@ public function get_student_courses($id)
                                 }else{
                                    $discount_share_membership_amount = 0; 
                                 }
-                                $total_single_product_discount = $discount_share_membership_amount;
+                                $total_single_product_discount = $discount_share_membership_amount + $product_received_discount;
                                 $single_product_discounted_amount = $product_price - $total_single_product_discount;
 
                                 $service_product_data = array(
@@ -26953,7 +27046,7 @@ public function get_student_courses($id)
                     $service_package_allocation_details_id = $this->input->post('service_package_allocation_details_id_' . $booking_details_id . '_' . $services[$i]);
 
                     $products_single = $this->input->post('add_service_product_checkbox_' . $booking_details_id . '_' . $serviceID);
-                    $service_price = $this->input->post('service_price_' . $booking_details_id . '_' . $services[$i]); 
+                    $service_price = $this->input->post('service_original_price_' . $booking_details_id . '_' . $services[$i]); 
                     $original_service_price = $this->input->post('service_original_price_' . $booking_details_id . '_' . $services[$i]); 
 
                     $is_offer_applied = $this->input->post('is_offer_applied_' . $booking_details_id . '_' . $services[$i]);    
@@ -26970,7 +27063,7 @@ public function get_student_courses($id)
                     $service_discount_slab_max = $this->input->post('service_discount_slab_max_' . $booking_details_id . '_' . $services[$i]);
                     $service_slab_increment = $this->input->post('service_slab_increment_' . $booking_details_id . '_' . $services[$i]);
                     $service_applied_flexible_slab = $this->input->post('service_applied_flexible_slab_' . $booking_details_id . '_' . $services[$i]);
-                    $service_received_discount = $this->input->post('service_received_discount_' . $booking_details_id . '_' . $services[$i]);
+                    $service_received_discount = $this->input->post('service_received_discount_' . $booking_details_id . '_' . $services[$i]) != "" ? (float)$this->input->post('service_received_discount_' . $booking_details_id . '_' . $services[$i]) : 0.00;
                     
                     $is_service_discount_applied = $this->input->post('is_service_discount_applied_' . $booking_details_id . '_' . $services[$i]);    
                     $service_marketing_discount_type = $this->input->post('service_marketing_discount_type_' . $booking_details_id . '_' . $services[$i]);
@@ -26991,7 +27084,7 @@ public function get_student_courses($id)
                         $discount_share_membership_amount = 0;
                     }
 
-                    $total_single_service_discount = $discount_share_membership_amount;
+                    $total_single_service_discount = $discount_share_membership_amount + $service_received_discount;
                     $single_service_discounted_amount = $service_price - $total_single_service_discount;
 
                     $service_stylist_id = explode('@@@',$this->input->post('service_stylist_id_' . $booking_details_id . '_' . $serviceID));
@@ -27072,7 +27165,7 @@ public function get_student_courses($id)
     
                         if($products_single != "" && is_array($products_single) && !empty($products_single)){
                             for($j=0;$j<count($products_single);$j++){
-                                $product_price = $this->input->post('service_product_price_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]);                                      
+                                $product_price = $this->input->post('product_original_price_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]);                                      
                                 $product_original_price = $this->input->post('product_original_price_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]);                                      
                         
                                 ////product discount related start
@@ -27088,7 +27181,7 @@ public function get_student_courses($id)
                                 $product_discount_slab_max = $this->input->post('product_discount_slab_max_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]);
                                 $product_slab_increment = $this->input->post('product_slab_increment_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]);
                                 $product_applied_flexible_slab = $this->input->post('product_applied_flexible_slab_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]);
-                                $product_received_discount = $this->input->post('product_received_discount_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]);
+                                $product_received_discount = $this->input->post('product_received_discount_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]) != "" ? (float)$this->input->post('product_received_discount_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]) : 0.00;
 
                                 ////product discount related end
                                 
@@ -27099,7 +27192,7 @@ public function get_student_courses($id)
                                 }else{
                                     $discount_share_membership_amount = 0; 
                                 }
-                                $total_single_product_discount = $discount_share_membership_amount;
+                                $total_single_product_discount = $discount_share_membership_amount + $product_received_discount;
                                 $single_product_discounted_amount = $product_price - $total_single_product_discount;
 
                                 $service_product_data = array(
@@ -27203,7 +27296,7 @@ public function get_student_courses($id)
                         //update existing booking service products details
                         if($products_single != "" && is_array($products_single) && !empty($products_single)){
                             for($j=0;$j<count($products_single);$j++){
-                                $product_price = $this->input->post('service_product_price_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]);                                      
+                                $product_price = $this->input->post('product_original_price_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]);                                      
                                 $product_original_price = $this->input->post('product_original_price_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]);                                      
                         
                                 ////product discount related start
@@ -27219,7 +27312,7 @@ public function get_student_courses($id)
                                 $product_discount_slab_max = $this->input->post('product_discount_slab_max_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]);
                                 $product_slab_increment = $this->input->post('product_slab_increment_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]);
                                 $product_applied_flexible_slab = $this->input->post('product_applied_flexible_slab_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]);
-                                $product_received_discount = $this->input->post('product_received_discount_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]);
+                                $product_received_discount = $this->input->post('product_received_discount_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]) != "" ? (float)$this->input->post('product_received_discount_' . $booking_details_id . '_' . $serviceID . '_' . $products_single[$j]) : 0.00;
 
                                 ////product discount related end
                                 
@@ -27230,7 +27323,7 @@ public function get_student_courses($id)
                                 }else{
                                     $discount_share_membership_amount = 0; 
                                 }
-                                $total_single_product_discount = $discount_share_membership_amount;
+                                $total_single_product_discount = $discount_share_membership_amount + $product_received_discount;
                                 $single_product_discounted_amount = $product_price - $total_single_product_discount;
 
                                 $service_product_data = array(
@@ -38304,11 +38397,11 @@ public function upload_customers(){
                 redirect('upload_customers?uploaded&valid=' . base64_encode($valid) . '&total=' . base64_encode($total_records));
                 return true;
             } else {
-                echo '<p style="color: red;">Invalid file format. Please upload a CSV file.</p>';exit;
+                echo '<p style="color: red;">Invalid file format. Please upload a CSV file.</p>';
                 return false;
             }
         } else {
-            echo '<p style="color: red;">' . $this->upload->display_errors() . '</p>';exit;
+            echo '<p style="color: red;">' . $this->upload->display_errors() . '</p>';
             return false;
         }
     }else{

@@ -576,6 +576,7 @@ if(!empty($booking_rules)){
                                                             $this->db->where('tbl_booking_services_products_details.is_deleted','0');
                                                             $booking_products = $this->db->get('tbl_booking_services_products_details')->result();
                                                             
+                                                            $customer_criteria = '';
                                                             $discount_text = '';
                                                             $is_discount_applied = '0';
                                                             $service_marketing_discount_type = '';
@@ -723,6 +724,7 @@ if(!empty($booking_rules)){
                                                                                         </tr>
                                                                                         <input type="hidden" name="single_service_product_id_<?=$booking_services_result->id;?>_<?=$booking_products_result->id;?>" id="single_service_product_id_<?=$booking_services_result->id;?>_<?=$booking_products_result->id;?>" value="<?=$booking_products_result->product_id;?>">
                                                                                         <input type="hidden" name="single_service_product_price_<?=$booking_services_result->id;?>_<?=$booking_products_result->id;?>" id="single_service_product_price_<?=$booking_services_result->id;?>_<?=$booking_products_result->id;?>" value="<?=($selling_price != "" && $selling_price != "" && $selling_price != "0" && $selling_price != "0.00") ? $selling_price : '0.00';?>">
+                                                                                        <input type="hidden" name="product_received_discount_<?=$booking_services_result->id;?>_<?=$booking_products_result->id;?>" id="product_received_discount_<?=$booking_services_result->id;?>_<?=$booking_products_result->id;?>" value="<?=$booking_products_result->product_received_discount; ?>">
                                                                                         <?php }} ?>
                                                                                     </tbody>
                                                                                 </table>
@@ -829,6 +831,10 @@ if(!empty($booking_rules)){
                                 <input type="hidden" name="customer_id_<?=$booking->id;?>" id="customer_id_<?=$booking->id;?>" value="<?=$booking->customer_id;?>">
                                 <input type="hidden" name="customer_pending_amount_<?=$booking->id;?>" id="customer_pending_amount_<?=$booking->id;?>" value="<?=($booking->current_pending_amount != "" && $booking->current_pending_amount != null) ? $booking->current_pending_amount : '0.00';?>">
                                 
+                                <input type="hidden" name="automated_discount_type_<?=$booking->id;?>" id="automated_discount_type_<?=$booking->id;?>" value="<?=$booking->automated_discount_type;?>">
+                                <input type="hidden" name="is_automated_service_discount_applied_<?=$booking->id;?>" id="is_automated_service_discount_applied_<?=$booking->id;?>" value="<?=$booking->is_automated_service_discount_applied;?>">
+                                <input type="hidden" name="is_automated_product_discount_applied_<?=$booking->id;?>" id="is_automated_product_discount_applied_<?=$booking->id;?>" value="<?=$booking->is_automated_product_discount_applied;?>">
+
                                 <input type="hidden" name="is_package_included_<?=$booking->id;?>" id="is_package_included_<?=$booking->id;?>" value="<?=$booking->is_package_included;?>">
                                 <input type="hidden" name="used_package_type_<?=$booking->id;?>" id="used_package_type_<?=$booking->id;?>" value="<?=$booking->used_package_type;?>">
                                 <input type="hidden" name="package_rewards_<?=$booking->id;?>" id="package_rewards_<?=$booking->id;?>" value="<?=$booking->package_rewards;?>">
@@ -1013,6 +1019,7 @@ if(!empty($booking_rules)){
                                                                             <div style="margin-top:1px;">
                                                                                 <p>Services: <?=$services_text != "" ? $services_text : 'NA';?></p>
                                                                                 <p>Discount: <?=$offer_text;?></p>
+                                                                                <p>Valid Till: <?=date('d M, Y', strtotime($offers_list_result->offer_ends)); ?></p>
                                                                             </div>    
                                                                         </div>
                                                                     </div>
@@ -1251,6 +1258,7 @@ if(!empty($booking_rules)){
                                             <label for="send_appointment_details_<?=$booking->id;?>" generated="true" class="error" style="display:none;float:left; width:100%;">Please enter payment amount!</label>
                                         </div>
                                     </div>
+                                    <small>[Note: Rewards (if any) will not be credited if any offer, coupon, rewards, or gift card is applied to this booking]</small>
                                     <input type="hidden" id="hidden_selected_products_<?=$booking->id;?>" name="hidden_selected_products_<?=$booking->id;?>" value="">
                                     <div class="row">
                                         <div class="form-group col-md-12 col-xs-12" style="text-align:right;">
@@ -1295,6 +1303,10 @@ if(!empty($booking_rules)){
             //         $('#transaction_id_' + id).attr('readonly', false);
             //     }
             // }
+            var automated_discount_type = $('#automated_discount_type_<?php echo $booking->id; ?>').val();
+            var is_automated_service_discount_applied = $('#is_automated_service_discount_applied_<?php echo $booking->id; ?>').val();
+            is_automated_service_discount_applied = is_automated_service_discount_applied == '1' ? (automated_discount_type == '0' ? '1' : '0') : is_automated_service_discount_applied;
+            var is_automated_product_discount_applied = $('#is_automated_product_discount_applied_<?php echo $booking->id; ?>').val();
             let selectedProducts = [];
             $(document).ready(function () {                        
                 $(".chosen-select").chosen();
@@ -1914,92 +1926,98 @@ if(!empty($booking_rules)){
                     var used_rewards = $('#used_rewards_' + bookingID).val();
 
                     if(selected_package_id == ""){
-                        if(is_offer_applied_to_booking == "" || is_offer_applied_to_booking == "0"){
-                            if(is_giftcard_applied == "0" || is_giftcard_applied == ""){
-                                if (used_rewards == "" || parseInt(used_rewards) <= 0) {
-                                    if(customer_gender == coupon_gender){
-                                        var currentDate = new Date();
-                                        var yyyy = currentDate.getFullYear();
-                                        var mm = String(currentDate.getMonth() + 1).padStart(2, '0');
-                                        var dd = String(currentDate.getDate()).padStart(2, '0');
-                                        var todayDate = yyyy + '-' + mm + '-' + dd;
+                        if(is_automated_service_discount_applied == "0" && is_automated_product_discount_applied == "0"){
+                            if(is_offer_applied_to_booking == "" || is_offer_applied_to_booking == "0"){
+                                if(is_giftcard_applied == "0" || is_giftcard_applied == ""){
+                                    if (used_rewards == "" || parseInt(used_rewards) <= 0) {
+                                        if(customer_gender == coupon_gender){
+                                            var currentDate = new Date();
+                                            var yyyy = currentDate.getFullYear();
+                                            var mm = String(currentDate.getMonth() + 1).padStart(2, '0');
+                                            var dd = String(currentDate.getDate()).padStart(2, '0');
+                                            var todayDate = yyyy + '-' + mm + '-' + dd;
 
-                                        if(payable >= coupon_min_price){
-                                            if(todayDate <= coupon_expiry){
-                                                expiry_flag = 0;
-                                            }else{
-                                                if(type == 'previous'){
+                                            if(payable >= coupon_min_price){
+                                                if(todayDate <= coupon_expiry){
                                                     expiry_flag = 0;
                                                 }else{
-                                                    expiry_flag = 1;
-                                                }
-                                            }
-                                            $('#selected_coupon_type_' + bookingID).val(type);
-                                            var selected_coupon_type = $('#selected_coupon_type_' + bookingID).val();
-                                            if(expiry_flag == 0){
-                                                var previousCouponId = $('#selected_coupon_id_' + bookingID).val();
-                                                if (previousCouponId != '') {         
-                                                    if(selected_coupon_type != "previous"){
-                                                        removeCoupon(bookingID,previousCouponId,'prev');
+                                                    if(type == 'previous'){
+                                                        expiry_flag = 0;
+                                                    }else{
+                                                        expiry_flag = 1;
                                                     }
-                                                }  
-                                                $('.loader_div').show();  
+                                                }
+                                                $('#selected_coupon_type_' + bookingID).val(type);
+                                                var selected_coupon_type = $('#selected_coupon_type_' + bookingID).val();
+                                                if(expiry_flag == 0){
+                                                    var previousCouponId = $('#selected_coupon_id_' + bookingID).val();
+                                                    if (previousCouponId != '') {         
+                                                        if(selected_coupon_type != "previous"){
+                                                            removeCoupon(bookingID,previousCouponId,'prev');
+                                                        }
+                                                    }  
+                                                    $('.loader_div').show();  
 
-                                                $('#coupon_discount_amount_' + bookingID).val(parseFloat(coupon_offers).toFixed(2));
-                                                $('#selected_coupon_id_' + bookingID).val(couponId);
+                                                    $('#coupon_discount_amount_' + bookingID).val(parseFloat(coupon_offers).toFixed(2));
+                                                    $('#selected_coupon_id_' + bookingID).val(couponId);
 
-                                                coupon_div = $('#coupon_button_' + bookingID + '_'+ couponId);
+                                                    coupon_div = $('#coupon_button_' + bookingID + '_'+ couponId);
 
-                                                coupon_div.html('');
+                                                    coupon_div.html('');
 
-                                                // new_coupon_div = '<button class="btn btn-warning" type="button" onclick="if(confirm(\'Are you sure you want to remove the coupon?\')) { removeCoupon(' + bookingID + ',' + couponId + ',\'new\'); }" style="font-size:10px; padding:5px 12px;" data-toggle="tooltip" data-placement="top" title="Remove Coupon">Remove</button>';
-                                                new_coupon_div = '<button class="btn btn-warning" type="button" onclick="openConfirmationDialog(\'Are you sure you want to remove the coupon?\', function(confirmed) { if (confirmed) { removeCoupon(' + bookingID + ',' + couponId + ',\'new\'); } })" style="font-size:10px; padding:5px 12px;" data-toggle="tooltip" data-placement="top" title="Remove Coupon">Remove</button>';
+                                                    // new_coupon_div = '<button class="btn btn-warning" type="button" onclick="if(confirm(\'Are you sure you want to remove the coupon?\')) { removeCoupon(' + bookingID + ',' + couponId + ',\'new\'); }" style="font-size:10px; padding:5px 12px;" data-toggle="tooltip" data-placement="top" title="Remove Coupon">Remove</button>';
+                                                    new_coupon_div = '<button class="btn btn-warning" type="button" onclick="openConfirmationDialog(\'Are you sure you want to remove the coupon?\', function(confirmed) { if (confirmed) { removeCoupon(' + bookingID + ',' + couponId + ',\'new\'); } })" style="font-size:10px; padding:5px 12px;" data-toggle="tooltip" data-placement="top" title="Remove Coupon">Remove</button>';
 
-                                                coupon_div.html(new_coupon_div);
-                                                    
-                                                $('.loader_div').hide(); 
+                                                    coupon_div.html(new_coupon_div);
+                                                        
+                                                    $('.loader_div').hide(); 
+                                                }else{ 
+                                                    if(type == 'previous'){
+                                                        $('#coupon_error_' + bookingID + '_' + couponId).html('');
+                                                        $('#coupon_discount_amount_' + bookingID).val(parseFloat(0.00).toFixed(2));
+                                                        $('#selected_coupon_id_' + bookingID).val('');
+                                                    }
+                                                    $('.loader_div').hide();                                        
+                                                    // alert('Coupon code is expired');
+                                                    openDialog('Coupon code is expired'); 
+                                                }
                                             }else{ 
+                                                $('.loader_div').hide(); 
                                                 if(type == 'previous'){
                                                     $('#coupon_error_' + bookingID + '_' + couponId).html('');
                                                     $('#coupon_discount_amount_' + bookingID).val(parseFloat(0.00).toFixed(2));
                                                     $('#selected_coupon_id_' + bookingID).val('');
+                                                    // alert('Previously applied coupon ' + coupon_name + ' not applicable now as Minimum Payable amount require: Rs.'+coupon_min_price);
+                                                    openDialog('Previously applied coupon ' + coupon_name + ' not applicable now as Minimum Payable amount require: Rs.'+coupon_min_price); 
+                                                }else{                            
+                                                    // alert('Coupon ' + coupon_name + ' not applicable. Minimum Payable amount require: Rs.'+coupon_min_price);
+                                                    openDialog('Coupon ' + coupon_name + ' not applicable. Minimum Payable amount require: Rs.'+coupon_min_price); 
                                                 }
-                                                $('.loader_div').hide();                                        
-                                                // alert('Coupon code is expired');
-                                                openDialog('Coupon code is expired'); 
                                             }
-                                        }else{ 
+                                        }else{  
                                             $('.loader_div').hide(); 
-                                            if(type == 'previous'){
-                                                $('#coupon_error_' + bookingID + '_' + couponId).html('');
-                                                $('#coupon_discount_amount_' + bookingID).val(parseFloat(0.00).toFixed(2));
-                                                $('#selected_coupon_id_' + bookingID).val('');
-                                                // alert('Previously applied coupon ' + coupon_name + ' not applicable now as Minimum Payable amount require: Rs.'+coupon_min_price);
-                                                openDialog('Previously applied coupon ' + coupon_name + ' not applicable now as Minimum Payable amount require: Rs.'+coupon_min_price); 
-                                            }else{                            
-                                                // alert('Coupon ' + coupon_name + ' not applicable. Minimum Payable amount require: Rs.'+coupon_min_price);
-                                                openDialog('Coupon ' + coupon_name + ' not applicable. Minimum Payable amount require: Rs.'+coupon_min_price); 
-                                            }
+                                            // alert('Coupon code not applicable on applied giftcard');
+                                            openDialog('Coupon code not valid for customer gender'); 
                                         }
                                     }else{  
                                         $('.loader_div').hide(); 
                                         // alert('Coupon code not applicable on applied giftcard');
-                                        openDialog('Coupon code not valid for customer gender'); 
+                                        openDialog('Coupon code not applicable on applied rewards'); 
                                     }
                                 }else{  
                                     $('.loader_div').hide(); 
                                     // alert('Coupon code not applicable on applied giftcard');
-                                    openDialog('Coupon code not applicable on applied rewards'); 
+                                    openDialog('Coupon code not applicable on applied giftcard'); 
                                 }
-                            }else{  
+                            }else{ 
                                 $('.loader_div').hide(); 
-                                // alert('Coupon code not applicable on applied giftcard');
-                                openDialog('Coupon code not applicable on applied giftcard'); 
+                                // alert('Coupon code not applicable if package is selected');
+                                openDialog('Coupon code not applicable if offer is applied'); 
                             }
                         }else{ 
                             $('.loader_div').hide(); 
                             // alert('Coupon code not applicable if package is selected');
-                            openDialog('Coupon code not applicable if offer is applied'); 
+                            openDialog('Coupon code not applicable if automated discount is applied'); 
                         }
                     }else{ 
                         $('.loader_div').hide(); 
@@ -2057,75 +2075,87 @@ if(!empty($booking_rules)){
                     });
                     var code = $('#giftcard_no_' + bookingID).val();
                     if (selected_package_id == "") {
-                        var is_offer_applied_to_booking = $('#is_offer_applied_to_booking_' + bookingID).val();
-                        if(is_offer_applied_to_booking == "" || is_offer_applied_to_booking == "0"){
-                            if (selected_coupon_id == "") {
-                                if (used_rewards == "" || parseInt(used_rewards) <= 0) {
-                                    if (code != "") {
-                                        if (booking_services.length > 0) {
-                                            $.ajax({
-                                                type: "POST",
-                                                url: "<?= base_url(); ?>salon/Ajax_controller/check_giftcard_ajx",
-                                                data: { 'code': code, 'customer': customer },
-                                                success: function(data) {
-                                                    console.log(data);
-                                                    $('.loader_div').hide();  
-                                                    $('#is_giftcard_applied_' + bookingID).val('0');
-                                                    $('#is_new_giftcard_applied_' + bookingID).val('');
-                                                    $('#applied_giftcard_id_' + bookingID).val('');
-                                                    $('#giftcard_redemption_id_' + bookingID).val('');
-                                                    var opts = $.parseJSON(data);
-                                                    is_valid = opts.is_valid;
-                                                    is_customer_used = opts.is_customer_used;
-                                                    giftcard_id = opts.giftcard_id;
-                                                    giftcard_min_amount = opts.giftcard_min_amount;
-                                                    giftcard_discount_amount = opts.giftcard_discount_amount;
-                                                    giftcard_redemption_id = opts.giftcard_redemption_id;
-                                                    giftcard_owner_id = opts.giftcard_owner_id;
-                                                                
-                                                    total_giftcard_discount = 0;
+                        if(is_automated_service_discount_applied == "0" && is_automated_product_discount_applied == "0"){
+                            var is_offer_applied_to_booking = $('#is_offer_applied_to_booking_' + bookingID).val();
+                            if(is_offer_applied_to_booking == "" || is_offer_applied_to_booking == "0"){
+                                if (selected_coupon_id == "") {
+                                    if (used_rewards == "" || parseInt(used_rewards) <= 0) {
+                                        if (code != "") {
+                                            if (booking_services.length > 0) {
+                                                $.ajax({
+                                                    type: "POST",
+                                                    url: "<?= base_url(); ?>salon/Ajax_controller/check_giftcard_ajx",
+                                                    data: { 'code': code, 'customer': customer },
+                                                    success: function(data) {
+                                                        console.log(data);
+                                                        $('.loader_div').hide();  
+                                                        $('#is_giftcard_applied_' + bookingID).val('0');
+                                                        $('#is_new_giftcard_applied_' + bookingID).val('');
+                                                        $('#applied_giftcard_id_' + bookingID).val('');
+                                                        $('#giftcard_redemption_id_' + bookingID).val('');
+                                                        var opts = $.parseJSON(data);
+                                                        is_valid = opts.is_valid;
+                                                        is_customer_used = opts.is_customer_used;
+                                                        giftcard_id = opts.giftcard_id;
+                                                        giftcard_min_amount = opts.giftcard_min_amount;
+                                                        giftcard_discount_amount = opts.giftcard_discount_amount;
+                                                        giftcard_redemption_id = opts.giftcard_redemption_id;
+                                                        giftcard_owner_id = opts.giftcard_owner_id;
+                                                                    
+                                                        total_giftcard_discount = 0;
 
-                                                    if(is_valid == '1'){
-                                                        if(is_customer_used == '0'){
-                                                            var payable = parseFloat($('#payable_hidden_' + bookingID).val());
-                                                            // if(payable >= giftcard_min_amount){
-                                                                if(giftcard_discount_amount >= payable){
-                                                                    var discount_consider = payable;                                                        
-                                                                }else{
-                                                                    var discount_consider = giftcard_discount_amount;       
-                                                                }
+                                                        if(is_valid == '1'){
+                                                            if(is_customer_used == '0'){
+                                                                var payable = parseFloat($('#payable_hidden_' + bookingID).val());
+                                                                // if(payable >= giftcard_min_amount){
+                                                                    if(giftcard_discount_amount >= payable){
+                                                                        var discount_consider = payable;                                                        
+                                                                    }else{
+                                                                        var discount_consider = giftcard_discount_amount;       
+                                                                    }
 
-                                                                $('#giftcard_error_' + bookingID).hide();
-                                                                $('#giftcard_error_' + bookingID).html('');
+                                                                    $('#giftcard_error_' + bookingID).hide();
+                                                                    $('#giftcard_error_' + bookingID).html('');
 
-                                                                $('#giftcard_remove_button_' + bookingID).show();
-                                                                $('#giftcard_button_' + bookingID).hide();
-                                                                $('#giftcard_no_' + bookingID).prop('disabled',true);
+                                                                    $('#giftcard_remove_button_' + bookingID).show();
+                                                                    $('#giftcard_button_' + bookingID).hide();
+                                                                    $('#giftcard_no_' + bookingID).prop('disabled',true);
 
-                                                                $('#gift_discount_' + bookingID).val(parseFloat(discount_consider).toFixed(2));
-                                                                $('#is_giftcard_applied_' + bookingID).val('1');
-                                                                $('#is_new_giftcard_applied_' + bookingID).val(is_customer_used);
-                                                                $('#giftcard_redemption_id_' + bookingID).val(giftcard_redemption_id);
-                                                                $('#applied_giftcard_id_' + bookingID).val(giftcard_id);
-                                                                $('#applied_giftcard_owner_id_' + bookingID).val(giftcard_owner_id);
-                                                                
-                                                                $('#giftcard_success_' + bookingID).html('Giftcard applied successfully');
-                                                                $('#giftcard_success_' + bookingID).show();
+                                                                    $('#gift_discount_' + bookingID).val(parseFloat(discount_consider).toFixed(2));
+                                                                    $('#is_giftcard_applied_' + bookingID).val('1');
+                                                                    $('#is_new_giftcard_applied_' + bookingID).val(is_customer_used);
+                                                                    $('#giftcard_redemption_id_' + bookingID).val(giftcard_redemption_id);
+                                                                    $('#applied_giftcard_id_' + bookingID).val(giftcard_id);
+                                                                    $('#applied_giftcard_owner_id_' + bookingID).val(giftcard_owner_id);
+                                                                    
+                                                                    $('#giftcard_success_' + bookingID).html('Giftcard applied successfully');
+                                                                    $('#giftcard_success_' + bookingID).show();
 
-                                                                setPayableServiceAmount(bookingID);
-                                                            // }else{
-                                                            //     $('#giftcard_error_' + bookingID).html('Giftcard not applicable. Minimum Payable amount require: Rs.'+parseFloat(giftcard_min_amount).toFixed(2));
-                                                            //     $('#giftcard_error_' + bookingID).show();
-                                                            //     $('#giftcard_success_' + bookingID).html('');
-                                                            //     $('#giftcard_success_' + bookingID).hide();
-                                                            //     $('#giftcard_no_' + bookingID).val('');
+                                                                    setPayableServiceAmount(bookingID);
+                                                                // }else{
+                                                                //     $('#giftcard_error_' + bookingID).html('Giftcard not applicable. Minimum Payable amount require: Rs.'+parseFloat(giftcard_min_amount).toFixed(2));
+                                                                //     $('#giftcard_error_' + bookingID).show();
+                                                                //     $('#giftcard_success_' + bookingID).html('');
+                                                                //     $('#giftcard_success_' + bookingID).hide();
+                                                                //     $('#giftcard_no_' + bookingID).val('');
 
-                                                            //     setTimeout(function() {
-                                                            //         $('#giftcard_error_' + bookingID).hide();
-                                                            //     }, 4000);
-                                                            // }
+                                                                //     setTimeout(function() {
+                                                                //         $('#giftcard_error_' + bookingID).hide();
+                                                                //     }, 4000);
+                                                                // }
+                                                            }else{
+                                                                $('#giftcard_error_' + bookingID).html('Giftcard not valid for this customer. Please buy it first.');
+                                                                $('#giftcard_error_' + bookingID).show();
+                                                                $('#giftcard_success_' + bookingID).html('');
+                                                                $('#giftcard_success_' + bookingID).hide();
+                                                                $('#giftcard_no_' + bookingID).val('');
+
+                                                                setTimeout(function() {
+                                                                    $('#giftcard_error_' + bookingID).hide();
+                                                                }, 4000);
+                                                            }
                                                         }else{
-                                                            $('#giftcard_error_' + bookingID).html('Giftcard not valid for this customer. Please buy it first.');
+                                                            $('#giftcard_error_' + bookingID).html('Invalid Giftcard no');
                                                             $('#giftcard_error_' + bookingID).show();
                                                             $('#giftcard_success_' + bookingID).html('');
                                                             $('#giftcard_success_' + bookingID).hide();
@@ -2135,47 +2165,42 @@ if(!empty($booking_rules)){
                                                                 $('#giftcard_error_' + bookingID).hide();
                                                             }, 4000);
                                                         }
-                                                    }else{
-                                                        $('#giftcard_error_' + bookingID).html('Invalid Giftcard no');
-                                                        $('#giftcard_error_' + bookingID).show();
-                                                        $('#giftcard_success_' + bookingID).html('');
-                                                        $('#giftcard_success_' + bookingID).hide();
-                                                        $('#giftcard_no_' + bookingID).val('');
-
-                                                        setTimeout(function() {
-                                                            $('#giftcard_error_' + bookingID).hide();
-                                                        }, 4000);
-                                                    }
-                                                },
-                                            });
-                                        }else{  
-                                            $('.loader_div').hide();
-                                            // alert('Please select services');
-                                            openDialog('Please select services'); 
+                                                    },
+                                                });
+                                            }else{  
+                                                $('.loader_div').hide();
+                                                // alert('Please select services');
+                                                openDialog('Please select services'); 
+                                                $('#giftcard_no_' + bookingID).val('');
+                                            }
+                                        }else{
+                                            $('.loader_div').hide();  
+                                            // alert('Please enter giftcard no');
+                                            openDialog('Please enter giftcard no'); 
                                             $('#giftcard_no_' + bookingID).val('');
                                         }
                                     }else{
-                                        $('.loader_div').hide();  
-                                        // alert('Please enter giftcard no');
-                                        openDialog('Please enter giftcard no'); 
+                                        $('.loader_div').hide();
+                                        // alert('Giftcard not applicable on applied coupon');
+                                        openDialog('Giftcard not applicable on applied rewards'); 
                                         $('#giftcard_no_' + bookingID).val('');
                                     }
-                                }else{
+                                }else{ 
                                     $('.loader_div').hide();
                                     // alert('Giftcard not applicable on applied coupon');
-                                    openDialog('Giftcard not applicable on applied rewards'); 
+                                    openDialog('Giftcard not applicable on applied coupon'); 
                                     $('#giftcard_no_' + bookingID).val('');
                                 }
                             }else{ 
                                 $('.loader_div').hide();
                                 // alert('Giftcard not applicable on applied coupon');
-                                openDialog('Giftcard not applicable on applied coupon'); 
+                                openDialog('Giftcard not applicable on applied offer'); 
                                 $('#giftcard_no_' + bookingID).val('');
                             }
                         }else{ 
                             $('.loader_div').hide();
                             // alert('Giftcard not applicable on applied coupon');
-                            openDialog('Giftcard not applicable on applied offer'); 
+                            openDialog('Giftcard not applicable if automated discount is applied'); 
                             $('#giftcard_no_' + bookingID).val('');
                         }
                     }else{
@@ -2220,6 +2245,7 @@ if(!empty($booking_rules)){
                     var customer = $('#customer_id_' + bookingID).val();
                     
                     var booking_services = [];
+                    var selected_services = [];
 
                     $('.booking_services_' + bookingID + ':checked').each(function() {
                         var selected_service_id = $('#single_service_id_' + $(this).val()).val();
@@ -2234,94 +2260,115 @@ if(!empty($booking_rules)){
                     });
                     var total_offer_discount = 0;
                     if (selected_package_id == "") {
-                        if (selected_coupon_id == "") {
-                            if (used_rewards == "" || parseInt(used_rewards) <= 0) {
-                                if (offerID != "") {
-                                    if (booking_services.length > 0) {
-                                        var is_offer_applied_to_booking = $('#is_offer_applied_to_booking_' + bookingID).val();
-                                        var offer_applied_to_booking = $('#offer_applied_to_booking_' + bookingID).val();
-                                        if (is_offer_applied_to_booking == '1' && offer_applied_to_booking != '') {  
-                                            removeCoupon(bookingID,offer_applied_to_booking,'prev');
-                                        }  
-                                        var any_service_selected = '0';
-                                        var offer_applied_to_booking = '';
-                                        var offer_servicesString = $('#offer_services_' + bookingID + '_' + offerID).val();
-                                        var offer_discount = $('#offer_discount_' + bookingID + '_' + offerID).val();
-                                        var offer_discount_in = $('#offer_discount_in_' + bookingID + '_' + offerID).val();
-                                        var offer_servicesArray = offer_servicesString.split(',');
-                                        offer_servicesArray = offer_servicesArray.map(service => service.trim());
-                                        for(j=0;j<booking_services.length;j++){
-                                            selected_service = booking_services[j]['service_id'];
-                                            selected_service_details = booking_services[j]['details_id'];
+                        if(is_automated_service_discount_applied == "0" && is_automated_product_discount_applied == "0"){
+                            if (selected_coupon_id == "") {
+                                if (used_rewards == "" || parseInt(used_rewards) <= 0) {
+                                    if (offerID != "") {
+                                        if (booking_services.length > 0) {
+                                            var is_offer_applied_to_booking = $('#is_offer_applied_to_booking_' + bookingID).val();
+                                            var offer_applied_to_booking = $('#offer_applied_to_booking_' + bookingID).val();
+                                            if (is_offer_applied_to_booking == '1' && offer_applied_to_booking != '') {  
+                                                removeCoupon(bookingID,offer_applied_to_booking,'prev');
+                                            }  
+                                            var any_service_selected = '0';
+                                            var offer_applied_to_booking = '';
+                                            var offer_servicesString = $('#offer_services_' + bookingID + '_' + offerID).val();
+                                            var offer_discount = $('#offer_discount_' + bookingID + '_' + offerID).val();
+                                            var offer_discount_in = $('#offer_discount_in_' + bookingID + '_' + offerID).val();
+                                            var offer_servicesArray = offer_servicesString.split(',');
+                                            offer_servicesArray = offer_servicesArray.map(service => service.trim());
+                                            for(j=0;j<booking_services.length;j++){
+                                                selected_services.push(booking_services[j]['service_id']);
+                                            }
+                                            var is_offer_applied_to_booking = offer_servicesArray.every(serviceId =>
+                                                selected_services.includes(serviceId)
+                                            ) ? '1' : '0';
 
-                                            if(offer_servicesArray.includes(selected_service)){
-                                                any_service_selected = '1';
-                                                offer_applied_to_booking = offerID;
-                                                single_service_original_price = parseFloat($('#single_service_original_price_'+ selected_service_details).val());
-                                                service_price = parseFloat($('#single_service_price_'+ selected_service_details).val());
-                                                discount = parseFloat(offer_discount);
-                                                if(offer_discount_in == '0'){
-                                                    discount = (discount * single_service_original_price) / 100;
+                                            if(is_offer_applied_to_booking == '1'){
+                                                for(j=0;j<booking_services.length;j++){
+                                                    selected_service = booking_services[j]['service_id'];
+                                                    selected_service_details = booking_services[j]['details_id'];
+
+                                                    if(offer_servicesArray.includes(selected_service)){
+                                                        any_service_selected = '1';
+                                                        offer_applied_to_booking = offerID;
+                                                        single_service_original_price = parseFloat($('#single_service_original_price_'+ selected_service_details).val());
+                                                        service_price = parseFloat($('#single_service_price_'+ selected_service_details).val());
+                                                        discount = parseFloat(offer_discount);
+                                                        if(offer_discount_in == '0'){
+                                                            discount = (discount * single_service_original_price) / 100;
+                                                        }
+
+                                                        $('#is_service_offer_applied_'+ selected_service_details).val('1');
+                                                        $('#applied_offer_id_'+ selected_service_details).val(offerID);
+                                                        $('#service_offer_discount_'+ selected_service_details).val(offer_discount);
+                                                        $('#service_offer_discount_type_'+ selected_service_details).val(offer_discount_in);
+                                                        $('#service_offer_discount_amount_'+ selected_service_details).val(discount);
+                                                        
+                                                        total_offer_discount = total_offer_discount + discount;
+                                                    }
                                                 }
 
-                                                $('#is_service_offer_applied_'+ selected_service_details).val('1');
-                                                $('#applied_offer_id_'+ selected_service_details).val(offerID);
-                                                $('#service_offer_discount_'+ selected_service_details).val(offer_discount);
-                                                $('#service_offer_discount_type_'+ selected_service_details).val(offer_discount_in);
-                                                $('#service_offer_discount_amount_'+ selected_service_details).val(discount);
-                                                
-                                                total_offer_discount = total_offer_discount + discount;
+                                                if(any_service_selected == '1'){
+                                                    $('#offer_success_' + bookingID).html('');
+                                                    $('#offer_success_' + bookingID).hide();
+                                                    $('#is_offer_applied_to_booking_' + bookingID).val('1');
+                                                    $('#offer_applied_to_booking_' + bookingID).val(offer_applied_to_booking);
+                                                    $('#offer_discount_amount_' + bookingID).val(parseFloat(total_offer_discount).toFixed(2));
+
+                                                    offer_div = $('#offer_button_' + bookingID + '_'+ offerID);
+
+                                                    offer_div.html('');
+
+                                                    new_offer_div = '<button class="btn btn-warning" type="button" onclick="openConfirmationDialog(\'Are you sure you want to remove the offer?\', function(confirmed) { if (confirmed) { removeOffer(' + bookingID + ',' + offerID + ',\'new\'); } })" style="font-size:10px; padding:5px 12px;" data-toggle="tooltip" data-placement="top" title="Remove Offer">Remove</button>';
+
+                                                    offer_div.html(new_offer_div);
+                                                    
+                                                    $('#offer_success_' + bookingID).html('Offer applied successfully');
+                                                    $('#offer_success_' + bookingID).show();
+                                                    $('.loader_div').hide();
+                                                }else{
+                                                    $('.loader_div').hide();
+                                                    // alert('Please select services');
+                                                    openDialog('Selected Services not allowed for applied Offer'); 
+                                                }
+                                            }else{
+                                                $('.loader_div').hide();
+                                                // alert('Please select services');
+                                                openDialog('Please select all required services to apply this offer');
                                             }
-                                        }
-
-                                        if(any_service_selected == '1'){
-                                            $('#offer_success_' + bookingID).html('');
-                                            $('#offer_success_' + bookingID).hide();
-                                            $('#is_offer_applied_to_booking_' + bookingID).val('1');
-                                            $('#offer_applied_to_booking_' + bookingID).val(offer_applied_to_booking);
-                                            $('#offer_discount_amount_' + bookingID).val(parseFloat(total_offer_discount).toFixed(2));
-
-                                            offer_div = $('#offer_button_' + bookingID + '_'+ offerID);
-
-                                            offer_div.html('');
-
-                                            new_offer_div = '<button class="btn btn-warning" type="button" onclick="openConfirmationDialog(\'Are you sure you want to remove the offer?\', function(confirmed) { if (confirmed) { removeOffer(' + bookingID + ',' + offerID + ',\'new\'); } })" style="font-size:10px; padding:5px 12px;" data-toggle="tooltip" data-placement="top" title="Remove Offer">Remove</button>';
-
-                                            offer_div.html(new_offer_div);
-                                            
-                                            $('#offer_success_' + bookingID).html('Offer applied successfully');
-                                            $('#offer_success_' + bookingID).show();
-                                            $('.loader_div').hide();
-                                        }else{
+                                        }else{  
                                             $('.loader_div').hide();
                                             // alert('Please select services');
-                                            openDialog('Selected Services not allowed for applied Offer'); 
+                                            openDialog('Please select services'); 
+                                            $('#is_offer_applied_to_booking_' + bookingID).val('');
+                                            $('#offer_applied_to_booking_' + bookingID).val('');
                                         }
-                                    }else{  
-                                        $('.loader_div').hide();
-                                        // alert('Please select services');
-                                        openDialog('Please select services'); 
+                                    }else{
+                                        $('.loader_div').hide();  
+                                        // alert('Please enter giftcard no');
+                                        openDialog('Please select offer'); 
                                         $('#is_offer_applied_to_booking_' + bookingID).val('');
                                         $('#offer_applied_to_booking_' + bookingID).val('');
                                     }
-                                }else{
-                                    $('.loader_div').hide();  
-                                    // alert('Please enter giftcard no');
-                                    openDialog('Please select offer'); 
+                                }else{  
+                                    $('.loader_div').hide();
+                                    // alert('Please select services');
+                                    openDialog('Offers not applicable on applied rewards'); 
                                     $('#is_offer_applied_to_booking_' + bookingID).val('');
                                     $('#offer_applied_to_booking_' + bookingID).val('');
                                 }
-                            }else{  
+                            }else{ 
                                 $('.loader_div').hide();
-                                // alert('Please select services');
-                                openDialog('Offers not applicable on applied rewards'); 
+                                // alert('Giftcard not applicable on applied coupon');
+                                openDialog('Offers not applicable on applied coupon'); 
                                 $('#is_offer_applied_to_booking_' + bookingID).val('');
                                 $('#offer_applied_to_booking_' + bookingID).val('');
                             }
                         }else{ 
                             $('.loader_div').hide();
                             // alert('Giftcard not applicable on applied coupon');
-                            openDialog('Offers not applicable on applied coupon'); 
+                            openDialog('Offers not applicable if automated discount is applied'); 
                             $('#is_offer_applied_to_booking_' + bookingID).val('');
                             $('#offer_applied_to_booking_' + bookingID).val('');
                         }
@@ -2369,65 +2416,71 @@ if(!empty($booking_rules)){
                 var is_offer_applied_to_booking = $('#is_offer_applied_to_booking_' + bookingID).val();
                 var is_giftcard_applied = $('#is_giftcard_applied_' + bookingID).val();
                 if (selected_coupon_id == "") {
-                    if(is_giftcard_applied == "0" || is_giftcard_applied == ""){
-                        if(is_offer_applied_to_booking == "" || is_offer_applied_to_booking == "0"){
-                            $('.loader_div').show();   
-                            setTimeout(function() {
-                                var customer_reward_available = parseInt($('#customer_reward_available_' + bookingID).val());
-                                var customer_gender = $('#customer_gender_' + bookingID).val();
-                                var total_value = 0;
+                    if(is_automated_service_discount_applied == "0" && is_automated_product_discount_applied == "0"){
+                        if(is_giftcard_applied == "0" || is_giftcard_applied == ""){
+                            if(is_offer_applied_to_booking == "" || is_offer_applied_to_booking == "0"){
+                                $('.loader_div').show();   
+                                setTimeout(function() {
+                                    var customer_reward_available = parseInt($('#customer_reward_available_' + bookingID).val());
+                                    var customer_gender = $('#customer_gender_' + bookingID).val();
+                                    var total_value = 0;
 
-                                $.ajax({
-                                    type: "POST",
-                                    url: "<?= base_url(); ?>salon/Ajax_controller/get_reward_setup_ajx",
-                                    data: { 'gender': customer_gender, 'bookingID':bookingID },
-                                    success: function(data) {  
-                                        var opts = $.parseJSON(data);
-                                        if (!$.isEmptyObject(opts)) {
-                                            rs_per_reward = opts.rs_per_reward;
-                                            reward_point = opts.reward_point;
-                                            minimum_reward_required = parseInt(opts.minimum_reward_required);
-                                            maximum_reward_required = opts.maximum_reward_required;
+                                    $.ajax({
+                                        type: "POST",
+                                        url: "<?= base_url(); ?>salon/Ajax_controller/get_reward_setup_ajx",
+                                        data: { 'gender': customer_gender, 'bookingID':bookingID },
+                                        success: function(data) {  
+                                            var opts = $.parseJSON(data);
+                                            if (!$.isEmptyObject(opts)) {
+                                                rs_per_reward = opts.rs_per_reward;
+                                                reward_point = opts.reward_point;
+                                                minimum_reward_required = parseInt(opts.minimum_reward_required);
+                                                maximum_reward_required = opts.maximum_reward_required;
 
-                                            payableHidden = parseFloat($('#payable_hidden_' + bookingID).val());
+                                                payableHidden = parseFloat($('#payable_hidden_' + bookingID).val());
 
-                                            if(payableHidden > 0){
-                                                if(customer_reward_available >= minimum_reward_required){
-                                                    if(customer_reward_available > maximum_reward_required){
-                                                        available_rewards = maximum_reward_required;
+                                                if(payableHidden > 0){
+                                                    if(customer_reward_available >= minimum_reward_required){
+                                                        if(customer_reward_available > maximum_reward_required){
+                                                            available_rewards = maximum_reward_required;
+                                                        }else{
+                                                            available_rewards = customer_reward_available;
+                                                        }
+
+                                                        consider_rewards = available_rewards / reward_point;
+                                                        total_value = consider_rewards * rs_per_reward;
+
+                                                        $('#reward_discount_amount_' + bookingID).val(parseFloat(total_value).toFixed(2));
+                                                        $('#used_rewards_' + bookingID).val(available_rewards);
+                                                        $('#customer_rewards_text_' + bookingID).html('');
+                                                        $('#customer_rewards_text_' + bookingID).html('Rewards Balance: <s>'+customer_reward_available+'</s> '+(customer_reward_available-available_rewards)+'<br>Discount: Rs.'+parseFloat(total_value).toFixed(2));
+                                                        $('#used_rewards_msg_' + bookingID).html('<label style="color:green;font-size:10px;">'+available_rewards+' Rewards used</label>');
+
+                                                        setBookingAmount(bookingID);
+
+                                                        $('#rewards_button_' + bookingID).hide();
+                                                        $('#rewards_remove_button_' + bookingID).show();
                                                     }else{
-                                                        available_rewards = customer_reward_available;
+                                                        // alert('Minimum reward points required are: '+ minimum_reward_required);
+                                                        openDialog('Minimum reward points required are: '+ minimum_reward_required); 
                                                     }
-
-                                                    consider_rewards = available_rewards / reward_point;
-                                                    total_value = consider_rewards * rs_per_reward;
-
-                                                    $('#reward_discount_amount_' + bookingID).val(parseFloat(total_value).toFixed(2));
-                                                    $('#used_rewards_' + bookingID).val(available_rewards);
-                                                    $('#customer_rewards_text_' + bookingID).html('');
-                                                    $('#customer_rewards_text_' + bookingID).html('Rewards Balance: <s>'+customer_reward_available+'</s> '+(customer_reward_available-available_rewards)+'<br>Discount: Rs.'+parseFloat(total_value).toFixed(2));
-                                                    $('#used_rewards_msg_' + bookingID).html('<label style="color:green;font-size:10px;">'+available_rewards+' Rewards used</label>');
-
-                                                    setBookingAmount(bookingID);
-
-                                                    $('#rewards_button_' + bookingID).hide();
-                                                    $('#rewards_remove_button_' + bookingID).show();
                                                 }else{
-                                                    // alert('Minimum reward points required are: '+ minimum_reward_required);
-                                                    openDialog('Minimum reward points required are: '+ minimum_reward_required); 
-                                                }
+                                                    // alert('Total amount is not valid.');
+                                                    openDialog('Payable amount is not valid.'); 
+                                                } 
                                             }else{
-                                                // alert('Total amount is not valid.');
-                                                openDialog('Payable amount is not valid.'); 
-                                            } 
-                                        }else{
-                                            // alert('Reward point setup not available');
-                                            openDialog('Reward point setup not available'); 
-                                        }
-                                        $('.loader_div').hide();  
-                                    },
-                                });
-                            }, 1500);
+                                                // alert('Reward point setup not available');
+                                                openDialog('Reward point setup not available'); 
+                                            }
+                                            $('.loader_div').hide();  
+                                        },
+                                    });
+                                }, 1500);
+                            }else{
+                                $('.loader_div').hide(); 
+                                // alert('Coupon code not applicable on applied giftcard');
+                                openDialog('Rewards not applicable on applied giftcard'); 
+                            }
                         }else{
                             $('.loader_div').hide(); 
                             // alert('Coupon code not applicable on applied giftcard');
@@ -2435,8 +2488,8 @@ if(!empty($booking_rules)){
                         }
                     }else{
                         $('.loader_div').hide(); 
-                        // alert('Coupon code not applicable on applied giftcard');
-                        openDialog('Rewards not applicable on applied giftcard'); 
+                        // alert('Coupon code not applicable on applied giftcard');                         
+                        openDialog('Rewards not applicable if automated discount is applied'); 
                     }
                 }else{
                     $('.loader_div').hide();

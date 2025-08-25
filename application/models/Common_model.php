@@ -328,12 +328,23 @@ class Common_model extends CI_Model {
 		$this->db->where('tbl_salon_customer.branch_id', $branch_id);
 		$this->db->where('tbl_salon_customer.salon_id', $salon_id);
 		$single = $this->db->get('tbl_salon_customer')->row();
-		if(empty($single)){
+		// echo '<pre>'; print_r($single); exit;
+		if(!empty($single)){
 			$is_gst_applicable = '0';
 			$gst_rate = 0;
 
 			$service_total = 0;
 			$product_total = 0;  
+			
+			$marketing_service_discount = 0;
+			$marketing_product_discount = 0;
+			$membership_service_discount = 0;
+			$membership_product_discount = 0;
+			$package_price = 0;
+			$total_offer_discount = 0;
+			$coupon_discount = 0;
+			$giftcard_discount = 0;
+			$rewards_discount = 0;
 
 			$setup = $this->Master_model->get_backend_setups();	
 			if(!empty($setup)){
@@ -451,10 +462,10 @@ class Common_model extends CI_Model {
 											'membership_data'           		=> $membership_data,     
 											'marketing_service_discount_data'   => $marketing_service_discount_data,     
 											'marketing_product_discount_data'   => $marketing_product_discount_data,    
-											'offers_data'               		=> $offers_data,     
-											'giftcard_data'             		=> $giftcard_data,       
-											'coupon_data'               		=> $coupon_data,          
-											'rewards_data'              		=> $rewards_data      
+											'offers_data'               		=> $offers_data ?? [],     
+											'giftcard_data'             		=> $giftcard_data ?? [],       
+											'coupon_data'               		=> $coupon_data ?? [],          
+											'rewards_data'              		=> $rewards_data ?? []      
 										),
 				'package_details'	=> $package_data	
 			);
