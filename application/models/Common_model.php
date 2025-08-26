@@ -436,9 +436,10 @@ class Common_model extends CI_Model {
 			$marketing_discount = $marketing_service_discount + $marketing_product_discount;
 			
 			$total_discount = $membership_discount + $rewards_discount + $giftcard_discount + $coupon_discount + $marketing_discount + $total_offer_discount;
+			$actual_total_discount = $total_discount;
+			$total_discount = $total_discount > $total ? $total : $total_discount;
 			
 			$sub_total = $total - $total_discount;
-			$sub_total = $sub_total >= 0 ? $sub_total : 0.00;
 
 			$gst_amount = $is_gst_applicable == '1' ? ((float)$sub_total * (float)$gst_rate) : 0.00;
 			$grand_total = $sub_total + $gst_amount;
@@ -450,6 +451,7 @@ class Common_model extends CI_Model {
 				'package_price'     => $package_price, 
 				'total'             => $total, 
 				'total_discount'    => $total_discount,
+				'actual_total_discount'=> $actual_total_discount,
 				'sub_total'         => $sub_total,
 				'gst_amount'        => $gst_amount,
 				'grand_total'       => $grand_total,
@@ -882,7 +884,7 @@ class Common_model extends CI_Model {
 		}
 
 		if($selected_membership_details != "" && is_array($selected_membership_details) && !empty($selected_membership_details)){
-			if($selected_membership_details['is_old_member'] == '1'){
+			// if($selected_membership_details['is_old_member'] == '1'){
 				$this->db->select('tbl_customer_membership_history.id, tbl_customer_membership_history.payment_status, tbl_customer_membership_history.membership_price, tbl_customer_membership_history.service_discount, tbl_customer_membership_history.discount_in, tbl_customer_membership_history.product_discount, tbl_customer_membership_history.membership_id as applied_membership_id, tbl_memebership.membership_name');
 				$this->db->join('tbl_customer_membership_history', 'tbl_customer_membership_history.id = tbl_salon_customer.membership_pkey');
 				$this->db->join('tbl_memebership', 'tbl_memebership.id = tbl_customer_membership_history.membership_id');
@@ -898,6 +900,7 @@ class Common_model extends CI_Model {
 				$this->db->where('tbl_customer_membership_history.membership_status','0');
 				$this->db->where('tbl_customer_membership_history.payment_status','1');
 				$membership_details = $this->db->get('tbl_salon_customer')->row();
+				// echo '<pre>'; print_r($membership_details); exit;
 				if(!empty($membership_details)){
 					$membership_discount_type = $membership_details->discount_in;
 					$membership_service_discount = $membership_details->service_discount;
@@ -936,7 +939,7 @@ class Common_model extends CI_Model {
 						'is_membership_payment_included'=>  $membership_details->payment_status == '0' ? '1' : '0',
 						'membership_price'				=>	$membership_details->payment_status == '0' ? $membership_details->membership_price : 0.00
 					);
-				}
+				// }
 			}else{
 				$this->db->where('is_deleted','0');
 				$this->db->where('status','1');
@@ -1226,6 +1229,9 @@ class Common_model extends CI_Model {
 		$giftcard_data = array();  
 		$is_giftcard_applied = '0';
 		$is_new_giftcard_applied = '0';
+		$discount_head_text = null;
+		$discount_subhead_text = null;
+		$giftcard_discount = 0.00;
                     
 		$this->db->select('tbl_booking_payment_entry.*, tbl_gift_card.gender, tbl_gift_card.gift_card_code, tbl_gift_card.gift_name, tbl_gift_card.discount, tbl_gift_card.discount_in, tbl_gift_card.regular_price, tbl_gift_card.gift_price, tbl_gift_card.bg_color_input, tbl_gift_card.bg_color, tbl_gift_card.text_color_input, tbl_gift_card.text_color, tbl_gift_card.min_booking_amt');
 		$this->db->join('tbl_gift_card', 'tbl_gift_card.id = tbl_booking_payment_entry.giftcard_id');
