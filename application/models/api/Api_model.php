@@ -9145,8 +9145,20 @@ class Api_model extends CI_Model {
                 $this->db->where('salon_id', $salon_id);
                 $this->db->where('customer_id',$customer_id);
                 $result = $this->db->get('tbl_store_reviews');
-                $booking_review = $result->row();
-                
+                $booking_review = $result->row();                
+
+                $applied_service_automated_marketing_details = array(
+                    'automated_discount_type'				=>	'',
+                    'marketing_service_discount'			=>	'',
+                    'marketing_service_rewards'				=>	'',
+                    'discount_head_text'					=>	'',
+                    'discount_subhead_text'					=>	''
+                );
+                $applied_product_automated_marketing_details = array(
+                    'marketing_product_discount'			=>	'',
+                    'discount_head_text'					=>	'',
+                    'discount_subhead_text'					=>	''                  
+                );
                 $applied_giftcard_details = array(
                     'giftcard_id'               =>  '',
                     'giftcard_allocation_id'    =>  '',
@@ -9206,6 +9218,8 @@ class Api_model extends CI_Model {
                     $gift_discount = is_numeric($single_payment_details->gift_discount) ? floatval($single_payment_details->gift_discount) : 0;
                     $m_service_discount = is_numeric($single_payment_details->m_service_discount_amount) ? floatval($single_payment_details->m_service_discount_amount) : 0;
                     $m_product_discount = is_numeric($single_payment_details->m_product_discount_amount) ? floatval($single_payment_details->m_product_discount_amount) : 0;
+                    $marketing_service_discount_amount = $single_payment_details->marketing_service_discount_amount != "" ? floatval($single_payment_details->marketing_service_discount_amount) : 0;
+                    $marketing_product_discount_amount = $single_payment_details->marketing_product_discount_amount != "" ? floatval($single_payment_details->marketing_product_discount_amount) : 0;
                     
                     $applied_giftcard_redemption = $single_payment_details->giftcard_redemption_id;
                     $this->db->select('tbl_booking_payment_entry.*,tbl_salon_customer.full_name,tbl_salon_customer.customer_phone, tbl_gift_card.gender, tbl_gift_card.gift_card_code, tbl_gift_card.gift_name, tbl_gift_card.discount, tbl_gift_card.discount_in, tbl_gift_card.regular_price, tbl_gift_card.gift_price, tbl_gift_card.bg_color_input, tbl_gift_card.bg_color, tbl_gift_card.text_color_input, tbl_gift_card.text_color, tbl_gift_card.min_booking_amt');
@@ -9356,6 +9370,52 @@ class Api_model extends CI_Model {
                         'reward_used'               =>  $single_payment_details->used_rewards,
                         'discount_amount'           =>  $reward_discount
                     );
+
+                    if($bookings_result->is_automated_service_discount_applied == '1'){
+                        if($bookings_result->marketing_service_discount_customer_criteria == '0'){
+                            $service_automated_discount_head_text = 'New Client Benefits Applied';
+                        }elseif($bookings_result->marketing_service_discount_customer_criteria == '1'){
+                            $service_automated_discount_head_text = 'Regular Client Benefits Applied';
+                        }elseif($bookings_result->marketing_service_discount_customer_criteria == '2'){
+                            $service_automated_discount_head_text = 'Lost Client Benefits Applied';
+                        }elseif($bookings_result->marketing_service_discount_customer_criteria == '3'){
+                            $service_automated_discount_head_text = 'Birthday Benefits Applied';
+                        }elseif($bookings_result->marketing_service_discount_customer_criteria == '4'){
+                            $service_automated_discount_head_text = 'Anniversary Benefits Applied';
+                        }elseif($bookings_result->marketing_service_discount_customer_criteria == '5'){
+                            $service_automated_discount_head_text = 'Products Marketing Benefits Applied';
+                        }
+                        
+                        if($bookings_result->marketing_service_discount_in == '0'){  //percentage
+                            $service_automated_discount_sub_head_text = $bookings_result->marketing_service_discount_amount_value . '% Off';
+                        }elseif($bookings_result->marketing_service_discount_in == '1'){ //flat
+                            $service_automated_discount_sub_head_text = 'Flat Rs. ' . $bookings_result->marketing_service_discount_amount_value . ' Off';
+                        }
+
+                        $applied_service_automated_marketing_details = array(
+                            'automated_discount_type'				=>	$bookings_result->automated_discount_type,
+                            'marketing_service_discount'			=>	$bookings_result->marketing_service_discount,
+                            'marketing_service_rewards'				=>	$bookings_result->marketing_service_rewards,
+                            'discount_head_text'					=>	$service_automated_discount_head_text,
+                            'discount_subhead_text'					=>	$service_automated_discount_sub_head_text
+                        );
+                    }
+
+                    if($bookings_result->is_automated_product_discount_applied == '1'){
+                        $product_automated_discount_head_text = 'Products Marketing Benefits Applied';
+                        
+                        if($bookings_result->marketing_product_discount_in == '0'){  //percentage
+                            $product_automated_discount_sub_head_text = $bookings_result->marketing_product_discount_amount_value . '% Off';
+                        }elseif($bookings_result->marketing_product_discount_in == '1'){ //flat
+                            $product_automated_discount_sub_head_text = 'Flat Rs. ' . $bookings_result->marketing_product_discount_amount_value . ' Off';
+                        }
+                        
+                        $applied_product_automated_marketing_details = array(
+                            'marketing_product_discount'			=>	$bookings_result->marketing_product_discount,
+                            'discount_head_text'					=>	$product_automated_discount_head_text,
+                            'discount_subhead_text'					=>	$product_automated_discount_sub_head_text 
+                        );
+                    }
 
                     $amount_to_paid = is_numeric($single_payment_details->amount_to_paid) ? floatval($single_payment_details->amount_to_paid) : 0;
                     $salon_gst_rate = is_numeric($single_payment_details->salon_gst_rate) ? floatval($single_payment_details->salon_gst_rate) : 0;
@@ -9516,12 +9576,60 @@ class Api_model extends CI_Model {
                         'discount_amount'           =>  $bookings_result->reward_discount_amount
                     );
 
+                    if($bookings_result->is_automated_service_discount_applied == '1'){
+                        if($bookings_result->marketing_service_discount_customer_criteria == '0'){
+                            $service_automated_discount_head_text = 'New Client Benefits Applied';
+                        }elseif($bookings_result->marketing_service_discount_customer_criteria == '1'){
+                            $service_automated_discount_head_text = 'Regular Client Benefits Applied';
+                        }elseif($bookings_result->marketing_service_discount_customer_criteria == '2'){
+                            $service_automated_discount_head_text = 'Lost Client Benefits Applied';
+                        }elseif($bookings_result->marketing_service_discount_customer_criteria == '3'){
+                            $service_automated_discount_head_text = 'Birthday Benefits Applied';
+                        }elseif($bookings_result->marketing_service_discount_customer_criteria == '4'){
+                            $service_automated_discount_head_text = 'Anniversary Benefits Applied';
+                        }elseif($bookings_result->marketing_service_discount_customer_criteria == '5'){
+                            $service_automated_discount_head_text = 'Products Marketing Benefits Applied';
+                        }
+                        
+                        if($bookings_result->marketing_service_discount_in == '0'){  //percentage
+                            $service_automated_discount_sub_head_text = $bookings_result->marketing_service_discount_amount_value . '% Off';
+                        }elseif($bookings_result->marketing_service_discount_in == '1'){ //flat
+                            $service_automated_discount_sub_head_text = 'Flat Rs. ' . $bookings_result->marketing_service_discount_amount_value . ' Off';
+                        }
+
+                        $applied_service_automated_marketing_details = array(
+                            'automated_discount_type'				=>	$bookings_result->automated_discount_type,
+                            'marketing_service_discount'			=>	$bookings_result->marketing_service_discount,
+                            'marketing_service_rewards'				=>	$bookings_result->marketing_service_rewards,
+                            'discount_head_text'					=>	$service_automated_discount_head_text,
+                            'discount_subhead_text'					=>	$service_automated_discount_sub_head_text
+                        );
+                    }
+
+                    if($bookings_result->is_automated_product_discount_applied == '1'){
+                        $product_automated_discount_head_text = 'Products Marketing Benefits Applied';
+                        
+                        if($bookings_result->marketing_product_discount_in == '0'){  //percentage
+                            $product_automated_discount_sub_head_text = $bookings_result->marketing_product_discount_amount_value . '% Off';
+                        }elseif($bookings_result->marketing_product_discount_in == '1'){ //flat
+                            $product_automated_discount_sub_head_text = 'Flat Rs. ' . $bookings_result->marketing_product_discount_amount_value . ' Off';
+                        }
+                        
+                        $applied_product_automated_marketing_details = array(
+                            'marketing_product_discount'			=>	$bookings_result->marketing_product_discount,
+                            'discount_head_text'					=>	$product_automated_discount_head_text,
+                            'discount_subhead_text'					=>	$product_automated_discount_sub_head_text 
+                        );
+                    }
+
                     $offer_discount = is_numeric($bookings_result->offer_discount_amount) ? floatval($bookings_result->offer_discount_amount) : 0;
                     $coupon_discount = is_numeric($bookings_result->coupon_discount_amount) ? floatval($bookings_result->coupon_discount_amount) : 0;
                     $reward_discount = is_numeric($bookings_result->reward_discount_amount) ? floatval($bookings_result->reward_discount_amount) : 0;
                     $gift_discount = is_numeric($bookings_result->gift_discount) ? floatval($bookings_result->gift_discount) : 0;
                     $m_service_discount = is_numeric($bookings_result->m_service_discount_amount) ? floatval($bookings_result->m_service_discount_amount) : 0;
                     $m_product_discount = is_numeric($bookings_result->m_product_discount_amount) ? floatval($bookings_result->m_product_discount_amount) : 0;
+                    $marketing_service_discount_amount = is_numeric($bookings_result->marketing_service_discount) ? floatval($bookings_result->marketing_service_discount) : 0;
+                    $marketing_product_discount_amount = is_numeric($bookings_result->marketing_product_discount) ? floatval($bookings_result->marketing_product_discount) : 0;
                     
                     $booking_amount = is_numeric($bookings_result->booking_amount) ? floatval($bookings_result->booking_amount) : 0;
                     $salon_gst_rate = is_numeric($bookings_result->salon_gst_rate) ? floatval($bookings_result->salon_gst_rate) : 0;
@@ -9534,17 +9642,18 @@ class Api_model extends CI_Model {
                     $membership_payment_amount = $bookings_result->is_membership_payment_included == '1' ? floatval($bookings_result->membership_amount) : 0;
                 }
 
-                $total_discount = $coupon_discount + $offer_discount + $reward_discount + $gift_discount + $m_service_discount + $m_product_discount;
+                $total_discount = $coupon_discount + $offer_discount + $reward_discount + $gift_discount + $m_service_discount + $m_product_discount + $marketing_service_discount_amount + $marketing_product_discount_amount;
 
                 $discount_details = array(
                     'mem_service_discount'  =>  $m_service_discount,
                     'mem_product_discount'  =>  $m_product_discount,
+                    'marketing_service_discount_amount'  =>  $marketing_service_discount_amount,
+                    'marketing_product_discount_amount'  =>  $marketing_product_discount_amount,
                     'gift_discount'         =>  $gift_discount,
                     'offer_discount'        =>  $offer_discount,
                     'reward_discount'       =>  $reward_discount,
                     'coupon_discount'       =>  $coupon_discount,
                     'total_discount'        =>  $total_discount
-                    // 'total_discount'        =>  0
                 );
                 
                 $this->db->where('booking_id',$bookings_result->id);
@@ -9592,6 +9701,8 @@ class Api_model extends CI_Model {
                     'applied_package_details'       =>  $applied_package_details,
                     'applied_reward_details'        =>  $applied_reward_details,
                     'applied_giftcard_details'      =>  $applied_giftcard_details,
+                    'applied_service_automated_marketing_details'      =>  $applied_service_automated_marketing_details,
+                    'applied_product_automated_marketing_details'      =>  $applied_product_automated_marketing_details,
 
                     'total_product_price'           =>  number_format($total_product_price, 2, '.', ''),
                     'total_service_price'           =>  number_format($total_service_price, 2, '.', ''),
