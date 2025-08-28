@@ -4622,11 +4622,13 @@ class Api_model extends CI_Model {
                                 list($hour, $minute, $second) = explode(':', $slot_from);
                                 $timestamp = mktime($hour, $minute, $second, $month, $day, $year);
                                 $selected_slot_from = date('Y-m-d H:i:s', $timestamp);
+                                $service_end_time = null;
                                 
                                 $services_data = [];
                                 $products_data = [];
                                 $selected_package_details = array();
                                 $i = 0;
+                                $total_duration = 0;
 
                                 foreach($services as $service){
                                     $this->db->where('id',$service['service_id']);
@@ -4688,21 +4690,32 @@ class Api_model extends CI_Model {
                                         $all_services[] = $service_details->id;  //get all selected services
 
                                         $i++;
+
+                                        if($i == count($services)){
+                                            $service_end_time = $service_to;
+                                        }
+
+                                        $total_duration += $service_duration;
                                     }
                                 }
-
+                                
                                 $selected_membership_details = isset($request['membership_details']) ? $request['membership_details'] : [];
+                                $offer_details = isset($request['offer_details']) ? $request['offer_details'] : [];
+                                $coupon_details = isset($request['coupon_details']) ? $request['coupon_details'] : [];
+                                $giftcard_details = isset($request['giftcard_details']) ? $request['giftcard_details'] : [];
+                                $reward_details = isset($request['reward_details']) ? $request['reward_details'] : [];
 
-                                $is_offer_applied = isset($request['is_offer_applied']) ? $request['is_offer_applied'] : '0';
-                                $applied_offer_id = $is_offer_applied == '1' && isset($request['applied_offer_id']) ? $request['applied_offer_id'] : null;
+                                $is_offer_applied = !empty($offer_details) && isset($offer_details['is_offer_applied']) ? $offer_details['is_offer_applied'] : '0';
+                                $applied_offer_id = $is_offer_applied == '1' && isset($offer_details['applied_offer_id']) ? $offer_details['applied_offer_id'] : null;
                                 
-                                $is_coupon_applied = isset($request['is_coupon_applied']) ? $request['is_coupon_applied'] : '0';
-                                $applied_coupon_id = $is_coupon_applied == '1' && isset($request['applied_coupon_id']) ? $request['applied_coupon_id'] : null;
+                                $is_coupon_applied = !empty($coupon_details) && isset($coupon_details['is_coupon_applied']) ? $coupon_details['is_coupon_applied'] : '0';
+                                $applied_coupon_id = $is_coupon_applied == '1' && isset($coupon_details['applied_coupon_id']) ? $coupon_details['applied_coupon_id'] : null;
                                 
-                                $is_giftcard_applied = isset($request['is_giftcard_applied']) ? $request['is_giftcard_applied'] : '0';
-                                $applied_giftcard_no = $is_giftcard_applied == '1' && isset($request['applied_giftcard_no']) ? $request['applied_giftcard_no'] : null;
+                                $is_giftcard_applied = !empty($giftcard_details) && isset($giftcard_details['is_giftcard_applied']) ? $giftcard_details['is_giftcard_applied'] : '0';
+                                $applied_giftcard_no = $is_giftcard_applied == '1' && isset($giftcard_details['applied_giftcard_no']) ? $giftcard_details['applied_giftcard_no'] : null;
                                 
-                                $is_user_rewards_applied = isset($request['is_rewards_applied']) ? $request['is_rewards_applied'] : '0';
+                                $reward_details = isset($request['reward_details']) ? $request['reward_details'] : [];
+                                $is_user_rewards_applied = !empty($reward_details) && isset($reward_details['is_rewards_applied']) ? $reward_details['is_rewards_applied'] : '0';
 
                                 $calculations = $this->Common_model->booking_calculations($customer_id, $service_ids, $services_data, $product_ids, $products_data, $branch_id, $salon_id, $applied_offer_id, $applied_coupon_id, $applied_giftcard_no, $is_user_rewards_applied, $selected_package_details, $selected_membership_details);
                                 
@@ -4864,6 +4877,9 @@ class Api_model extends CI_Model {
                                     'booking_date'          => date("Y-m-d"),
                                     'service_start_date'    => date("Y-m-d",strtotime($booking_date)),
                                     'service_start_time'    => date("H:i:s",strtotime($slot_from)),
+                                    'service_end_date'      => date("Y-m-d",strtotime($booking_date)),
+                                    'service_end_time'      => date("H:i:s",strtotime($service_end_time)),
+                                    'total_duration'        => $total_duration,
                                     'created_on'            => date("Y-m-d H:i:s"),                            
 
                                     'original_services'     => $all_services != "" && is_array($all_services) && !empty($all_services) ? implode(',',$all_services) : '',
@@ -4871,7 +4887,7 @@ class Api_model extends CI_Model {
                                     'services' 		        => $all_services != "" && is_array($all_services) && !empty($all_services) ? implode(',',$all_services) : '',
                                     'products' 		        => $all_products != "" && is_array($all_products) && !empty($all_products) ? implode(',',$all_products) : '',
                                 );
-                                // echo '<pre>'; print_r($booking_data); exit();
+                                echo '<pre>'; print_r($booking_data); exit();
                                 $valid_booking_short_breakwise = $this->Salon_model->validate_booking_short_breakwise($services,$branch_id,$salon_id);
                                 if($valid_booking_short_breakwise == 1){
                                     $valid_booking = $this->Salon_model->validate_booking($services,$branch_id,$salon_id);

@@ -651,6 +651,8 @@ class Common_model extends CI_Model {
 			$marketing_service_rewards += $rewards_discount_amount;
 		}
 
+		$final_discount_subhead_text = $automated_discount_type == '1' ? 'Earn Total ' . $marketing_service_rewards . ' Reward Points' : 'Flat Rs. ' . $marketing_service_discount . ' Off (in total)';
+
 		$marketing_service_discount_data = array(
 			'is_automated_service_discount_applied'	=>	$final_is_automated_service_discount_applied,
 			'automated_discount_type'				=>	$automated_discount_type,
