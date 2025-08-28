@@ -4715,7 +4715,7 @@ class Api_model extends CI_Model {
                                 $applied_giftcard_no = $is_giftcard_applied == '1' && isset($giftcard_details['applied_giftcard_no']) ? $giftcard_details['applied_giftcard_no'] : null;
                                 
                                 $reward_details = isset($request['reward_details']) ? $request['reward_details'] : [];
-                                $is_user_rewards_applied = !empty($reward_details) && isset($reward_details['is_rewards_applied']) ? $reward_details['is_rewards_applied'] : '0';
+                                $is_user_rewards_applied = !empty($reward_details) && isset($reward_details['is_reward_applied']) ? $reward_details['is_reward_applied'] : '0';
 
                                 $calculations = $this->Common_model->booking_calculations($customer_id, $service_ids, $services_data, $product_ids, $products_data, $branch_id, $salon_id, $applied_offer_id, $applied_coupon_id, $applied_giftcard_no, $is_user_rewards_applied, $selected_package_details, $selected_membership_details);
                                 
@@ -13252,7 +13252,7 @@ class Api_model extends CI_Model {
 			            $applied_giftcard_no = $is_giftcard_applied == '1' && isset($giftcard_details['applied_giftcard_no']) ? $giftcard_details['applied_giftcard_no'] : null;
                         
                         $reward_details = isset($request['reward_details']) ? $request['reward_details'] : [];
-			            $is_user_rewards_applied = !empty($reward_details) && isset($reward_details['is_rewards_applied']) ? $reward_details['is_rewards_applied'] : '0';
+			            $is_user_rewards_applied = !empty($reward_details) && isset($reward_details['is_reward_applied']) ? $reward_details['is_reward_applied'] : '0';
 
                         $json_arr['status'] = 'true';
                         $json_arr['message'] = 'success';

@@ -1206,7 +1206,7 @@ class Common_model extends CI_Model {
 				$is_rewards_applied = '1';
 				$rewards_discount = $total_value;
 				$discount_head_text = $available_rewards .' Rewards applied';
-				$discount_subhead_text = 'Flat Rs. ' . $total_value . ' off applied';
+				$discount_subhead_text = 'Flat Rs. ' . $total_value . ' off';
 			}else{
 				$is_rewards_applied = '0';
 				$rewards_discount = 0.00;
