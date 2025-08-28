@@ -4626,11 +4626,17 @@ class Api_model extends CI_Model {
                                 
                                 $services_data = [];
                                 $products_data = [];
+                                $service_ids = [];
+                                $product_ids = [];
+
+                                $all_services = [];
+                                $all_products = [];
+                                
                                 $selected_package_details = array();
                                 $i = 0;
                                 $total_duration = 0;
 
-                                foreach($services as $service){
+                                foreach($services as &$service){
                                     $this->db->where('id',$service['service_id']);
                                     $this->db->where('branch_id',$branch_id);
                                     $this->db->where('salon_id',$salon_id);
@@ -4887,7 +4893,7 @@ class Api_model extends CI_Model {
                                     'services' 		        => $all_services != "" && is_array($all_services) && !empty($all_services) ? implode(',',$all_services) : '',
                                     'products' 		        => $all_products != "" && is_array($all_products) && !empty($all_products) ? implode(',',$all_products) : '',
                                 );
-                                echo '<pre>'; print_r($booking_data); exit();
+                                // echo '<pre>'; print_r($services); exit();
                                 $valid_booking_short_breakwise = $this->Salon_model->validate_booking_short_breakwise($services,$branch_id,$salon_id);
                                 if($valid_booking_short_breakwise == 1){
                                     $valid_booking = $this->Salon_model->validate_booking($services,$branch_id,$salon_id);
@@ -5175,6 +5181,7 @@ class Api_model extends CI_Model {
 
                                                             'service_duration'                              => $service_duration
                                                         );
+                                                        // echo '<pre>'; print_r($stylist_data); exit;
                                                         $this->db->insert('tbl_booking_services_details', $stylist_data);
                                                         $booking_service_details_id = $this->db->insert_id();
                                         

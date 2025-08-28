@@ -840,7 +840,7 @@ if(!empty($booking_rules)){
                                 <input type="hidden" name="package_rewards_<?=$booking->id;?>" id="package_rewards_<?=$booking->id;?>" value="<?=$booking->package_rewards;?>">
                                 <input type="hidden" name="package_allocation_id_<?=$booking->id;?>" id="package_allocation_id_<?=$booking->id;?>" value="<?=$booking->package_allocation_id;?>">
                                 <input type="hidden" name="package_id_<?=$booking->id;?>" id="package_id_<?=$booking->id;?>" value="<?=$booking->pacakge_id;?>">
-                                <input type="hidden" name="package_amount_<?=$booking->id;?>" id="package_amount_<?=$booking->id;?>" value="<?=$booking->package_amount;?>">
+                                <input type="hidden" name="package_amount_<?=$booking->id;?>" id="package_amount_<?=$booking->id;?>" value="<?=$booking->package_amount != "" ? (float)$booking->package_amount : 0.00;?>">
 
                                 <input type="hidden" name="selected_coupon_id_<?=$booking->id;?>" id="selected_coupon_id_<?=$booking->id;?>" value="<?=($booking->selected_coupon_id != "" && $booking->selected_coupon_id != null && $booking->selected_coupon_id != "0") ? $booking->selected_coupon_id : '';?>">
                                 <input type="hidden" name="selected_coupon_type_<?=$booking->id;?>" id="selected_coupon_type_<?=$booking->id;?>" value="">

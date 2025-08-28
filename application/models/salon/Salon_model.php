@@ -4013,7 +4013,7 @@ class Salon_model extends CI_Model{
                 $membership_product_discount = $this->input->post('m_product_discount_' . $booking_id);
 
                 $credit_rewards = '1';
-                if($is_offer_applied == '0' && $is_giftcard_applied == '0' && $selected_coupon_id == '' && (int)$used_rewards > 0){
+                if($is_offer_applied == '1' || $is_giftcard_applied == '1' || $selected_coupon_id != '' || (int)$used_rewards > 0){
                     $credit_rewards == '0';
                 }
 
