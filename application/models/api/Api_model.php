@@ -9672,8 +9672,8 @@ class Api_model extends CI_Model {
                     if(!empty($applied_membership)){
                         $discount_subhead_text = null;
                         $membership_discount_type = $applied_membership->discount_in;
-                        $membership_service_discount = $applied_membership->m_service_discount;
-                        $membership_product_discount = $applied_membership->m_product_discount;
+                        $membership_service_discount = $bookings_result->m_service_discount;
+                        $membership_product_discount = $bookings_result->m_product_discount;
                         if($membership_discount_type == '0'){
 							$discount_subhead_text = $membership_service_discount . ' % off on all Services and ' . $membership_product_discount . ' % off on all Products';
                         }elseif($membership_discount_type == '1'){
