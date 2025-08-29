@@ -181,13 +181,32 @@
       $amount_to_paid = is_numeric($single_payment_details->amount_to_paid) ? floatval($single_payment_details->amount_to_paid) : 0;
       $salon_gst_rate = is_numeric($single_payment_details->salon_gst_rate) ? floatval($single_payment_details->salon_gst_rate) : 0;
       $gst_amount = is_numeric($single_payment_details->gst_amount) ? floatval($single_payment_details->gst_amount) : 0;
-      $booking_amount = is_numeric($single_payment_details->booking_amount) ? floatval($single_payment_details->booking_amount) : 0;
-      
+      $booking_amount = is_numeric($single_payment_details->booking_amount) ? floatval($single_payment_details->booking_amount) : 0;      
 
       $total_product_price = is_numeric($single_payment_details->total_product_price) ? floatval($single_payment_details->total_product_price) : 0;
       $total_service_price = is_numeric($single_payment_details->total_service_price) ? floatval($single_payment_details->total_service_price) : 0;
       $package_amount = is_numeric($single_payment_details->package_amount) ? floatval($single_payment_details->package_amount) : 0;
       $membership_payment_amount = $single_payment_details->is_membership_payment_included == '1' ? floatval($single_payment_details->membership_payment_amount) : 0;
+
+      if($single->is_automated_service_discount_applied == '1'){
+          if($single->marketing_service_discount_customer_criteria == '0'){
+              $service_automated_discount_head_text = 'New Client Benefits';
+          }elseif($single->marketing_service_discount_customer_criteria == '1'){
+              $service_automated_discount_head_text = 'Regular Client Benefits';
+          }elseif($single->marketing_service_discount_customer_criteria == '2'){
+              $service_automated_discount_head_text = 'Lost Client Benefits';
+          }elseif($single->marketing_service_discount_customer_criteria == '3'){
+              $service_automated_discount_head_text = 'Birthday Benefits';
+          }elseif($single->marketing_service_discount_customer_criteria == '4'){
+              $service_automated_discount_head_text = 'Anniversary Benefits';
+          }elseif($single->marketing_service_discount_customer_criteria == '5'){
+              $service_automated_discount_head_text = 'Products Marketing Benefits';
+          }
+      }
+
+      if($single->is_automated_product_discount_applied == '1'){
+          $product_automated_discount_head_text = 'Products Marketing Benefits';
+      }
     ?>
   <div class="tm_container">
     <div class="tm_invoice_wrap">
@@ -222,19 +241,19 @@
           </div>
           <div class="tm_invoice_head tm_mb10" style="height:100px;">
             <div class="tm_invoice_left">
-			 <p class="tm_mb2"><b class="tm_primary_color">Receipt To:</b></p>
+			        <p class="tm_mb2"><b class="tm_primary_color">Receipt To:</b></p>
               <p>
-                <?=$single->full_name?><br>
-                <?=$single->customer_phone?><br>
-                <?=$single->email?>
+                <?=$single->full_name; ?><br>
+                <?=$single->customer_phone; ?><br>
+                <?=$single->email; ?>
               </p>
             </div>
             <div class="tm_invoice_right tm_text_right">
               <p class="tm_mb2"><b class="tm_primary_color">Pay To:</b></p>
               <p>
-                <?=$single_profile->branch_name?> <br>
-                <?=$single_profile->salon_number?> <br>
-                <?=$single_profile->email?>
+                <?=$single_profile->branch_name; ?>
+                <?=$single_profile->salon_number != "" ? '<br>' . $single_profile->salon_number : ''; ?>
+                <?=$single_profile->email != "" ? '<br>' . $single_profile->email : ''; ?>
 				        <br>               
               </p>
             </div>
@@ -301,70 +320,6 @@
                           }elseif($customer_criteria == '5'){
                               $marketing_criteria_discount_text = 'Products Marketing Benefits';
                           }                         
-
-                          //     if($discount_type == '1'){    //Flexible
-                          //         $customer_last_service_booking = $this->get_customer_last_service_booking($custID,$data->id);
-                          //         if(!empty($customer_last_service_booking)){            
-                          //             if($customer_criteria == '1'){                             
-                          //                 $prev_Applied_slab = $customer_last_service_booking->rewards_applied_flexible_slab;
-                          //             }else{
-                          //                 $prev_Applied_slab = $customer_last_service_booking->applied_flexible_slab;
-                          //             }
-
-                          //             if($prev_Applied_slab != ""){
-                          //                 $next_slab = $prev_Applied_slab + $slab_increment;
-                          //             }else{
-                          //                 $next_slab = $min_slab + $slab_increment;
-                          //             }
-
-                          //             if($next_slab > $max_slab){
-                          //                 $slab_consider = $min_slab;
-                          //             }else{
-                          //                 $slab_consider = $next_slab;
-                          //             }
-                          //         }else{
-                          //             $slab_consider = $min_slab;
-                          //         }
-
-                          //         if($discount_in == '0'){  //percentage
-                          //             $discount_amount = ((float)$slab_consider * (float)$data->final_price) / 100;
-                          //             $discount_text = '<p style="color:#01a900;font-size:10px;">' . $marketing_criteria . '' . $slab_consider . '% Off</p>';
-                          //         }elseif($discount_in == '1'){ //flat
-                          //             $discount_amount = (float)$slab_consider;
-                          //             $discount_text = '<p style="color:#01a900;font-size:10px;">' . $marketing_criteria . 'Flat Rs. ' . $slab_consider . ' Off</p>';
-                          //         }
-                          //     }elseif($discount_type == '0'){   //Fixed
-                          //         if($discount_in == '0'){  //percentage
-                          //             $discount_amount = ((float)$discount_amount_value * (float)$data->final_price) / 100;
-                          //             $discount_text = '<p style="color:#01a900;font-size:10px;">' . $marketing_criteria . '' . $discount_amount_value . '% Off</p>';
-                          //         }elseif($discount_in == '1'){ //flat
-                          //             $discount_amount = (float)$discount_amount_value;
-                          //             $discount_text = '<p style="color:#01a900;font-size:10px;">' . $marketing_criteria . 'Flat Rs. ' . $discount_amount_value . ' Off</p>';
-                          //         }
-                          //     }
-                          // }
-
-                          // if($is_discount_applied == '1'){
-                          //     if($customer_criteria == '1'){  //for regular customer rewards are given
-                          //         $rewards_discount_amount = $discount_amount;
-                          //         $rewards_slab_increment = $slab_increment;
-                          //         $rewards_slab_consider = $slab_consider;
-                          //         $rewards_min_slab = $min_slab;
-                          //         $rewards_max_slab = $max_slab;
-                          //         $rewards_text = '<p style="color:#01a900;font-size:10px;">' . $marketing_criteria . 'Earn ' . $rewards_discount_amount . ' Reward Points</p>';
-
-                          //         $discount_text = '';
-                          //         $discount_amount = 0;
-                          //         $slab_increment = '5';
-                          //         $slab_consider = '';
-                          //         $min_slab = '';
-                          //         $max_slab = '';
-
-                          //         $service_discount_rewards_type = '1';   // rewards
-                          //     }else{                                    
-                          //         $service_discount_rewards_type = '0';   // discount
-                          //     }
-                          // }
                         } ?>
                       </td>
                       <td class="tm_width_2" style="width:20%;text-align:left;"><?=(!empty($after_bill_stylist)) ? $after_bill_stylist->full_name : '-'; ?></td>
@@ -473,7 +428,7 @@
                     <?php if ($marketing_service_discount_amount > 0) { ?>
                       <tr class="tm_gray_bg" style="background: #0080002e;">
                         <td class="tm_width_3 tm_primary_color tm_bold">
-                          Service Marketing Discount
+                          Service Marketing <?= $service_automated_discount_head_text == 'Regular Client Benefits' ? 'Rewards' : 'Discount'; ?> <br><small style="color: green;font-size:10px;"><?=$service_automated_discount_head_text; ?> Applied</small> 
                         </td>
                         <td class="tm_width_3 tm_primary_color tm_bold tm_text_right"><?=number_format($marketing_service_discount_amount, 2, '.', ','); ?></td>
                       </tr>
@@ -481,7 +436,7 @@
                     <?php if ($marketing_product_discount_amount > 0) { ?>
                       <tr class="tm_gray_bg" style="background: #0080002e;">
                         <td class="tm_width_3 tm_primary_color tm_bold">
-                          Product Marketing Discount
+                          Product Marketing Discount <br><small style="color: green;font-size:10px;"><?=$product_automated_discount_head_text; ?> Applied</small>
                         </td>
                         <td class="tm_width_3 tm_primary_color tm_bold tm_text_right"><?=number_format($marketing_product_discount_amount, 2, '.', ','); ?></td>
                       </tr>

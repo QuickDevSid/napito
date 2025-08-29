@@ -9501,8 +9501,8 @@ class Api_model extends CI_Model {
 
                         $applied_service_automated_marketing_details = array(
                             'is_discount_applied'                   =>  '1',
-                            'automated_discount_type'				=>	$bookings_result->automated_discount_type,
-                            'marketing_service_discount'			=>	$bookings_result->marketing_service_discount,
+                            'automated_discount_type'				=>	$single_payment_details->membership_discount_type,
+                            'marketing_service_discount'			=>	$single_payment_details->marketing_service_discount_amount,
                             'marketing_service_rewards'				=>	$bookings_result->marketing_service_rewards,
                             'discount_head_text'					=>	$service_automated_discount_head_text,
                             'discount_subhead_text'					=>	$service_automated_discount_sub_head_text
@@ -9520,7 +9520,7 @@ class Api_model extends CI_Model {
                         
                         $applied_product_automated_marketing_details = array(
                             'is_discount_applied'                   =>  '1',
-                            'marketing_product_discount'			=>	$bookings_result->marketing_product_discount,
+                            'marketing_product_discount'			=>	$single_payment_details->marketing_product_discount_amount,
                             'discount_head_text'					=>	$product_automated_discount_head_text,
                             'discount_subhead_text'					=>	$product_automated_discount_sub_head_text 
                         );

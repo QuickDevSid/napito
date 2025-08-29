@@ -92,8 +92,11 @@
       $gift_discount = is_numeric($single->gift_discount) ? floatval($single->gift_discount) : 0;
       $m_service_discount = is_numeric($single->m_service_discount_amount) ? floatval($single->m_service_discount_amount) : 0;
       $m_product_discount = is_numeric($single->m_product_discount_amount) ? floatval($single->m_product_discount_amount) : 0;
+      $marketing_service_discount_amount = is_numeric($single->marketing_service_discount) ? floatval($single->marketing_service_discount) : 0;
+      $marketing_product_discount_amount = is_numeric($single->marketing_product_discount) ? floatval($single->marketing_product_discount) : 0;
+      $extra_discount_amount = 0.00;
       
-      $total_discount = $coupon_discount + $offer_discount + $reward_discount + $gift_discount + $m_service_discount + $m_product_discount;
+      $total_discount = $coupon_discount + $offer_discount + $reward_discount + $gift_discount + $m_service_discount + $m_product_discount + $marketing_service_discount_amount + $marketing_product_discount_amount + $extra_discount_amount;
      
       $applied_giftcard_redemption = $single->giftcard_redemption_id;
       $this->db->select('tbl_booking_payment_entry.*,tbl_salon_customer.full_name,tbl_salon_customer.customer_phone, tbl_gift_card.gender, tbl_gift_card.gift_card_code, tbl_gift_card.gift_name, tbl_gift_card.discount, tbl_gift_card.discount_in, tbl_gift_card.regular_price, tbl_gift_card.gift_price, tbl_gift_card.bg_color_input, tbl_gift_card.bg_color, tbl_gift_card.text_color_input, tbl_gift_card.text_color, tbl_gift_card.min_booking_amt');
@@ -180,7 +183,27 @@
       $total_product_price = is_numeric($single->total_product_price) ? floatval($single->total_product_price) : 0;
       $total_service_price = is_numeric($single->total_service_price) ? floatval($single->total_service_price) : 0;
       $package_amount = is_numeric($single->package_amount) ? floatval($single->package_amount) : 0;
-      $membership_payment_amount = $single->is_membership_payment_included == '1' ? floatval($single->membership_amount) : 0;
+      $membership_payment_amount = $single->is_membership_payment_included == '1' ? floatval($single->membership_amount) : 0;    
+
+      if($single->is_automated_service_discount_applied == '1'){
+          if($single->marketing_service_discount_customer_criteria == '0'){
+              $service_automated_discount_head_text = 'New Client Benefits';
+          }elseif($single->marketing_service_discount_customer_criteria == '1'){
+              $service_automated_discount_head_text = 'Regular Client Benefits';
+          }elseif($single->marketing_service_discount_customer_criteria == '2'){
+              $service_automated_discount_head_text = 'Lost Client Benefits';
+          }elseif($single->marketing_service_discount_customer_criteria == '3'){
+              $service_automated_discount_head_text = 'Birthday Benefits';
+          }elseif($single->marketing_service_discount_customer_criteria == '4'){
+              $service_automated_discount_head_text = 'Anniversary Benefits';
+          }elseif($single->marketing_service_discount_customer_criteria == '5'){
+              $service_automated_discount_head_text = 'Products Marketing Benefits';
+          }
+      }     
+
+      if($single->is_automated_product_discount_applied == '1'){
+          $product_automated_discount_head_text = 'Products Marketing Benefits';
+      }
     ?>
   <div class="tm_container">
     <div class="tm_invoice_wrap">
@@ -225,9 +248,9 @@
             <div class="tm_invoice_right tm_text_right">
               <p class="tm_mb2"><b class="tm_primary_color">Pay To:</b></p>
               <p>
-                <?=$single_profile->branch_name?> <br>
-                <?=$single_profile->customer_support_phone?> <br>
-                <?=$single_profile->email?>
+                <?=$single_profile->branch_name?>
+                <?=$single_profile->salon_number != "" ? '<br>' . $single_profile->salon_number : ''; ?>
+                <?=$single_profile->email != "" ? '<br>' . $single_profile->email : ''; ?>
 				        <br>               
               </p>
             </div>
@@ -288,7 +311,7 @@
               </div>
             </div>
             <div class="tm_invoice_footer tm_border_top tm_mb15 tm_m0_md">
-              <div class="tm_left_footer" style="width:30% ;margin-top:50px ;">
+              <div class="tm_left_footer" style="width:30% ;">
                 <p class="tm_mb2"><b class="tm_primary_color">Payment info:</b></p>
                 <?php if($single->is_gst_applicable == '1'){ ?>
                   <p class="tm_m0">GSTIN: <?=$single->salon_gst_no != "" ? $single->salon_gst_no : '-';?></p>
@@ -296,7 +319,7 @@
                 <p class="tm_m0">Payment By:</p>
                 <p class="tm_m0">Mode: <?=$single->payment_mode;?></p>
               </div>
-              <div class="tm_right_footer" style="width:70% ;margin-top:50px ;">
+              <div class="tm_right_footer" style="width:70% ;">
                 <table class="tm_mb15">
                   <tbody>
                     <tr class="tm_gray_bg ">
@@ -352,6 +375,22 @@
                           Membership Product Discount <?php if(!empty($applied_membership)){ ?> <br><small style="color: green;font-size:10px;"><?=$applied_membership->membership_name;?> Membership</small> <?php } ?>
                         </td>
                         <td class="tm_width_3 tm_primary_color tm_bold tm_text_right"><?=number_format($m_product_discount, 2, '.', ','); ?></td>
+                      </tr>
+                    <?php } ?>
+                    <?php if ($single->is_automated_service_discount_applied == '1') { ?>
+                      <tr class="tm_gray_bg " style="background: #0080002e;">
+                        <td class="tm_width_3 tm_primary_color tm_bold">
+                          Services Marketing <?= $service_automated_discount_head_text == 'Regular Client Benefits' ? 'Rewards' : 'Discount'; ?> <br><small style="color: green;font-size:10px;"><?=$service_automated_discount_head_text; ?> Applied</small>
+                        </td>
+                        <td class="tm_width_3 tm_primary_color tm_bold tm_text_right"><?=number_format($marketing_service_discount_amount, 2, '.', ','); ?></td>
+                      </tr>
+                    <?php } ?>
+                    <?php if ($single->is_automated_product_discount_applied == '1') { ?>
+                      <tr class="tm_gray_bg " style="background: #0080002e;">
+                        <td class="tm_width_3 tm_primary_color tm_bold">
+                          Services Marketing Discount <br><small style="color: green;font-size:10px;"><?=$product_automated_discount_head_text; ?> Applied</small>
+                        </td>
+                        <td class="tm_width_3 tm_primary_color tm_bold tm_text_right"><?=number_format($marketing_product_discount_amount, 2, '.', ','); ?></td>
                       </tr>
                     <?php } ?>
                     <?php if ($offer_discount > 0) { ?>
