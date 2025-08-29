@@ -5165,9 +5165,9 @@ class Api_model extends CI_Model {
                                                             'service_marketing_discount_type'               => $service_discount_rewards_type,
                                                             'service_discount_customer_criteria'            => $service_discount_customer_criteria,
                                                             'service_discount_row_id'                       => $discount_row_id,
-                                                            'discount_in'     	                            => $single_service->discount_in,
-                                                            'discount_type'     	                        => $single_service->discount_type,
-                                                            'discount_value'     	                        => $single_service->service_discount,
+                                                            'discount_in'     	                            => $discount_in,
+                                                            'discount_type'     	                        => $discount_type,
+                                                            'discount_value'     	                        => $discount_amount_value,
 
                                                             'discount_slab_min'     	                    => $min_slab,
                                                             'discount_slab_max'     	                    => $max_slab,
