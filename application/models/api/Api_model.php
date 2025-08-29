@@ -4757,8 +4757,8 @@ class Api_model extends CI_Model {
                                 $service_offer_discount_type = $calculations['discount_details']['offers_data']['service_offer_discount_type'] ?? null;
 
                                 $is_coupon_applied = $calculations['discount_details']['coupon_data']['is_coupon_applied'] ?? '0';
-                                $applied_coupon_id = $calculations['discount_details']['offers_data']['coupon_id'] ?? null;
-                                $coupon_discount_amount = $calculations['discount_details']['offers_data']['coupon_discount'] ?? 0.00;
+                                $applied_coupon_id = $calculations['discount_details']['coupon_data']['coupon_id'] ?? null;
+                                $coupon_discount_amount = $calculations['discount_details']['coupon_data']['coupon_discount'] ?? 0.00;
                                 
                                 $is_giftcard_applied = $calculations['discount_details']['giftcard_data']['is_giftcard_applied'] ?? '0';
                                 $is_new_giftcard_applied = $calculations['discount_details']['giftcard_data']['is_new_giftcard_applied'] ?? null;
@@ -4804,6 +4804,8 @@ class Api_model extends CI_Model {
 
                                 $grand_total_amount = $calculations['grand_total'] ?? 0.00;
                                 // New Calculations Setup End
+
+                                // echo '<pre>'; print_r($calculations); exit();
 
                                 $booking_data = array(
                                     'booking_generated_from'=> '1',
@@ -4893,7 +4895,7 @@ class Api_model extends CI_Model {
                                     'services' 		        => $all_services != "" && is_array($all_services) && !empty($all_services) ? implode(',',$all_services) : '',
                                     'products' 		        => $all_products != "" && is_array($all_products) && !empty($all_products) ? implode(',',$all_products) : '',
                                 );
-                                // echo '<pre>'; print_r($services); exit();
+                                // echo '<pre>'; print_r($booking_data); exit();
                                 $valid_booking_short_breakwise = $this->Salon_model->validate_booking_short_breakwise($services,$branch_id,$salon_id);
                                 if($valid_booking_short_breakwise == 1){
                                     $valid_booking = $this->Salon_model->validate_booking($services,$branch_id,$salon_id);
@@ -9036,6 +9038,7 @@ class Api_model extends CI_Model {
                 $stylists_text = '';   
                 $reward_value = 0;
                 $stylists_text_with_service = '';   
+                $stylists_with_services = array();
                 $booking_service_details = $this->Salon_model->get_booking_all_service_details($bookings_result->id,$branch_id,$salon_id);  
                 if(!empty($booking_service_details)){ 
                     foreach($booking_service_details as $booking_service_details_result){ 
@@ -9097,6 +9100,30 @@ class Api_model extends CI_Model {
                             'service_description'   =>  $booking_service_details_result->service_description, 
                             'products'              =>  $services_products_data
                         );
+
+                        $stylist_services_data = array(
+                            'service_name'          => $booking_service_details_result->service_name,
+                            'service_name_marathi'  => $booking_service_details_result->service_name_marathi,
+                            'service_from'          => $booking_service_details_result->service_from != "" ? date('h:i A', strtotime($booking_service_details_result->service_from)) : null,
+                            'service_to'            => $booking_service_details_result->service_to != "" ? date('h:i A', strtotime($booking_service_details_result->service_to)) : null,
+                        );
+
+                        $found = false;
+                        foreach ($stylists_with_services as &$stylist) {
+                            if ($stylist['name'] === $booking_service_details_result->full_name) {
+                                $stylist['services'][] = $stylist_services_data; // append new service
+                                $found = true;
+                                break;
+                            }
+                        }
+                        unset($stylist);
+
+                        if (!$found) {
+                            $stylists_with_services[] = array(
+                                'name'     => $booking_service_details_result->full_name,
+                                'services' => array($stylist_services_data)
+                            );
+                        }
                     }
                 }
 
@@ -9502,8 +9529,7 @@ class Api_model extends CI_Model {
                     $amount_to_paid = is_numeric($single_payment_details->amount_to_paid) ? floatval($single_payment_details->amount_to_paid) : 0;
                     $salon_gst_rate = is_numeric($single_payment_details->salon_gst_rate) ? floatval($single_payment_details->salon_gst_rate) : 0;
                     $gst_amount = is_numeric($single_payment_details->gst_amount) ? floatval($single_payment_details->gst_amount) : 0;
-                    $booking_amount = is_numeric($single_payment_details->booking_amount) ? floatval($single_payment_details->booking_amount) : 0;
-                    
+                    $booking_amount = is_numeric($single_payment_details->booking_amount) ? floatval($single_payment_details->booking_amount) : 0;                    
 
                     $total_product_price = is_numeric($single_payment_details->total_product_price) ? floatval($single_payment_details->total_product_price) : 0;
                     $total_service_price = is_numeric($single_payment_details->total_service_price) ? floatval($single_payment_details->total_service_price) : 0;
@@ -9513,15 +9539,15 @@ class Api_model extends CI_Model {
                     $total_discount = $coupon_discount + $offer_discount + $reward_discount + $gift_discount + $m_service_discount + $m_product_discount + $marketing_service_discount_amount + $marketing_product_discount_amount + $extra_discount_amount;
 
                     $calculations = array(
-                                        'service_total'     => $total_service_price, 
-                                        'product_total'     => $total_product_price, 
-                                        'membership_price'  => $membership_payment_amount, 
-                                        'package_price'     => $package_amount, 
-                                        'total'             => $single_payment_details->payble_price, 
-                                        'total_discount'    => $total_discount,
-                                        'sub_total'         => $booking_amount,
-                                        'gst_amount'        => $gst_amount,
-                                        'grand_total'       => $amount_to_paid,
+                                        'service_total'     => number_format($total_service_price, 2, '.', ''), 
+                                        'product_total'     => number_format($total_product_price, 2, '.', ''), 
+                                        'membership_price'  => number_format($membership_payment_amount, 2, '.', ''), 
+                                        'package_price'     => number_format($package_amount, 2, '.', ''), 
+                                        'total'             => number_format($single_payment_details->payble_price, 2, '.', ''), 
+                                        'total_discount'    => number_format($total_discount, 2, '.', ''),
+                                        'sub_total'         => number_format($booking_amount, 2, '.', ''),
+                                        'gst_amount'        => number_format($gst_amount, 2, '.', ''),
+                                        'grand_total'       => number_format($amount_to_paid, 2, '.', ''),
                                         'gst_data'       	=> array(
                                                                     'is_gst_applicable' =>  $single_payment_details->is_gst_applicable,
                                                                     'gst_rate'          =>  $single_payment_details->salon_gst_rate,
@@ -9773,19 +9799,19 @@ class Api_model extends CI_Model {
                     $membership_payment_amount = $bookings_result->is_membership_payment_included == '1' ? floatval($bookings_result->membership_amount) : 0;
                                    
                     $calculations = array(
-                                        'service_total'     => $total_service_price, 
-                                        'product_total'     => $total_product_price, 
-                                        'membership_price'  => $membership_payment_amount, 
-                                        'package_price'     => $package_amount, 
-                                        'total'             => $bookings_result->payble_price, 
-                                        'total_discount'    => $bookings_result->total_discount_amount,
-                                        'sub_total'         => $booking_amount,
-                                        'gst_amount'        => $gst_amount,
-                                        'grand_total'       => $amount_to_paid,
+                                        'service_total'     => number_format($total_service_price, 2, '.', ''), 
+                                        'product_total'     => number_format($total_product_price, 2, '.', ''), 
+                                        'membership_price'  => number_format($membership_payment_amount, 2, '.', ''), 
+                                        'package_price'     => number_format($package_amount, 2, '.', ''), 
+                                        'total'             => number_format($bookings_result->payble_price, 2, '.', ''), 
+                                        'total_discount'    => number_format($bookings_result->total_discount_amount, 2, '.', ''),
+                                        'sub_total'         => number_format($booking_amount, 2, '.', ''),
+                                        'gst_amount'        => number_format($gst_amount, 2, '.', ''),
+                                        'grand_total'       => number_format($amount_to_paid, 2, '.', ''),
                                         'gst_data'       	=> array(
                                                                     'is_gst_applicable' =>  $bookings_result->is_gst_applicable,
-                                                                    'gst_rate'          =>  $bookings_result->gst_rate,
-                                                                    'gst_no'            =>  $bookings_result->gst_no
+                                                                    'gst_rate'          =>  $bookings_result->salon_gst_rate,
+                                                                    'gst_no'            =>  $bookings_result->salon_gst_no
                                                                 ),
                                     );    
                                     
@@ -9831,10 +9857,11 @@ class Api_model extends CI_Model {
                     'from'                          =>  !empty($first_service) && $first_service->service_from != "" ? date('h:i A',strtotime($first_service->service_from)) : null,
                     'to'                            =>  !empty($last_service) && $last_service->service_to != "" ? date('h:i A',strtotime($last_service->service_to)) : null,
                     'services_text'                 =>  rtrim($services_text, ', '),
-                    'stylists_text'                 =>  rtrim($stylists_text, ', '),
-                    'reward_value'                  => $reward_value == 0 ? '' : (string)$reward_value,
+                    'stylists_text'                 =>  implode(', ', array_unique(array_filter(array_map('trim', explode(',', $stylists_text))))),
+                    'reward_value'                  =>  $reward_value == 0 ? '' : (string)$reward_value,
                     'stylists_text_with_service'    =>  rtrim($stylists_text_with_service, ', '),
                     'services'                      =>  $services_data,
+                    'stylists_with_services'        =>  $stylists_with_services,
                     'booking_status_text'           =>  $booking_status_text,
                     'booking_status_flag'           =>  $bookings_result->booking_status,
                     'payment_status_text'           =>  $payment_status_text,

@@ -524,7 +524,7 @@ if(!empty($booking_rules)){
                                                 <tr style="background:linear-gradient(271deg, #800080, #ff69b4);border-bottom: 0.5px solid #afafaf;height: 30px;">
                                                     <th style="width:5%;">Sr. No.</th>
                                                     <th style="width:26%;">Service</th>
-                                                    <th style="width:10%;">Products</th>
+                                                    <th style="width:10%;display:none;">Products</th>
                                                     <th style="width:12%;">Service Date</th>
                                                     <th style="width:12%;">Amount</th>
                                                     <th style="width:25%;">Stylist</th>
@@ -533,6 +533,7 @@ if(!empty($booking_rules)){
                                             </thead>
                                             <tbody>
                                                 <?php 
+                                                $selectedProducts = [];
                                                 $service_single_count = 1;
                                                     if(!empty($booking_services)){
                                                         foreach($booking_services as $booking_services_result){
@@ -649,7 +650,7 @@ if(!empty($booking_rules)){
                                                         <?=$discount_text != "" ? $discount_text : ''; ?>
                                                         <label class="error stock_selection_service_error" style="display:none;font-size: 10px;" id="stock_selection_service_error_<?=$booking_services_result->id;?>_<?=$booking->id;?>">Please enter payment amount!</label>
                                                     </td>
-                                                    <td style="color:black;">
+                                                    <td style="color:black;display:none;">
                                                         <?php if($product_details_str != ""){ ?>
                                                             <a style="text-decoration:underline;cursor:pointer;" type="button" id="service_products_button_<?=$booking_services_result->id;?>" data-toggle="modal" data-target="#ServiceProductModal_<?=$booking_services_result->id;?>" onclick="showPopup('ServiceProductModal_<?=$booking_services_result->id;?>')">
                                                                 <span id="selected_product_<?=$booking_services_result->id;?>">0</span>/<?=count($booking_products);?>
@@ -683,6 +684,7 @@ if(!empty($booking_rules)){
                                                                                                     
                                                                                                     $product_original_price = $booking_products_result->product_original_price;
                                                                                                     $selling_price = $booking_products_result->product_price;
+                                                                                                    $selectedProducts[] = $booking_products_result->product_id;
                                                                                         ?>
                                                                                         <tr>
                                                                                             <!-- <td><input <?php if($booking_services_result->service_status == '2'){ echo 'disabled'; }else{ if($booking_services_result->payment_status == '0'){ echo 'checked style="pointer-events: none;"'; }else{ echo 'disabled'; }}?> type="checkbox" class="product_checkbox_<?=$booking_services_result->id;?>" name="service_products_checkbox_<?=$booking_services_result->id;?>[]" id="service_products_checkbox_<?=$booking_services_result->id;?>_<?=$booking_products_result->id;?>" value="<?=$booking_products_result->id;?>" onclick="setServiceProductPrice(<?=$booking_services_result->id;?>,<?=$booking_products_result->id;?>,<?=$booking->id;?>)"></td> -->
@@ -1307,7 +1309,7 @@ if(!empty($booking_rules)){
             var is_automated_service_discount_applied = $('#is_automated_service_discount_applied_<?php echo $booking->id; ?>').val();
             is_automated_service_discount_applied = is_automated_service_discount_applied == '1' ? (automated_discount_type == '0' ? '1' : '0') : is_automated_service_discount_applied;
             var is_automated_product_discount_applied = $('#is_automated_product_discount_applied_<?php echo $booking->id; ?>').val();
-            let selectedProducts = [];
+            let selectedProducts = <?php echo json_encode($selectedProducts); ?>;
             $(document).ready(function () {                        
                 $(".chosen-select").chosen();
                 var selected_service_details = <?php echo json_encode($all_service_details_ids); ?>;
@@ -1320,7 +1322,9 @@ if(!empty($booking_rules)){
                     $('.loader_div').hide(); 
                 }, 1500);
 
-                toggleMessageType(bookingID);
+                toggleMessageType(bookingID);                
+
+                setSelectedProducts(bookingID);
 
                 var selected_coupon_id = $('#selected_coupon_id_' + bookingID).val();
                 var is_giftcard_applied = $('#is_giftcard_applied_' + bookingID).val();
@@ -1584,6 +1588,7 @@ if(!empty($booking_rules)){
 
             function setServiceProductPrice(serviceDetailsID,productDetailsID,bookingID){  
                 var product_price = parseFloat($('#single_service_product_price_'+serviceDetailsID+'_'+productDetailsID).val());
+                product_price = 0.00;
                 var current_total = parseFloat($('#total_product_amount_' + bookingID).val());
                 var selected_product = parseInt($('#selected_product_'+serviceDetailsID).text());
                 var selected_coupon_id = parseFloat($('#selected_coupon_id_' + bookingID).val());
@@ -2548,16 +2553,21 @@ if(!empty($booking_rules)){
         function RemoveProduct(product_id,id){
             let selectElement = $(`#selected_products_${id}`);
             selectElement.find(`option[value="${product_id}"]`).prop('selected', false);
+            
+            selectedProducts = selectedProducts.filter(pid => pid != product_id);
+            $(`.product_checkbox_${id}[value="${product_id}"]`).prop('checked', false);
+            
             setSelectedProducts(id);
         }
         function setSelectedProducts(id){
             let selectElement = $(`#selected_products_${id}`);
             let selected_product_stylist = $(`#selected_product_stylist_${id}`).val();
             $('#selected_product_stylist_hidden_' + id).val(selected_product_stylist);
+
             if (selectElement.length) {
                 selectedProducts = selectElement.val() || [];
             }          
-            // console.log('selectedProducts: ', selectedProducts);
+
             $(`#hidden_selected_products_${id}`).val(selectedProducts.join(','));  
             closePopup('ProductPurchaseModal_' + id);
             createProductRows(id);
