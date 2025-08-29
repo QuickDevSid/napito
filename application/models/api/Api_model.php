@@ -9377,7 +9377,7 @@ class Api_model extends CI_Model {
                         $applied_offer_details = array(
                             'is_discount_applied'       =>  '1',
                             'offer_id'          =>  $applied_offers->id,
-                            'offer_text'        =>  $offer_text.' Off on '.$offer_services_text,
+                            'offer_text'        =>  $offer_text.' on '.$offer_services_text,
                             'offer_name'        =>  $applied_offers->offers_name,
                             'services_text'     =>  trim($offer_services_text,','),
                             'discount_type'     =>  $applied_offers->discount_in,
