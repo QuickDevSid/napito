@@ -911,7 +911,7 @@ class Common_model extends CI_Model {
 						$membership_service_discount_amount = ($total_service_amount * $membership_service_discount) / 100;
 						$membership_product_discount_amount = ($total_product_amount * $membership_product_discount) / 100;
 						if(!empty($products_data)){
-							$discount_subhead_text = $membership_service_discount . ' % off on all Services and Products';
+							$discount_subhead_text = $membership_service_discount . ' % off on all Services and ' . $membership_product_discount . ' % off on all Products';
 						}else{					
 							$discount_subhead_text = $membership_service_discount . ' % off on all Services';
 						}
@@ -919,7 +919,7 @@ class Common_model extends CI_Model {
 						$membership_service_discount_amount = $membership_service_discount;
 						$membership_product_discount_amount = $membership_product_discount;
 						if(!empty($products_data)){
-							$discount_subhead_text = 'Flat Rs. ' . $membership_service_discount . ' off on all Services and Products';
+							$discount_subhead_text = 'Flat Rs. ' . $membership_service_discount . ' off on all Services and Flat Rs. ' . $membership_product_discount . ' off on all Products';
 						}else{					
 							$discount_subhead_text = 'Flat Rs. ' . $membership_service_discount . ' off on all Services';
 						}
@@ -1054,10 +1054,10 @@ class Common_model extends CI_Model {
 
 			$discount_subhead_text = null;
 			if ($is_final_offer_applied == '1') {
-				$discount_head_text = $offer_data->offers_name . ' offer applied.';
+				$discount_head_text = $offer_data->offers_name . ' Offer applied.';
 				$discount_subhead_text = $discount_text;
 			} else {
-				$discount_head_text = $offer_data->offers_name . ' offer not eligible.';
+				$discount_head_text = $offer_data->offers_name . ' Offer not eligible.';
 
 				$missing_service_names = [];
 				$missing_count = count($diff);
@@ -1274,7 +1274,7 @@ class Common_model extends CI_Model {
 			if($total >= $min_amount){
 				$is_giftcard_applied = '1';
 				$giftcard_discount = $total >= $gift_card_balance ? $gift_card_balance : $total;
-				$discount_head_text = 'Giftcard applied';
+				$discount_head_text = $result->giftcard_customer_uid . ' Giftcard applied';
 				$discount_subhead_text = 'Flat Rs. ' . $giftcard_discount . ' off';
 				$is_new_giftcard_applied = $gift_card_price == $gift_card_balance ? '1' : '0';
 			}else{

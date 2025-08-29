@@ -2242,6 +2242,7 @@ if(!empty($booking_rules)){
                     var selected_package_id = $('#package_id_' + bookingID).val();
                     var selected_coupon_id = $('#selected_coupon_id_' + bookingID).val();
                     var used_rewards = $('#used_rewards_' + bookingID).val();
+                    var is_giftcard_applied = $('#is_giftcard_applied_' + bookingID).val();
                     var customer = $('#customer_id_' + bookingID).val();
                     
                     var booking_services = [];
@@ -2260,117 +2261,123 @@ if(!empty($booking_rules)){
                     });
                     var total_offer_discount = 0;
                     if (selected_package_id == "") {
-                        if(is_automated_service_discount_applied == "0" && is_automated_product_discount_applied == "0"){
-                            if (selected_coupon_id == "") {
-                                if (used_rewards == "" || parseInt(used_rewards) <= 0) {
-                                    if (offerID != "") {
-                                        if (booking_services.length > 0) {
-                                            var is_offer_applied_to_booking = $('#is_offer_applied_to_booking_' + bookingID).val();
-                                            var offer_applied_to_booking = $('#offer_applied_to_booking_' + bookingID).val();
-                                            if (is_offer_applied_to_booking == '1' && offer_applied_to_booking != '') {  
-                                                removeCoupon(bookingID,offer_applied_to_booking,'prev');
-                                            }  
-                                            var any_service_selected = '0';
-                                            var offer_applied_to_booking = '';
-                                            var offer_servicesString = $('#offer_services_' + bookingID + '_' + offerID).val();
-                                            var offer_discount = $('#offer_discount_' + bookingID + '_' + offerID).val();
-                                            var offer_discount_in = $('#offer_discount_in_' + bookingID + '_' + offerID).val();
-                                            var offer_servicesArray = offer_servicesString.split(',');
-                                            offer_servicesArray = offer_servicesArray.map(service => service.trim());
-                                            for(j=0;j<booking_services.length;j++){
-                                                selected_services.push(booking_services[j]['service_id']);
-                                            }
-                                            var is_offer_applied_to_booking = offer_servicesArray.every(serviceId =>
-                                                selected_services.includes(serviceId)
-                                            ) ? '1' : '0';
-
-                                            if(is_offer_applied_to_booking == '1'){
+                        if(is_giftcard_applied == "0" || is_giftcard_applied == ""){
+                            if(is_automated_service_discount_applied == "0" && is_automated_product_discount_applied == "0"){
+                                if (selected_coupon_id == "") {
+                                    if (used_rewards == "" || parseInt(used_rewards) <= 0) {
+                                        if (offerID != "") {
+                                            if (booking_services.length > 0) {
+                                                var is_offer_applied_to_booking = $('#is_offer_applied_to_booking_' + bookingID).val();
+                                                var offer_applied_to_booking = $('#offer_applied_to_booking_' + bookingID).val();
+                                                if (is_offer_applied_to_booking == '1' && offer_applied_to_booking != '') {  
+                                                    removeCoupon(bookingID,offer_applied_to_booking,'prev');
+                                                }  
+                                                var any_service_selected = '0';
+                                                var offer_applied_to_booking = '';
+                                                var offer_servicesString = $('#offer_services_' + bookingID + '_' + offerID).val();
+                                                var offer_discount = $('#offer_discount_' + bookingID + '_' + offerID).val();
+                                                var offer_discount_in = $('#offer_discount_in_' + bookingID + '_' + offerID).val();
+                                                var offer_servicesArray = offer_servicesString.split(',');
+                                                offer_servicesArray = offer_servicesArray.map(service => service.trim());
                                                 for(j=0;j<booking_services.length;j++){
-                                                    selected_service = booking_services[j]['service_id'];
-                                                    selected_service_details = booking_services[j]['details_id'];
-
-                                                    if(offer_servicesArray.includes(selected_service)){
-                                                        any_service_selected = '1';
-                                                        offer_applied_to_booking = offerID;
-                                                        single_service_original_price = parseFloat($('#single_service_original_price_'+ selected_service_details).val());
-                                                        service_price = parseFloat($('#single_service_price_'+ selected_service_details).val());
-                                                        discount = parseFloat(offer_discount);
-                                                        if(offer_discount_in == '0'){
-                                                            discount = (discount * single_service_original_price) / 100;
-                                                        }
-
-                                                        $('#is_service_offer_applied_'+ selected_service_details).val('1');
-                                                        $('#applied_offer_id_'+ selected_service_details).val(offerID);
-                                                        $('#service_offer_discount_'+ selected_service_details).val(offer_discount);
-                                                        $('#service_offer_discount_type_'+ selected_service_details).val(offer_discount_in);
-                                                        $('#service_offer_discount_amount_'+ selected_service_details).val(discount);
-                                                        
-                                                        total_offer_discount = total_offer_discount + discount;
-                                                    }
+                                                    selected_services.push(booking_services[j]['service_id']);
                                                 }
+                                                var is_offer_applied_to_booking = offer_servicesArray.every(serviceId =>
+                                                    selected_services.includes(serviceId)
+                                                ) ? '1' : '0';
 
-                                                if(any_service_selected == '1'){
-                                                    $('#offer_success_' + bookingID).html('');
-                                                    $('#offer_success_' + bookingID).hide();
-                                                    $('#is_offer_applied_to_booking_' + bookingID).val('1');
-                                                    $('#offer_applied_to_booking_' + bookingID).val(offer_applied_to_booking);
-                                                    $('#offer_discount_amount_' + bookingID).val(parseFloat(total_offer_discount).toFixed(2));
+                                                if(is_offer_applied_to_booking == '1'){
+                                                    for(j=0;j<booking_services.length;j++){
+                                                        selected_service = booking_services[j]['service_id'];
+                                                        selected_service_details = booking_services[j]['details_id'];
 
-                                                    offer_div = $('#offer_button_' + bookingID + '_'+ offerID);
+                                                        if(offer_servicesArray.includes(selected_service)){
+                                                            any_service_selected = '1';
+                                                            offer_applied_to_booking = offerID;
+                                                            single_service_original_price = parseFloat($('#single_service_original_price_'+ selected_service_details).val());
+                                                            service_price = parseFloat($('#single_service_price_'+ selected_service_details).val());
+                                                            discount = parseFloat(offer_discount);
+                                                            if(offer_discount_in == '0'){
+                                                                discount = (discount * single_service_original_price) / 100;
+                                                            }
 
-                                                    offer_div.html('');
+                                                            $('#is_service_offer_applied_'+ selected_service_details).val('1');
+                                                            $('#applied_offer_id_'+ selected_service_details).val(offerID);
+                                                            $('#service_offer_discount_'+ selected_service_details).val(offer_discount);
+                                                            $('#service_offer_discount_type_'+ selected_service_details).val(offer_discount_in);
+                                                            $('#service_offer_discount_amount_'+ selected_service_details).val(discount);
+                                                            
+                                                            total_offer_discount = total_offer_discount + discount;
+                                                        }
+                                                    }
 
-                                                    new_offer_div = '<button class="btn btn-warning" type="button" onclick="openConfirmationDialog(\'Are you sure you want to remove the offer?\', function(confirmed) { if (confirmed) { removeOffer(' + bookingID + ',' + offerID + ',\'new\'); } })" style="font-size:10px; padding:5px 12px;" data-toggle="tooltip" data-placement="top" title="Remove Offer">Remove</button>';
+                                                    if(any_service_selected == '1'){
+                                                        $('#offer_success_' + bookingID).html('');
+                                                        $('#offer_success_' + bookingID).hide();
+                                                        $('#is_offer_applied_to_booking_' + bookingID).val('1');
+                                                        $('#offer_applied_to_booking_' + bookingID).val(offer_applied_to_booking);
+                                                        $('#offer_discount_amount_' + bookingID).val(parseFloat(total_offer_discount).toFixed(2));
 
-                                                    offer_div.html(new_offer_div);
-                                                    
-                                                    $('#offer_success_' + bookingID).html('Offer applied successfully');
-                                                    $('#offer_success_' + bookingID).show();
-                                                    $('.loader_div').hide();
+                                                        offer_div = $('#offer_button_' + bookingID + '_'+ offerID);
+
+                                                        offer_div.html('');
+
+                                                        new_offer_div = '<button class="btn btn-warning" type="button" onclick="openConfirmationDialog(\'Are you sure you want to remove the offer?\', function(confirmed) { if (confirmed) { removeOffer(' + bookingID + ',' + offerID + ',\'new\'); } })" style="font-size:10px; padding:5px 12px;" data-toggle="tooltip" data-placement="top" title="Remove Offer">Remove</button>';
+
+                                                        offer_div.html(new_offer_div);
+                                                        
+                                                        $('#offer_success_' + bookingID).html('Offer applied successfully');
+                                                        $('#offer_success_' + bookingID).show();
+                                                        $('.loader_div').hide();
+                                                    }else{
+                                                        $('.loader_div').hide();
+                                                        // alert('Please select services');
+                                                        openDialog('Selected Services not allowed for applied Offer'); 
+                                                    }
                                                 }else{
                                                     $('.loader_div').hide();
                                                     // alert('Please select services');
-                                                    openDialog('Selected Services not allowed for applied Offer'); 
+                                                    openDialog('Please select all required services to apply this offer');
                                                 }
-                                            }else{
+                                            }else{  
                                                 $('.loader_div').hide();
                                                 // alert('Please select services');
-                                                openDialog('Please select all required services to apply this offer');
+                                                openDialog('Please select services'); 
+                                                $('#is_offer_applied_to_booking_' + bookingID).val('');
+                                                $('#offer_applied_to_booking_' + bookingID).val('');
                                             }
-                                        }else{  
-                                            $('.loader_div').hide();
-                                            // alert('Please select services');
-                                            openDialog('Please select services'); 
+                                        }else{
+                                            $('.loader_div').hide();  
+                                            // alert('Please enter giftcard no');
+                                            openDialog('Please select offer'); 
                                             $('#is_offer_applied_to_booking_' + bookingID).val('');
                                             $('#offer_applied_to_booking_' + bookingID).val('');
                                         }
-                                    }else{
-                                        $('.loader_div').hide();  
-                                        // alert('Please enter giftcard no');
-                                        openDialog('Please select offer'); 
+                                    }else{  
+                                        $('.loader_div').hide();
+                                        // alert('Please select services');
+                                        openDialog('Offers not applicable on applied rewards'); 
                                         $('#is_offer_applied_to_booking_' + bookingID).val('');
                                         $('#offer_applied_to_booking_' + bookingID).val('');
                                     }
-                                }else{  
+                                }else{ 
                                     $('.loader_div').hide();
-                                    // alert('Please select services');
-                                    openDialog('Offers not applicable on applied rewards'); 
+                                    // alert('Giftcard not applicable on applied coupon');
+                                    openDialog('Offers not applicable on applied coupon'); 
                                     $('#is_offer_applied_to_booking_' + bookingID).val('');
                                     $('#offer_applied_to_booking_' + bookingID).val('');
                                 }
                             }else{ 
                                 $('.loader_div').hide();
                                 // alert('Giftcard not applicable on applied coupon');
-                                openDialog('Offers not applicable on applied coupon'); 
+                                openDialog('Offers not applicable if automated discount is applied'); 
                                 $('#is_offer_applied_to_booking_' + bookingID).val('');
                                 $('#offer_applied_to_booking_' + bookingID).val('');
                             }
-                        }else{ 
-                            $('.loader_div').hide();
-                            // alert('Giftcard not applicable on applied coupon');
-                            openDialog('Offers not applicable if automated discount is applied'); 
-                            $('#is_offer_applied_to_booking_' + bookingID).val('');
-                            $('#offer_applied_to_booking_' + bookingID).val('');
+                        }else{
+                            $('.loader_div').hide(); 
+                            // alert('Coupon code not applicable on applied giftcard');
+                            openDialog('Offers not applicable on applied giftcard'); 
                         }
                     }else{
                         $('.loader_div').hide();

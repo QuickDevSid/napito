@@ -9154,14 +9154,6 @@ class Api_model extends CI_Model {
                     }
                 }
                 
-                // // Debugging: Print times for comparison
-                // echo "Current DateTime: " . $currentDateTime->format('Y-m-d H:i:s') . "\n";
-                // echo "Allowed Rescheduling Time: " . $allowed_rescheduling_time->format('Y-m-d H:i:s') . "\n";
-                // echo "Allowed Cancellation Time: " . $allowed_cancel_time->format('Y-m-d H:i:s') . "\n";
-                // echo "Is Reschedule Allowed? $is_reschedule_allowed\n";
-                // echo "Is Cancellation Allowed? $is_cancellation_allowed\n";
-
-                // exit;
                 $this->db->where('is_deleted', '0');
                 $this->db->where('booking_id', $bookings_result->id);
                 $this->db->where('branch_id', $branch_id);
@@ -9171,6 +9163,7 @@ class Api_model extends CI_Model {
                 $booking_review = $result->row();                
 
                 $applied_service_automated_marketing_details = array(
+                    'is_discount_applied'                   =>  '0',
                     'automated_discount_type'				=>	'',
                     'marketing_service_discount'			=>	'',
                     'marketing_service_rewards'				=>	'',
@@ -9178,20 +9171,25 @@ class Api_model extends CI_Model {
                     'discount_subhead_text'					=>	''
                 );
                 $applied_product_automated_marketing_details = array(
+                    'is_discount_applied'                   =>  '0',
                     'marketing_product_discount'			=>	'',
                     'discount_head_text'					=>	'',
                     'discount_subhead_text'					=>	''                  
                 );
                 $applied_giftcard_details = array(
+                    'is_discount_applied'       =>  '0',
                     'giftcard_id'               =>  '',
                     'giftcard_allocation_id'    =>  '',
                     'giftcard_name'             =>  '',
                     'giftcard_code'             =>  '',
                     'text_color'                =>  '',
                     'background_color'          =>  '',
-                    'discount_amount'           =>  ''
+                    'discount_amount'           =>  '',
+                    'discount_head_text'		=>	'',
+                    'discount_subhead_text'		=>	''
                 );
                 $applied_offer_details = array(
+                    'is_discount_applied'=>  '0',
                     'offer_id'          =>  '',
                     'offer_text'        =>  '',
                     'offer_name'        =>  '',
@@ -9199,15 +9197,21 @@ class Api_model extends CI_Model {
                     'discount_type'     =>  '',
                     'discount'          =>  '',
                     'services'          =>  '',
-                    'discount_amount'   =>  ''
+                    'discount_amount'   =>  '',
+                    'discount_head_text'		=>	'',
+                    'discount_subhead_text'		=>	''
                 );
                 $applied_coupon_details = array(
+                    'is_discount_applied'       =>  '0',
                     'coupon_id'         =>  '',
                     'coupon_name'       =>  '',
                     'coupon_code'       =>  '',
-                    'discount_amount'   =>  ''
+                    'discount_amount'   =>  '',
+                    'discount_head_text'		=>	'',
+                    'discount_subhead_text'		=>	''
                 );
                 $applied_membership_details = array(
+                    'is_discount_applied'       =>  '0',
                     'membership_id'     =>  '',
                     'name'              =>  '',
                     'discount_type'     =>  '',
@@ -9216,9 +9220,12 @@ class Api_model extends CI_Model {
                     'background_color'  =>  '',
                     'text_color'        =>  '',
                     'service_discount_amount'   =>  '',
-                    'product_discount_amount'   =>  ''
+                    'product_discount_amount'   =>  '',
+                    'discount_head_text'		=>	'',
+                    'discount_subhead_text'		=>	''
                 );
                 $applied_package_details = array(
+                    'is_discount_applied'       =>  '0',
                     'package_id'                =>  '',
                     'package_allocation_id'     =>  '',
                     'package_name'              =>  '',
@@ -9226,11 +9233,23 @@ class Api_model extends CI_Model {
                     'package_start'             =>  '',
                     'package_end'               =>  '',
                     'description'               =>  '',
-                    'image'                     =>  ''
+                    'image'                     =>  '',
+                    'discount_head_text'		=>	'',
+                    'discount_subhead_text'		=>	''
                 );                      
                 $applied_reward_details = array(
+                    'is_discount_applied'       =>  '0',
                     'reward_used'               =>  '',
-                    'discount_amount'           =>  ''
+                    'discount_amount'           =>  '',
+                    'discount_head_text'		=>	'',
+                    'discount_subhead_text'		=>	''
+                );                     
+                $applied_extra_discount_details = array(
+                    'is_discount_applied'       =>  '0',
+                    'extra_discount_in_per'     =>  '',
+                    'extra_discount_amount'     =>  '',
+                    'discount_head_text'		=>	'',
+                    'discount_subhead_text'		=>	''
                 );
 
                 $single_payment_details = $this->Salon_model->get_single_booking_payment_details($bookings_result->id,$bookings_result->booking_payment_id);
@@ -9243,6 +9262,7 @@ class Api_model extends CI_Model {
                     $m_product_discount = is_numeric($single_payment_details->m_product_discount_amount) ? floatval($single_payment_details->m_product_discount_amount) : 0;
                     $marketing_service_discount_amount = $single_payment_details->marketing_service_discount_amount != "" ? floatval($single_payment_details->marketing_service_discount_amount) : 0;
                     $marketing_product_discount_amount = $single_payment_details->marketing_product_discount_amount != "" ? floatval($single_payment_details->marketing_product_discount_amount) : 0;
+                    $extra_discount_amount = $single_payment_details->extra_discount_amount != "" ? floatval($single_payment_details->extra_discount_amount) : 0;
                     
                     $applied_giftcard_redemption = $single_payment_details->giftcard_redemption_id;
                     $this->db->select('tbl_booking_payment_entry.*,tbl_salon_customer.full_name,tbl_salon_customer.customer_phone, tbl_gift_card.gender, tbl_gift_card.gift_card_code, tbl_gift_card.gift_name, tbl_gift_card.discount, tbl_gift_card.discount_in, tbl_gift_card.regular_price, tbl_gift_card.gift_price, tbl_gift_card.bg_color_input, tbl_gift_card.bg_color, tbl_gift_card.text_color_input, tbl_gift_card.text_color, tbl_gift_card.min_booking_amt');
@@ -9259,13 +9279,27 @@ class Api_model extends CI_Model {
                     
                     if(!empty($applied_giftcards)){ 
                         $applied_giftcard_details = array(
+                            'is_discount_applied'       =>  '1',
                             'giftcard_id'               =>  $applied_giftcards->giftcard_id,
                             'giftcard_allocation_id'    =>  $applied_giftcards->id,
                             'giftcard_name'             =>  $applied_giftcards->gift_name,
                             'giftcard_code'             =>  $applied_giftcards->giftcard_customer_uid,
                             'text_color'                =>  $applied_giftcards->text_color,
                             'background_color'          =>  $applied_giftcards->bg_color,
-                            'discount_amount'           =>  $gift_discount
+                            'discount_amount'           =>  $gift_discount,
+                            'discount_head_text'		=>	$applied_giftcards->giftcard_customer_uid . ' Giftcard applied',
+                            'discount_subhead_text'		=>	'Flat Rs. ' . $gift_discount . ' off'
+                        
+                        );
+                    }
+                    
+                    if($extra_discount_amount > 0.00){
+                        $applied_extra_discount_details = array(
+                            'is_discount_applied'       =>  '1',
+                            'extra_discount_in_per'     =>  $single_payment_details->extra_discount_in_per,
+                            'extra_discount_amount'     =>  $extra_discount_amount,
+                            'discount_head_text'		=>	'Extra Discount Applied',
+                            'discount_subhead_text'		=>	'Rs. ' . $extra_discount_amount . ' off'
                         );
                     }
 
@@ -9307,13 +9341,14 @@ class Api_model extends CI_Model {
                         }
 
                         if($applied_offers->discount_in == '0'){
-                            $offer_text = $applied_offers->discount.'%';
+                            $offer_text = $applied_offers->discount . '% Off';
                         }elseif($applied_offers->discount_in == '1'){
-                            $offer_text = 'Flat Rs.'.$applied_offers->discount;
+                            $offer_text = 'Flat Rs.' . $applied_offers->discount . ' Off';
                         }else{
                             $offer_text = '';
                         }
                         $applied_offer_details = array(
+                            'is_discount_applied'       =>  '1',
                             'offer_id'          =>  $applied_offers->id,
                             'offer_text'        =>  $offer_text.' Off on '.$offer_services_text,
                             'offer_name'        =>  $applied_offers->offers_name,
@@ -9321,7 +9356,9 @@ class Api_model extends CI_Model {
                             'discount_type'     =>  $applied_offers->discount_in,
                             'discount'          =>  $applied_offers->discount,
                             'services'          =>  $services_array,
-                            'discount_amount'   =>  $offer_discount
+                            'discount_amount'   =>  $offer_discount,
+                            'discount_head_text'		=>	$applied_offers->offers_name . ' Offer applied.',
+                            'discount_subhead_text'		=>	$offer_text
                         );
                     }
 
@@ -9337,10 +9374,13 @@ class Api_model extends CI_Model {
                     
                     if(!empty($applied_coupons)){ 
                         $applied_coupon_details = array(
+                            'is_discount_applied'       =>  '1',
                             'coupon_id'         =>  $applied_coupons->id,
                             'coupon_name'       =>  $applied_coupons->coupon_name,
                             'coupon_code'       =>  $applied_coupons->coupan_code,
-                            'discount_amount'   =>  $coupon_discount
+                            'discount_amount'   =>  $coupon_discount,
+                            'discount_head_text'        =>  $applied_coupons->coupon_name . ' Coupon applied',
+                            'discount_subhead_text'     =>  'Flat Rs. ' . $coupon_discount . ' off'
                         );
                     }
 
@@ -9352,16 +9392,29 @@ class Api_model extends CI_Model {
                     $applied_membership = $this->db->get('tbl_customer_membership_history')->row();
                     
                     if(!empty($applied_membership)){
+                        $discount_subhead_text = null;
+                        $membership_discount_type = $applied_membership->discount_in;
+                        $membership_service_discount = $applied_membership->service_discount;
+                        $membership_product_discount = $applied_membership->product_discount;
+                        if($membership_discount_type == '0'){
+							$discount_subhead_text = $membership_service_discount . ' % off on all Services and ' . $membership_product_discount . ' % off on all Products';
+                        }elseif($membership_discount_type == '1'){
+							$discount_subhead_text = 'Flat Rs. ' . $membership_service_discount . ' off on all Services and Flat Rs. ' . $membership_product_discount . ' off on all Products';
+                        }
+
                         $applied_membership_details = array(
-                            'membership_id'     =>  $applied_membership->membership_id,
-                            'name'              =>  $applied_membership->membership_name,
-                            'discount_type'     =>  $applied_membership->discount_in,
-                            'service_discount'  =>  $applied_membership->service_discount,
-                            'product_discount'  =>  $applied_membership->product_discount,
-                            'background_color'  =>  $applied_membership->bg_color,
-                            'text_color'        =>  $applied_membership->text_color,
+                            'is_discount_applied'       =>  '1',
+                            'membership_id'             =>  $applied_membership->membership_id,
+                            'name'                      =>  $applied_membership->membership_name,
+                            'discount_type'             =>  $applied_membership->discount_in,
+                            'service_discount'          =>  $applied_membership->service_discount,
+                            'product_discount'          =>  $applied_membership->product_discount,
+                            'background_color'          =>  $applied_membership->bg_color,
+                            'text_color'                =>  $applied_membership->text_color,
                             'service_discount_amount'   =>  $m_service_discount,
-                            'product_discount_amount'   =>  $m_product_discount
+                            'product_discount_amount'   =>  $m_product_discount,
+                            'discount_head_text'		=>	$applied_membership->membership_name . ' Membership applied',
+                            'discount_subhead_text'		=>	$discount_subhead_text
                         );
                     }
 
@@ -9389,9 +9442,13 @@ class Api_model extends CI_Model {
                         );  
                     } 
                     
-                    $applied_reward_details = array(
+                    $applied_reward_details = array(                        
+                        'is_discount_applied'       =>  '1',
                         'reward_used'               =>  $single_payment_details->used_rewards,
-                        'discount_amount'           =>  $reward_discount
+                        'discount_amount'           =>  $reward_discount,
+                        'discount_head_text'        =>  $single_payment_details->used_rewards .' Rewards applied',
+                        'discount_subhead_text'     =>  'Flat Rs. ' . $reward_discount . ' off'
+                    
                     );
 
                     if($bookings_result->is_automated_service_discount_applied == '1'){
@@ -9416,6 +9473,7 @@ class Api_model extends CI_Model {
                         }
 
                         $applied_service_automated_marketing_details = array(
+                            'is_discount_applied'                   =>  '1',
                             'automated_discount_type'				=>	$bookings_result->automated_discount_type,
                             'marketing_service_discount'			=>	$bookings_result->marketing_service_discount,
                             'marketing_service_rewards'				=>	$bookings_result->marketing_service_rewards,
@@ -9434,6 +9492,7 @@ class Api_model extends CI_Model {
                         }
                         
                         $applied_product_automated_marketing_details = array(
+                            'is_discount_applied'                   =>  '1',
                             'marketing_product_discount'			=>	$bookings_result->marketing_product_discount,
                             'discount_head_text'					=>	$product_automated_discount_head_text,
                             'discount_subhead_text'					=>	$product_automated_discount_sub_head_text 
@@ -9450,7 +9509,26 @@ class Api_model extends CI_Model {
                     $total_service_price = is_numeric($single_payment_details->total_service_price) ? floatval($single_payment_details->total_service_price) : 0;
                     $package_amount = is_numeric($single_payment_details->package_amount) ? floatval($single_payment_details->package_amount) : 0;
                     $membership_payment_amount = $single_payment_details->is_membership_payment_included == '1' ? floatval($single_payment_details->membership_payment_amount) : 0;
-                }else{                   
+                   
+                    $total_discount = $coupon_discount + $offer_discount + $reward_discount + $gift_discount + $m_service_discount + $m_product_discount + $marketing_service_discount_amount + $marketing_product_discount_amount + $extra_discount_amount;
+
+                    $calculations = array(
+                                        'service_total'     => $total_service_price, 
+                                        'product_total'     => $total_product_price, 
+                                        'membership_price'  => $membership_payment_amount, 
+                                        'package_price'     => $package_amount, 
+                                        'total'             => $single_payment_details->payble_price, 
+                                        'total_discount'    => $total_discount,
+                                        'sub_total'         => $booking_amount,
+                                        'gst_amount'        => $gst_amount,
+                                        'grand_total'       => $amount_to_paid,
+                                        'gst_data'       	=> array(
+                                                                    'is_gst_applicable' =>  $single_payment_details->is_gst_applicable,
+                                                                    'gst_rate'          =>  $single_payment_details->salon_gst_rate,
+                                                                    'gst_no'            =>  $single_payment_details->salon_gst_no
+                                                                ),
+                                    );   
+                }else{     
                     $applied_giftcard_redemption = $bookings_result->giftcard_redemption_id;
                     $this->db->select('tbl_booking_payment_entry.*,tbl_salon_customer.full_name,tbl_salon_customer.customer_phone, tbl_gift_card.gender, tbl_gift_card.gift_card_code, tbl_gift_card.gift_name, tbl_gift_card.discount, tbl_gift_card.discount_in, tbl_gift_card.regular_price, tbl_gift_card.gift_price, tbl_gift_card.bg_color_input, tbl_gift_card.bg_color, tbl_gift_card.text_color_input, tbl_gift_card.text_color, tbl_gift_card.min_booking_amt');
                     $this->db->join('tbl_gift_card', 'tbl_gift_card.id = tbl_booking_payment_entry.giftcard_id');
@@ -9464,15 +9542,18 @@ class Api_model extends CI_Model {
                     $result = $this->db->get('tbl_booking_payment_entry');
                     $applied_giftcards = $result->row();
                     
-                    if(!empty($applied_giftcards)){ 
+                    if(!empty($applied_giftcards) && $bookings_result->is_giftcard_applied == '1'){ 
                         $applied_giftcard_details = array(
+                            'is_discount_applied'       =>  '1',
                             'giftcard_id'               =>  $applied_giftcards->giftcard_id,
                             'giftcard_allocation_id'    =>  $applied_giftcards->id,
                             'giftcard_name'             =>  $applied_giftcards->gift_name,
                             'giftcard_code'             =>  $applied_giftcards->giftcard_customer_uid,
                             'text_color'                =>  $applied_giftcards->text_color,
                             'background_color'          =>  $applied_giftcards->bg_color,
-                            'discount_amount'           =>  $bookings_result->gift_discount
+                            'discount_amount'           =>  $bookings_result->gift_discount,
+                            'discount_head_text'		=>	$applied_giftcards->giftcard_customer_uid . ' Giftcard applied',
+                            'discount_subhead_text'		=>	'Flat Rs. ' . $bookings_result->gift_discount . ' off'
                         );
                     }
 
@@ -9485,7 +9566,7 @@ class Api_model extends CI_Model {
                     $result = $this->db->get('tbl_offers');
                     $applied_offers = $result->row();
 
-                    if(!empty($applied_offers)){ 
+                    if(!empty($applied_offers) && $bookings_result->is_offer_booking == '1'){ 
                         $applied_offer_services = explode(',',$applied_offers->service_name);
                         $offer_services_text = '';
                         $services_array = [];
@@ -9514,21 +9595,24 @@ class Api_model extends CI_Model {
                         }
 
                         if($applied_offers->discount_in == '0'){
-                            $offer_text = $applied_offers->discount.'%';
+                            $offer_text = $applied_offers->discount . '% Off';
                         }elseif($applied_offers->discount_in == '1'){
-                            $offer_text = 'Flat Rs.'.$applied_offers->discount;
+                            $offer_text = 'Flat Rs.' . $applied_offers->discount . ' Off';
                         }else{
                             $offer_text = '';
                         }
                         $applied_offer_details = array(
-                            'offer_id'          =>  $applied_offers->id,
-                            'offer_text'        =>  $offer_text.' Off on '.$offer_services_text,
-                            'offer_name'        =>  $applied_offers->offers_name,
-                            'services_text'     =>  trim($offer_services_text,','),
-                            'discount_type'     =>  $applied_offers->discount_in,
-                            'discount'          =>  $applied_offers->discount,
-                            'services'          =>  $services_array,
-                            'discount_amount'   =>  $bookings_result->offer_discount_amount
+                            'is_discount_applied'       =>  '1',
+                            'offer_id'                  =>  $applied_offers->id,
+                            'offer_text'                =>  $offer_text.' Off on '.$offer_services_text,
+                            'offer_name'                =>  $applied_offers->offers_name,
+                            'services_text'             =>  trim($offer_services_text,','),
+                            'discount_type'             =>  $applied_offers->discount_in,
+                            'discount'                  =>  $applied_offers->discount,
+                            'services'                  =>  $services_array,
+                            'discount_amount'           =>  $bookings_result->offer_discount_amount,
+                            'discount_head_text'		=>	$applied_offers->offers_name . ' Offer applied.',
+                            'discount_subhead_text'		=>	$offer_text
                         );
                     }
 
@@ -9544,10 +9628,13 @@ class Api_model extends CI_Model {
                     
                     if(!empty($applied_coupons)){ 
                         $applied_coupon_details = array(
-                            'coupon_id'         =>  $applied_coupons->id,
-                            'coupon_name'       =>  $applied_coupons->coupon_name,
-                            'coupon_code'       =>  $applied_coupons->coupan_code,
-                            'discount_amount'   =>  $bookings_result->coupon_discount_amount
+                            'is_discount_applied'       =>  '1',
+                            'coupon_id'                 =>  $applied_coupons->id,
+                            'coupon_name'               =>  $applied_coupons->coupon_name,
+                            'coupon_code'               =>  $applied_coupons->coupan_code,
+                            'discount_amount'           =>  $bookings_result->coupon_discount_amount,
+                            'discount_head_text'        =>  $applied_coupons->coupon_name . ' Coupon applied',
+                            'discount_subhead_text'     =>  'Flat Rs. ' . $bookings_result->coupon_discount_amount . ' off'
                         );
                     }
 
@@ -9557,16 +9644,29 @@ class Api_model extends CI_Model {
                     $applied_membership = $this->db->get('tbl_memebership')->row();
                     
                     if(!empty($applied_membership)){
+                        $discount_subhead_text = null;
+                        $membership_discount_type = $applied_membership->discount_in;
+                        $membership_service_discount = $applied_membership->m_service_discount;
+                        $membership_product_discount = $applied_membership->m_product_discount;
+                        if($membership_discount_type == '0'){
+							$discount_subhead_text = $membership_service_discount . ' % off on all Services and ' . $membership_product_discount . ' % off on all Products';
+                        }elseif($membership_discount_type == '1'){
+							$discount_subhead_text = 'Flat Rs. ' . $membership_service_discount . ' off on all Services and Flat Rs. ' . $membership_product_discount . ' off on all Products';
+                        }
+
                         $applied_membership_details = array(
-                            'membership_id'     =>  $applied_membership->id,
-                            'name'              =>  $applied_membership->membership_name,
-                            'discount_type'     =>  $applied_membership->discount_in,
-                            'service_discount'  =>  $bookings_result->m_service_discount,
-                            'product_discount'  =>  $bookings_result->m_product_discount,
-                            'background_color'  =>  $applied_membership->bg_color,
-                            'text_color'        =>  $applied_membership->text_color,
+                            'is_discount_applied'       =>  '1',
+                            'membership_id'             =>  $applied_membership->id,
+                            'name'                      =>  $applied_membership->membership_name,
+                            'discount_type'             =>  $applied_membership->discount_in,
+                            'service_discount'          =>  $bookings_result->m_service_discount,
+                            'product_discount'          =>  $bookings_result->m_product_discount,
+                            'background_color'          =>  $applied_membership->bg_color,
+                            'text_color'                =>  $applied_membership->text_color,
                             'service_discount_amount'   =>  $bookings_result->m_service_discount_amount,
-                            'product_discount_amount'   =>  $bookings_result->m_product_discount_amount
+                            'product_discount_amount'   =>  $bookings_result->m_product_discount_amount,
+                            'discount_head_text'		=>	$applied_membership->membership_name . ' Membership applied',
+                            'discount_subhead_text'		=>	$discount_subhead_text
                         );
                     }
 
@@ -9594,10 +9694,15 @@ class Api_model extends CI_Model {
                         );  
                     } 
                     
-                    $applied_reward_details = array(
-                        'reward_used'               =>  $bookings_result->used_rewards,
-                        'discount_amount'           =>  $bookings_result->reward_discount_amount
-                    );
+                    if($bookings_result->is_reward_applied == '1'){
+                        $applied_reward_details = array(
+                            'is_discount_applied'       =>  '1',
+                            'reward_used'               =>  $bookings_result->used_rewards,
+                            'discount_amount'           =>  $bookings_result->reward_discount_amount,
+                            'discount_head_text'        =>  $bookings_result->used_rewards .' Rewards applied',
+                            'discount_subhead_text'     =>  'Flat Rs. ' . $bookings_result->reward_discount_amount . ' off'
+                        );
+                    }
 
                     if($bookings_result->is_automated_service_discount_applied == '1'){
                         if($bookings_result->marketing_service_discount_customer_criteria == '0'){
@@ -9621,6 +9726,7 @@ class Api_model extends CI_Model {
                         }
 
                         $applied_service_automated_marketing_details = array(
+                            'is_discount_applied'                   =>  '1',
                             'automated_discount_type'				=>	$bookings_result->automated_discount_type,
                             'marketing_service_discount'			=>	$bookings_result->marketing_service_discount,
                             'marketing_service_rewards'				=>	$bookings_result->marketing_service_rewards,
@@ -9639,6 +9745,7 @@ class Api_model extends CI_Model {
                         }
                         
                         $applied_product_automated_marketing_details = array(
+                            'is_discount_applied'                   =>  '1',
                             'marketing_product_discount'			=>	$bookings_result->marketing_product_discount,
                             'discount_head_text'					=>	$product_automated_discount_head_text,
                             'discount_subhead_text'					=>	$product_automated_discount_sub_head_text 
@@ -9653,7 +9760,8 @@ class Api_model extends CI_Model {
                     $m_product_discount = is_numeric($bookings_result->m_product_discount_amount) ? floatval($bookings_result->m_product_discount_amount) : 0;
                     $marketing_service_discount_amount = is_numeric($bookings_result->marketing_service_discount) ? floatval($bookings_result->marketing_service_discount) : 0;
                     $marketing_product_discount_amount = is_numeric($bookings_result->marketing_product_discount) ? floatval($bookings_result->marketing_product_discount) : 0;
-                    
+                    $extra_discount_amount = 0.00;
+
                     $booking_amount = is_numeric($bookings_result->booking_amount) ? floatval($bookings_result->booking_amount) : 0;
                     $salon_gst_rate = is_numeric($bookings_result->salon_gst_rate) ? floatval($bookings_result->salon_gst_rate) : 0;
                     $gst_amount = is_numeric($bookings_result->gst_amount) ? floatval($bookings_result->gst_amount) : 0;
@@ -9663,19 +9771,37 @@ class Api_model extends CI_Model {
                     $total_service_price = is_numeric($bookings_result->total_service_price) ? floatval($bookings_result->total_service_price) : 0;
                     $package_amount = is_numeric($bookings_result->package_amount) ? floatval($bookings_result->package_amount) : 0;
                     $membership_payment_amount = $bookings_result->is_membership_payment_included == '1' ? floatval($bookings_result->membership_amount) : 0;
+                                   
+                    $calculations = array(
+                                        'service_total'     => $total_service_price, 
+                                        'product_total'     => $total_product_price, 
+                                        'membership_price'  => $membership_payment_amount, 
+                                        'package_price'     => $package_amount, 
+                                        'total'             => $bookings_result->payble_price, 
+                                        'total_discount'    => $bookings_result->total_discount_amount,
+                                        'sub_total'         => $booking_amount,
+                                        'gst_amount'        => $gst_amount,
+                                        'grand_total'       => $amount_to_paid,
+                                        'gst_data'       	=> array(
+                                                                    'is_gst_applicable' =>  $bookings_result->is_gst_applicable,
+                                                                    'gst_rate'          =>  $bookings_result->gst_rate,
+                                                                    'gst_no'            =>  $bookings_result->gst_no
+                                                                ),
+                                    );    
+                                    
+                    $total_discount = $coupon_discount + $offer_discount + $reward_discount + $gift_discount + $m_service_discount + $m_product_discount + $marketing_service_discount_amount + $marketing_product_discount_amount + $extra_discount_amount;
                 }
-
-                $total_discount = $coupon_discount + $offer_discount + $reward_discount + $gift_discount + $m_service_discount + $m_product_discount + $marketing_service_discount_amount + $marketing_product_discount_amount;
 
                 $discount_details = array(
                     'mem_service_discount'  =>  $m_service_discount,
                     'mem_product_discount'  =>  $m_product_discount,
-                    'marketing_service_discount_amount'  =>  $marketing_service_discount_amount,
-                    'marketing_product_discount_amount'  =>  $marketing_product_discount_amount,
                     'gift_discount'         =>  $gift_discount,
                     'offer_discount'        =>  $offer_discount,
                     'reward_discount'       =>  $reward_discount,
                     'coupon_discount'       =>  $coupon_discount,
+                    'extra_discount_amount' =>  $extra_discount_amount,
+                    'marketing_service_discount_amount'  =>  $marketing_service_discount_amount,
+                    'marketing_product_discount_amount'  =>  $marketing_product_discount_amount,
                     'total_discount'        =>  $total_discount
                 );
                 
@@ -9726,6 +9852,8 @@ class Api_model extends CI_Model {
                     'applied_giftcard_details'      =>  $applied_giftcard_details,
                     'applied_service_automated_marketing_details'      =>  $applied_service_automated_marketing_details,
                     'applied_product_automated_marketing_details'      =>  $applied_product_automated_marketing_details,
+                    'applied_extra_discount_details'=>  $applied_extra_discount_details,
+                    'calculations'                  =>  $calculations,
 
                     'total_product_price'           =>  number_format($total_product_price, 2, '.', ''),
                     'total_service_price'           =>  number_format($total_service_price, 2, '.', ''),
