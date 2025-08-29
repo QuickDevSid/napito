@@ -994,10 +994,34 @@ class Common_model extends CI_Model {
 		return $membership_data;
 	}
 
+	public function find_offer_automatically($gender, $branch_id, $salon_id, $service_ids){
+		$this->db->where('is_deleted','0');
+		$this->db->where('status','1');
+		$this->db->where('validity_status','1');
+		$this->db->where('gender',$gender);
+		$this->db->where('branch_id', $branch_id);
+		$this->db->where('salon_id', $salon_id);
+		$offers_data = $this->db->get('tbl_offers')->result();
+
+		if(!empty($offers_data)){
+			foreach($offers_data as $result){
+				$offer_services = $result->service_name != "" ? explode(',', $result->service_name) : [];
+
+				if(!empty($offer_services) && !array_diff($offer_services, $service_ids)){
+					return $result->id;
+				}
+			}
+		}
+
+		return null;
+	}
+
 	public function apply_offer($customer_id, $gender, $service_ids, $services_data, $branch_id, $salon_id, $applied_offer_id){
 		$total_offer_discount = 0;
 		$offers_data = array();  
 		$is_final_offer_applied = '0';
+		
+		$applied_offer_id = $applied_offer_id != "" && $applied_offer_id != null ? $applied_offer_id : $this->find_offer_automatically($gender, $branch_id, $salon_id, $service_ids);
 
 		$this->db->where('is_deleted','0');
 		$this->db->where('status','1');
@@ -1091,7 +1115,7 @@ class Common_model extends CI_Model {
 				'service_offer_discount_type' 	=>  $is_final_offer_applied == '1' ? $service_offer_discount_type : 0,
 				'offer_services_data'   =>  $offer_services_data
 			);    
-		} 
+		}
 
 		return $offers_data;
 	}
