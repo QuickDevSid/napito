@@ -16953,7 +16953,19 @@ public function get_student_courses($id)
                 $this->db->where('branch_id',$customer->branch_id);
                 $this->db->where('salon_id',$customer->salon_id);
                 $this->db->where('marketing_type','3');
-                $discount_row = $this->db->get('tbl_automated_marketing')->row();
+                $discount_row = $this->db->get('tbl_automated_marketing')->row();                
+
+                $this->db->where('is_deleted','0');
+                $this->db->where('is_automated_service_discount_applied','1');
+                $this->db->where('tbl_new_booking.booking_status', '5');
+                $this->db->where('branch_id',$customer->branch_id);
+                $this->db->where('salon_id',$customer->salon_id);
+                $this->db->where('marketing_service_discount_customer_criteria','3');
+                $exist = $this->db->get('tbl_new_booking')->result();
+                if(!empty($exist)){
+                    $customer_criteria = '';
+                    $discount_row = array();
+                }
             }
 
             if(empty($discount_row) && date('m-d') === date('m-d', strtotime($customer->doa))){
@@ -16964,7 +16976,19 @@ public function get_student_courses($id)
                 $this->db->where('branch_id',$customer->branch_id);
                 $this->db->where('salon_id',$customer->salon_id);
                 $this->db->where('marketing_type','4');
-                $discount_row = $this->db->get('tbl_automated_marketing')->row();
+                $discount_row = $this->db->get('tbl_automated_marketing')->row();               
+
+                $this->db->where('is_deleted','0');
+                $this->db->where('is_automated_service_discount_applied','1');
+                $this->db->where('tbl_new_booking.booking_status', '5');
+                $this->db->where('branch_id',$customer->branch_id);
+                $this->db->where('salon_id',$customer->salon_id);
+                $this->db->where('marketing_service_discount_customer_criteria','4');
+                $exist = $this->db->get('tbl_new_booking')->result();
+                if(!empty($exist)){
+                    $customer_criteria = '';
+                    $discount_row = array();
+                }
             }
             
             if(empty($discount_row)){                

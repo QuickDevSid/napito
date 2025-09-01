@@ -445,6 +445,8 @@ class Calendar_model extends CI_Model{
         $selected_to = date('Y-m-d H:i:s', strtotime($selected_to));
 
         $current_datetime = date('Y-m-d H:i:s');
+                                    // echo '<pre>selected_from: '; print_r($selected_from);
+                                    // echo '<pre>current_datetime: '; print_r($current_datetime); exit;
         if ($selected_from < $current_datetime) {
             return false;
         }

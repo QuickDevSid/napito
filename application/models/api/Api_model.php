@@ -147,7 +147,7 @@ class Api_model extends CI_Model {
         
         $response = curl_exec($curl);
         $data = json_decode($response, true);
-        if($data['status'] == 'Success'){
+        if(!empty($data) && isset($data['status']) && $data['status'] == 'Success'){
             $this->Salon_model->set_message_log($customer,'0',$type,$number,'',$message,$data['status'],$salon_id,$branch_id,$response,$for_order_id,$for_offer_id,$for_query_id,$template_id,'',$consent_form_id,'','','','',[],'');
             return true;
         }else{
@@ -4899,6 +4899,7 @@ class Api_model extends CI_Model {
                                 $valid_booking_short_breakwise = $this->Salon_model->validate_booking_short_breakwise($services,$branch_id,$salon_id);
                                 if($valid_booking_short_breakwise == 1){
                                     $valid_booking = $this->Salon_model->validate_booking($services,$branch_id,$salon_id);
+                                    // echo $valid_booking; exit;
                                     // $valid_booking = 1 ;
                                     if($valid_booking == 1){
                                         $this->db->insert('tbl_new_booking', $booking_data);
@@ -10297,28 +10298,61 @@ class Api_model extends CI_Model {
 
                             $validity_text = '';
                             if (!empty($offers_result->offer_ends)) {
-                                $today = new DateTime();
-                                $offer_ends = new DateTime($offers_result->offer_ends);
-                                $interval = $today->diff($offer_ends);
-                                $days_left = (int)$interval->format('%r%a');
+                                // Use your app's timezone; change if needed
+                                $tz = new DateTimeZone('Asia/Kolkata');
 
-                                if ($days_left < 0) {
+                                // Start of today (so time of day doesn't reduce the count)
+                                $today = new DateTime('today', $tz);
+
+                                // End of the offer_ends day (inclusive till the end of that day)
+                                $offer_ends_dt = new DateTime($offers_result->offer_ends, $tz);
+                                $offer_ends_dt->setTime(23, 59, 59);
+
+                                $raw_days = (int)$today->diff($offer_ends_dt)->format('%r%a'); // signed whole days
+
+                                if ($raw_days < 0) {
                                     $validity_text = 'Offer expired';
-                                } elseif ($days_left == 0) {
-                                    $validity_text = 'Offer valid till today';
-                                } elseif ($days_left < 7) {
-                                    $validity_text = 'Offer valid for ' . $days_left . ' day' . ($days_left > 1 ? 's' : '');
                                 } else {
-                                    $weeks_left = floor($days_left / 7);
-                                    $validity_text = 'Offer valid for ' . $weeks_left . ' week' . ($weeks_left > 1 ? 's' : '');
+                                    // Inclusive count (includes today)
+                                    $days_left = $raw_days + 1;
+
+                                    if ($days_left == 1) {
+                                        $validity_text = 'Offer valid till today';
+                                    } elseif ($days_left < 7) {
+                                        $validity_text = 'Offer valid for ' . $days_left . ' day' . ($days_left > 1 ? 's' : '');
+                                    } else {
+                                        $weeks_left = (int) floor($days_left / 7); // keep your original week logic
+                                        $validity_text = 'Offer valid for ' . $weeks_left . ' week' . ($weeks_left > 1 ? 's' : '');
+                                    }
                                 }
                             } else {
-                                if ($offers_result->duration > 1) {
-                                    $validity_text = 'Offer valid for ' . $offers_result->duration . ' weeks';
-                                } else {
-                                    $validity_text = 'Offer valid for ' . $offers_result->duration . ' week';
-                                }
+                                // Fallback when only duration (in weeks) is present
+                                $validity_text = 'Offer valid for ' . $offers_result->duration . ' week' . ($offers_result->duration > 1 ? 's' : '');
                             }
+
+                            // if (!empty($offers_result->offer_ends)) {
+                            //     $today = new DateTime();
+                            //     $offer_ends = new DateTime($offers_result->offer_ends);
+                            //     $interval = $today->diff($offer_ends);
+                            //     $days_left = (int)$interval->format('%r%a');
+
+                            //     if ($days_left < 0) {
+                            //         $validity_text = 'Offer expired';
+                            //     } elseif ($days_left == 0) {
+                            //         $validity_text = 'Offer valid till today';
+                            //     } elseif ($days_left < 7) {
+                            //         $validity_text = 'Offer valid for ' . $days_left . ' day' . ($days_left > 1 ? 's' : '');
+                            //     } else {
+                            //         $weeks_left = floor($days_left / 7);
+                            //         $validity_text = 'Offer valid for ' . $weeks_left . ' week' . ($weeks_left > 1 ? 's' : '');
+                            //     }
+                            // } else {
+                            //     if ($offers_result->duration > 1) {
+                            //         $validity_text = 'Offer valid for ' . $offers_result->duration . ' weeks';
+                            //     } else {
+                            //         $validity_text = 'Offer valid for ' . $offers_result->duration . ' week';
+                            //     }
+                            // }
 
                             $data[] = array(
                                 'offer_id'          =>  $offers_result->id,
