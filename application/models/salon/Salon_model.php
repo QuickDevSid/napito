@@ -15989,6 +15989,7 @@ public function get_student_courses($id)
         return $result;
     }    
     public function get_customer_first_booking($id){
+        $this->db->where('booking_status', '5');
         $this->db->where('is_deleted', '0');
         $this->db->where('customer_name', $id);
         $this->db->where('branch_id', $this->session->userdata('branch_id'));
