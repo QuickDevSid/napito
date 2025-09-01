@@ -15982,7 +15982,7 @@ public function get_student_courses($id)
         $this->db->join('tbl_new_booking', 'tbl_new_booking.id = tbl_booking_services_details.booking_id');
         $this->db->where('tbl_booking_services_details.customer_name', $id);
         $this->db->where('tbl_booking_services_details.is_deleted', '0');
-        $this->db->where('tbl_new_booking.payment_status', '1');
+        $this->db->where('tbl_new_booking.booking_status', '5');
         $this->db->order_by('tbl_booking_services_details.id', 'desc');
         $this->db->group_by('tbl_booking_services_details.booking_id');
         $result = $this->db->get('tbl_booking_services_details')->result();
@@ -16015,6 +16015,7 @@ public function get_student_courses($id)
             $branch_id = $this->session->userdata('branch_id');
         }
 
+        $this->db->where('booking_status', '5');
         $this->db->where('is_deleted', '0');
         $this->db->where('customer_name', $id);
         $this->db->where('branch_id', $branch_id);
