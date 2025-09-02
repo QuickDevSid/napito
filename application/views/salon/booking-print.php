@@ -188,6 +188,8 @@
       $package_amount = is_numeric($single_payment_details->package_amount) ? floatval($single_payment_details->package_amount) : 0;
       $membership_payment_amount = $single_payment_details->is_membership_payment_included == '1' ? floatval($single_payment_details->membership_payment_amount) : 0;
 
+      $service_automated_discount_head_text = '';
+      $product_automated_discount_head_text = '';
       if($single->is_automated_service_discount_applied == '1'){
           if($single->marketing_service_discount_customer_criteria == '0'){
               $service_automated_discount_head_text = 'New Client Benefits';

@@ -36731,6 +36731,8 @@ public function get_all_assigned_payments(){
     $this->db->join('tbl_memebership', 'tbl_customer_membership_history.membership_id = tbl_memebership.id','left');
     $this->db->join('tbl_package', 'tbl_customer_package_allocations.package_id = tbl_package.id','left');
     $this->db->join('tbl_gift_card', 'tbl_booking_payment_entry.giftcard_id = tbl_gift_card.id','left');
+    $this->db->where('tbl_booking_payment_entry.salon_id', $this->session->userdata('salon_id'));
+    $this->db->where('tbl_booking_payment_entry.branch_id', $this->session->userdata('branch_id'));
     $this->db->where('tbl_booking_payment_entry.is_deleted', '0');
     $this->db->where_in('tbl_booking_payment_entry.type', ['1','4','3']);
     if(isset($_GET['type']) && $_GET['type'] != ""){
